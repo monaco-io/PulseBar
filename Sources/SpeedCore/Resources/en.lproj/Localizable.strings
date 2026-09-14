@@ -60,3 +60,13 @@
 "diskCounters" = "disk I/O counters";
 "diskIdentity" = "disk identity";
 "noDisks" = "disk I/O (no available devices)";
+
+"settings" = "Settings";
+"settingsExpanded" = "Expanded";
+"settingsCollapsed" = "Collapsed";
+"menuBarItems" = "Show in menu bar";
+"launchAtLogin" = "Launch at login";
+"launchAtLoginHelp" = "Automatically open PulseBar when you log in to your Mac.";
+"loginApprovalRequired" = "Waiting for permission in System Settings. Automatic launch is not active yet.";
+"openLoginSettings" = "Open Login Items…";
+"loginItemFailed" = "Could not update launch at login: %@";

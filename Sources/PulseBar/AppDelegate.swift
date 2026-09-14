@@ -6,8 +6,10 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private let monitor = SystemMonitor()
     private let preferences = AppPreferences()
+    private let loginItem = LoginItemController()
+    private let presentation = PopoverPresentation()
     private var statusItem: NSStatusItem!
-    private let popover = NSPopover()
+    private var popover = NSPopover()
     private var subscriptions = Set<AnyCancellable>()
     private var popoverClickMonitor: Any?
 
@@ -21,10 +23,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             button.imagePosition = .imageOnly
             button.imageScaling = .scaleNone
         }
-        popover.behavior = .transient
-        popover.animates = false
-        popover.delegate = self
-        popover.contentViewController = NSHostingController(rootView: PopoverView(monitor: monitor, preferences: preferences))
+        presentation.$showsSettings.dropFirst().removeDuplicates()
+            .sink { [weak self] _ in
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, self.popover.isShown else { return }
+                    self.showPopover(preservingSettings: true)
+                }
+            }
+            .store(in: &subscriptions)
+        NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+            .sink { [weak self] _ in self?.loginItem.refresh() }
+            .store(in: &subscriptions)
 
         Publishers.CombineLatest3(monitor.$rate, monitor.$networkError, monitor.$resources)
             .combineLatest(preferences.$selection, preferences.$language, preferences.$historySeconds)
@@ -54,13 +63,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         if popover.isShown { popover.performClose(nil) } else { showPopover() }
     }
 
-    private func showPopover() {
+    private func showPopover(preservingSettings: Bool = false) {
         guard let button = statusItem?.button else { return }
+        loginItem.refresh()
         // Reopening a visible panel only needs to focus its existing window.
-        if popover.isShown {
+        if popover.isShown && !preservingSettings {
             popover.contentViewController?.view.window?.makeKey()
             return
         }
+        if !preservingSettings {
+            presentation.prepare(on: button.window?.screen ?? NSScreen.main ?? NSScreen.screens.first)
+        }
+        // Start each width with a freshly positioned popover. Resizing a visible
+        // status-item popover can shift it above the screen's menu-bar boundary.
+        popover.contentViewController?.view.window?.makeFirstResponder(nil)
+        popover.delegate = nil
+        popover.close()
+        removePopoverClickMonitor()
+        popover = NSPopover()
+        popover.behavior = .transient
+        popover.animates = false
+        popover.delegate = self
+        let controller = NSHostingController(rootView: PopoverView(
+            monitor: monitor, preferences: preferences, loginItem: loginItem, presentation: presentation
+        ))
+        controller.sizingOptions = []
+        popover.contentViewController = controller
+        popover.contentSize = presentation.contentSize
         NSApplication.shared.activate(ignoringOtherApps: true)
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         if let window = popover.contentViewController?.view.window {
@@ -83,13 +112,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     func popoverWillClose(_ notification: Notification) {
+        guard notification.object as? NSPopover === popover else { return }
         popover.contentViewController?.view.window?.makeFirstResponder(nil)
     }
 
     func popoverDidClose(_ notification: Notification) {
+        guard notification.object as? NSPopover === popover else { return }
+        presentation.showsSettings = false
+        removePopoverClickMonitor()
+        statusItem.button?.highlight(false)
+    }
+
+    private func removePopoverClickMonitor() {
         if let popoverClickMonitor { NSEvent.removeMonitor(popoverClickMonitor) }
         popoverClickMonitor = nil
-        statusItem.button?.highlight(false)
     }
 
     private func updateStatus(_ rate: TrafficRate, error: Error?, resources: ResourceState,
@@ -105,6 +141,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                                        download: down, upload: up, selection: selection)
         if statusItem.length != image.size.width + 12 { statusItem.length = image.size.width + 12 }
         button.image = image
+        if popover.isShown { popover.positioningRect = button.bounds }
         var values: [String] = []
         var errors: [Error?] = []
         for metric in selection.orderedMetrics {

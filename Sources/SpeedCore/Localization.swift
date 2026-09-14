@@ -32,6 +32,8 @@ public enum TextKey: String, CaseIterable {
     case sessionIO, sessionTraffic, interfaces, noInterfaces, secondsAgo, now, chartLimit
     case historyHint, historyWindow, historyHelp, durationSeconds, durationMinutes, durationHours
     case reset, resetHelp, quit, language, followSystem
+    case settings, settingsExpanded, settingsCollapsed, menuBarItems
+    case launchAtLogin, launchAtLoginHelp, loginApprovalRequired, openLoginSettings, loginItemFailed
     case visibilityHint, showInMenuBar, atLeastOne, refresh, secondsUnit, hoursUnit, refreshHelp
     case menuAccessibility, menuHint, namedValue, diskRead, diskWrite, listSeparator
     case readFailed, networkReadFailed, memoryPageSize, diskCounters, diskIdentity, noDisks

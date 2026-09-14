@@ -60,3 +60,13 @@
 "diskCounters" = "磁盘 I/O 计数";
 "diskIdentity" = "磁盘标识";
 "noDisks" = "磁盘 I/O（没有可用设备）";
+
+"settings" = "设置";
+"settingsExpanded" = "已展开";
+"settingsCollapsed" = "已折叠";
+"menuBarItems" = "菜单栏显示";
+"launchAtLogin" = "开机启动";
+"launchAtLoginHelp" = "登录 Mac 时自动打开脉动。";
+"loginApprovalRequired" = "等待在系统设置中允许，自动启动尚未生效。";
+"openLoginSettings" = "打开登录项设置…";
+"loginItemFailed" = "无法更改开机启动：%@";
