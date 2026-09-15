@@ -3,13 +3,17 @@ import Combine
 import SpeedCore
 import SwiftUI
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate {
     private let monitor = SystemMonitor()
     private let preferences = AppPreferences()
     private let loginItem = LoginItemController()
     private let presentation = PopoverPresentation()
+    private let eventNotifications = EventNotifications()
     private var statusItem: NSStatusItem!
-    private var popover = NSPopover()
+    private var panel: MonitorPanel?
+    private var anchorFrame: NSRect?
+    private var availableFrame: NSRect?
+    private var globalClickMonitor: Any?
     private var subscriptions = Set<AnyCancellable>()
     private var popoverClickMonitor: Any?
 
@@ -23,16 +27,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             button.imagePosition = .imageOnly
             button.imageScaling = .scaleNone
         }
-        presentation.$showsSettings.dropFirst().removeDuplicates()
+        presentation.$showsSettings.combineLatest(presentation.$insight)
+            .map { settings, insight in settings ? 661 : (insight == nil ? 400 : 741) }
+            .removeDuplicates().dropFirst()
             .sink { [weak self] _ in
-                DispatchQueue.main.async { [weak self] in
-                    guard let self, self.popover.isShown else { return }
-                    self.showPopover(preservingSettings: true)
-                }
+                DispatchQueue.main.async { [weak self] in self?.resizePanel() }
             }
             .store(in: &subscriptions)
         NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
-            .sink { [weak self] _ in self?.loginItem.refresh() }
+            .sink { [weak self] _ in self?.loginItem.refresh(); self?.eventNotifications.refresh() }
+            .store(in: &subscriptions)
+
+        NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
+            .sink { [weak self] _ in self?.closePanel() }
             .store(in: &subscriptions)
 
         Publishers.CombineLatest3(monitor.$rate, monitor.$networkError, monitor.$resources)
@@ -45,6 +52,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         preferences.$refreshSeconds.dropFirst().removeDuplicates()
             .sink { [weak self] seconds in self?.monitor.setRefreshInterval(seconds) }
             .store(in: &subscriptions)
+        monitor.onEvent = { [weak self] event in
+            guard let self else { return }
+            self.eventNotifications.send(event, preferences: self.preferences)
+        }
+        eventNotifications.onOpenEvent = { [weak self] in
+            self?.showPopover()
+            self?.presentation.showsSettings = false
+            self?.presentation.insight = .events
+        }
         monitor.start(refreshSeconds: preferences.refreshSeconds)
 
         if CommandLine.arguments.contains("--show") {
@@ -60,72 +76,95 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     func applicationWillTerminate(_ notification: Notification) { monitor.stop() }
 
     @objc private func togglePopover() {
-        if popover.isShown { popover.performClose(nil) } else { showPopover() }
+        if panel?.isVisible == true { closePanel() } else { showPopover() }
     }
 
-    private func showPopover(preservingSettings: Bool = false) {
-        guard let button = statusItem?.button else { return }
+    private func showPopover() {
+        guard let button = statusItem?.button, let statusWindow = button.window,
+              let screen = statusWindow.screen else { return }
         loginItem.refresh()
-        // Reopening a visible panel only needs to focus its existing window.
-        if popover.isShown && !preservingSettings {
-            popover.contentViewController?.view.window?.makeKey()
-            return
+        if panel?.isVisible == true { panel?.makeKeyAndOrderFront(nil); return }
+        // Capture the menu-bar anchor once. Live status text can change its width.
+        anchorFrame = statusWindow.convertToScreen(button.convert(button.bounds, to: nil))
+        availableFrame = screen.visibleFrame
+        presentation.prepare(on: screen)
+        if panel == nil {
+            let window = MonitorPanel(contentRect: .zero, styleMask: [.borderless], backing: .buffered, defer: false)
+            window.title = "PulseBar"
+            window.isReleasedWhenClosed = false
+            window.level = .popUpMenu
+            window.isMovable = false
+            window.isMovableByWindowBackground = false
+            window.hidesOnDeactivate = false
+            window.hasShadow = true
+            window.isOpaque = false
+            window.backgroundColor = .clear
+            window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+            let controller = NSHostingController(rootView: PopoverView(
+                monitor: monitor, preferences: preferences, loginItem: loginItem,
+                presentation: presentation, eventNotifications: eventNotifications
+            ).background(.regularMaterial).clipShape(RoundedRectangle(cornerRadius: 12)))
+            controller.sizingOptions = []
+            window.contentViewController = controller
+            panel = window
         }
-        if !preservingSettings {
-            presentation.prepare(on: button.window?.screen ?? NSScreen.main ?? NSScreen.screens.first)
-        }
-        // Start each width with a freshly positioned popover. Resizing a visible
-        // status-item popover can shift it above the screen's menu-bar boundary.
-        popover.contentViewController?.view.window?.makeFirstResponder(nil)
-        popover.delegate = nil
-        popover.close()
-        removePopoverClickMonitor()
-        popover = NSPopover()
-        popover.behavior = .transient
-        popover.animates = false
-        popover.delegate = self
-        let controller = NSHostingController(rootView: PopoverView(
-            monitor: monitor, preferences: preferences, loginItem: loginItem, presentation: presentation
-        ))
-        controller.sizingOptions = []
-        popover.contentViewController = controller
-        popover.contentSize = presentation.contentSize
+        resizePanel(force: true)
         NSApplication.shared.activate(ignoringOtherApps: true)
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-        if let window = popover.contentViewController?.view.window {
-            window.makeKey()
-            // A monitoring panel should open without automatically editing a setting.
-            window.makeFirstResponder(nil)
-        }
-        popoverClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
-            guard let window = self?.popover.contentViewController?.view.window,
-                  event.window === window,
-                  let editor = window.firstResponder as? NSTextView, editor.isFieldEditor,
-                  let field = editor.delegate as? NSTextField else { return event }
-            // Finish editing before delivering an outside click to its normal control.
-            if !field.bounds.contains(field.convert(event.locationInWindow, from: nil)) {
-                window.makeFirstResponder(nil)
+        panel?.makeKeyAndOrderFront(nil)
+        panel?.makeFirstResponder(nil)
+        button.highlight(true)
+        popoverClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { [weak self] event in
+            guard let self, let window = self.panel, window.isVisible else { return event }
+            if event.type == .keyDown {
+                if event.keyCode == 53 { self.closePanel(); return nil }
+                return event
+            }
+            if event.window === window {
+                if let editor = window.firstResponder as? NSTextView, editor.isFieldEditor,
+                   let field = editor.delegate as? NSTextField,
+                   !field.bounds.contains(field.convert(event.locationInWindow, from: nil)) {
+                    window.makeFirstResponder(nil)
+                }
+            } else if event.window !== self.statusItem.button?.window {
+                self.closePanel()
             }
             return event
         }
-        button.highlight(true)
+        globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            self?.closePanel()
+        }
     }
 
-    func popoverWillClose(_ notification: Notification) {
-        guard notification.object as? NSPopover === popover else { return }
-        popover.contentViewController?.view.window?.makeFirstResponder(nil)
+    private func resizePanel(force: Bool = false) {
+        guard let panel, force || panel.isVisible,
+              let anchorFrame, let availableFrame else { return }
+        // A single window owns placement; expanding a sidebar keeps its left/top
+        // edge fixed unless a display boundary requires a minimal adjustment.
+        let size = presentation.contentSize
+        let frame = PanelPlacement.frame(size: size, anchor: anchorFrame, visibleFrame: availableFrame)
+        panel.setFrame(frame, display: true, animate: false)
+        // Optional on-device geometry evidence, disabled during ordinary use.
+        if let file = ProcessInfo.processInfo.environment["PULSEBAR_LAYOUT_LOG"] {
+            let line = "\(Date()) settings=\(presentation.showsSettings) insight=\(String(describing: presentation.insight)) frame=\(frame) available=\(availableFrame)\n"
+            if let data = line.data(using: .utf8) {
+                if !FileManager.default.fileExists(atPath: file) { FileManager.default.createFile(atPath: file, contents: nil) }
+                if let handle = FileHandle(forWritingAtPath: file) {
+                    handle.seekToEndOfFile(); handle.write(data); try? handle.close()
+                }
+            }
+        }
     }
 
-    func popoverDidClose(_ notification: Notification) {
-        guard notification.object as? NSPopover === popover else { return }
+    private func closePanel() {
+        panel?.makeFirstResponder(nil)
+        panel?.orderOut(nil)
         presentation.showsSettings = false
-        removePopoverClickMonitor()
-        statusItem.button?.highlight(false)
-    }
-
-    private func removePopoverClickMonitor() {
+        presentation.insight = nil
         if let popoverClickMonitor { NSEvent.removeMonitor(popoverClickMonitor) }
+        if let globalClickMonitor { NSEvent.removeMonitor(globalClickMonitor) }
         popoverClickMonitor = nil
+        globalClickMonitor = nil
+        statusItem.button?.highlight(false)
     }
 
     private func updateStatus(_ rate: TrafficRate, error: Error?, resources: ResourceState,
@@ -140,8 +179,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let image = MenuBarLabel.image(cpu: cpu, memory: memory, diskRead: read, diskWrite: write,
                                        download: down, upload: up, selection: selection)
         if statusItem.length != image.size.width + 12 { statusItem.length = image.size.width + 12 }
+        if panel?.isVisible == true, ProcessInfo.processInfo.environment["PULSEBAR_LAYOUT_LOG"] != nil {
+            // Record the actual settled window geometry after normal sampling/layout.
+            if let panel { NSLog("PulseBar settled frame %@", NSStringFromRect(panel.frame)) }
+        }
         button.image = image
-        if popover.isShown { popover.positioningRect = button.bounds }
         var values: [String] = []
         var errors: [Error?] = []
         for metric in selection.orderedMetrics {
@@ -165,4 +207,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         button.setAccessibilityLabel(localizer(.menuAccessibility))
         button.setAccessibilityValue(values.joined(separator: localizer(.listSeparator)))
     }
+}
+
+private final class MonitorPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { false }
 }

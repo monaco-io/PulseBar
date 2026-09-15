@@ -37,6 +37,14 @@ public enum TextKey: String, CaseIterable {
     case visibilityHint, showInMenuBar, atLeastOne, refresh, secondsUnit, hoursUnit, refreshHelp
     case menuAccessibility, menuHint, namedValue, diskRead, diskWrite, listSeparator
     case readFailed, networkReadFailed, memoryPageSize, diskCounters, diskIdentity, noDisks
+    case appRanking, topCPU, topMemory, processCount, rankingHelp, rankingUnavailable, rankingCoverage
+    case activityMonitor, activityMonitorFailed, closeDetail
+    case memoryPressure, pressureNormal, pressureWarning, pressureCritical, pressureHelp, swap, swapChange, swapHelp
+    case averagePeak, average, peak, inspecting, liveHistory, noSample, statisticsHelp, swapTrend
+    case events, eventsEmpty, eventsHelp, eventHighCPU, eventMemoryWarning, eventMemoryCritical
+    case eventDuration, eventSnapshot, eventSnapshotHelp, eventStoreFailed, eventRules, clearEvents
+    case notifications, notificationHelp, notificationCooldown, minutesUnit, notificationDenied, notificationFailed
+    case openNotificationSettings, notificationPending, rankingTime
 }
 
 public struct Localizer {
@@ -78,6 +86,7 @@ public struct Localizer {
         guard let error else { return nil }
         if let error = error as? SystemReadError { return error.description(using: self) }
         if let error = error as? InterfaceReadError { return error.description(using: self) }
+        if let error = error as? POSIXReadError { return error.description(using: self) }
         return error.localizedDescription
     }
 }

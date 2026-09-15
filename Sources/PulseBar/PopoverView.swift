@@ -7,6 +7,9 @@ struct PopoverView: View {
     @ObservedObject var preferences: AppPreferences
     @ObservedObject var loginItem: LoginItemController
     @ObservedObject var presentation: PopoverPresentation
+    @ObservedObject var eventNotifications: EventNotifications
+    @State private var inspectionTime: TimeInterval?
+    @State private var inspectionEnd: TimeInterval?
     @State private var refreshDraft = ""
     @State private var historyDraft = ""
     @FocusState private var editingRefresh: Bool
@@ -14,6 +17,7 @@ struct PopoverView: View {
     private var l10n: Localizer { preferences.localizer }
     private var showsSettings: Bool { presentation.showsSettings }
     private var historyDuration: String { l10n.duration(preferences.historySeconds) }
+    private var chartEnd: TimeInterval { inspectionEnd ?? monitor.timelineEnd }
     private let downloadColor = Color(nsColor: .systemBlue)
     private let uploadColor = Color(nsColor: .systemGreen)
     private let cpuColor = Color(nsColor: .systemOrange)
@@ -27,12 +31,27 @@ struct PopoverView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     Label(l10n(.settings), systemImage: "gearshape")
                         .font(.system(size: 14, weight: .semibold))
-                    settingsContent
-                    Spacer(minLength: 0)
+                    ScrollView { settingsContent }
                 }
                 .font(.system(size: 11)).controlSize(.small)
                 .padding(20)
                 .frame(width: 260, height: panelHeight, alignment: .top)
+            } else if let pane = presentation.insight {
+                Divider()
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        Text(l10n(pane == .cpu ? .topCPU : pane == .memory ? .topMemory : .events))
+                            .font(.system(size: 14, weight: .semibold))
+                        Spacer()
+                        Button { presentation.insight = nil } label: { Image(systemName: "xmark") }
+                            .buttonStyle(.plain).accessibilityLabel(l10n(.closeDetail))
+                    }
+                    ScrollView {
+                        if pane == .events { EventTimelineView(monitor: monitor, localizer: l10n) }
+                        else { RankingPane(monitor: monitor, preferences: preferences, metric: pane == .cpu ? .cpu : .memory) }
+                    }
+                }
+                .padding(20).frame(width: 340, height: panelHeight, alignment: .top)
             }
         }
         .frame(width: presentation.contentSize.width, height: panelHeight)
@@ -48,7 +67,8 @@ struct PopoverView: View {
             editingHistory = false
         }
         .onChange(of: preferences.refreshSeconds) { refreshDraft = String($0) }
-        .onChange(of: preferences.historySeconds) { historyDraft = HistoryWindow.hoursText(seconds: $0) }
+        .onChange(of: preferences.historySeconds) { historyDraft = HistoryWindow.hoursText(seconds: $0); inspect(nil) }
+        .onChange(of: monitor.sessionStart) { _ in inspect(nil) }
         .onChange(of: editingRefresh) { if !$0 { commitRefreshInterval() } }
         .onChange(of: editingHistory) { if !$0 { commitHistoryWindow() } }
     }
@@ -67,6 +87,10 @@ struct PopoverView: View {
                          ? l10n(.partialError) : l10n(.updatingEvery, preferences.refreshSeconds))
                         .font(.system(size: 10)).foregroundStyle(.secondary)
                 }
+                Text(inspectionTime.map {
+                    l10n(.inspecting, InsightStyle.time(Date().addingTimeInterval($0 - ProcessInfo.processInfo.systemUptime), localizer: l10n))
+                } ?? l10n(.liveHistory, historyDuration))
+                    .font(.system(size: 9)).foregroundStyle(.secondary).monospacedDigit()
             }
             .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 10)
 
@@ -81,6 +105,7 @@ struct PopoverView: View {
                                     error: monitor.resources.memoryError, help: memoryHelp)
                     }
                     .padding(.bottom, 10)
+                    memoryHealthRow.padding(.bottom, 8)
                     Divider()
 
                     HStack {
@@ -138,8 +163,9 @@ struct PopoverView: View {
                     Button {
                         editingRefresh = false
                         editingHistory = false
+                        presentation.insight = nil
                         presentation.showsSettings.toggle()
-                        if showsSettings { loginItem.refresh() }
+                        if showsSettings { loginItem.refresh(); eventNotifications.refresh() }
                     } label: {
                         HStack(spacing: 5) {
                             Image(systemName: showsSettings ? "chevron.left" : "chevron.right")
@@ -150,6 +176,11 @@ struct PopoverView: View {
                     }
                     .accessibilityLabel(l10n(.settings))
                     .accessibilityValue(l10n(showsSettings ? .settingsExpanded : .settingsCollapsed))
+                    Button { presentation.toggleInsight(.events) } label: {
+                        Label(monitor.events.isEmpty ? l10n(.events) : "\(l10n(.events)) (\(monitor.events.count))", systemImage: "clock.arrow.circlepath")
+                    }
+                    .accessibilityLabel(l10n(.events))
+                    .accessibilityValue(String(monitor.events.count))
                     Spacer()
                     Button(l10n(.reset), action: monitor.reset).help(l10n(.resetHelp))
                     Button(l10n(.quit)) { NSApplication.shared.terminate(nil) }.keyboardShortcut("q")
@@ -245,6 +276,28 @@ struct PopoverView: View {
                 Text(l10n(.loginItemFailed, error)).font(.system(size: 10)).foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            Divider()
+            Toggle(l10n(.notifications), isOn: Binding(
+                get: { preferences.notificationsEnabled },
+                set: { eventNotifications.setEnabled($0, preferences: preferences) }
+            ))
+            .toggleStyle(.switch).controlSize(.mini).disabled(eventNotifications.requesting)
+            .help(l10n(.notificationHelp))
+            HStack {
+                Text(l10n(.notificationCooldown)); Spacer()
+                Text("\(preferences.notificationCooldownMinutes) \(l10n(.minutesUnit))").monospacedDigit()
+                Stepper(l10n(.notificationCooldown), value: $preferences.notificationCooldownMinutes, in: 1...60)
+                    .labelsHidden().fixedSize()
+            }
+            Text(l10n(.notificationHelp)).font(.system(size: 10)).foregroundStyle(.secondary)
+            if eventNotifications.requesting { Text(l10n(.notificationPending)).font(.system(size: 10)) }
+            if eventNotifications.denied {
+                Text(l10n(.notificationDenied)).font(.system(size: 10)).foregroundStyle(.orange)
+                Button(l10n(.openNotificationSettings), action: eventNotifications.openSettings).buttonStyle(.link)
+            }
+            if let error = eventNotifications.lastError {
+                Text(l10n(.notificationFailed, error)).font(.system(size: 10)).foregroundStyle(.orange)
+            }
         }
     }
 
@@ -314,21 +367,31 @@ struct PopoverView: View {
     private func usageColumn(_ metric: MonitorMetric, symbol: String, value: Double?, detail: String,
                              points: [HistoryPoint], color: Color, error: Error?, help: String) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            HStack {
-                Label(l10n(metric.titleKey), systemImage: symbol)
-                    .font(.system(size: 12, weight: .medium)).foregroundStyle(color).help(help)
-                Spacer(minLength: 4)
+            Button { presentation.toggleInsight(metric == .cpu ? .cpu : .memory) } label: {
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack {
+                        Label(l10n(metric.titleKey), systemImage: symbol)
+                            .font(.system(size: 12, weight: .medium)).foregroundStyle(color)
+                        Spacer(minLength: 4)
+                        Image(systemName: "chevron.right").font(.system(size: 9)).foregroundStyle(.secondary)
+                    }
+                    Text(SystemFormatter.percent(value)).font(.system(size: 25, weight: .medium, design: .rounded))
+                        .monospacedDigit().contentTransition(.identity)
+                }
+                .contentShape(Rectangle())
             }
-            Text(SystemFormatter.percent(value)).font(.system(size: 25, weight: .medium, design: .rounded))
-                .monospacedDigit().contentTransition(.identity).help(help)
-                .accessibilityLabel(l10n(.usageLabel, l10n(metric.titleKey), SystemFormatter.percent(value)))
+            .buttonStyle(.plain).help(l10n(metric == .cpu ? .topCPU : .topMemory))
+            .accessibilityLabel(l10n(metric == .cpu ? .topCPU : .topMemory))
+            .accessibilityValue(SystemFormatter.percent(value))
             Text(error == nil ? detail : l10n(.retrying))
                 .font(.system(size: 10)).foregroundStyle(error == nil ? Color.secondary : .orange)
                 .monospacedDigit().lineLimit(1).minimumScaleFactor(0.8).help(l10n.describe(error) ?? help)
-            HistoryChart(points: HistoryWindow.visiblePoints(points, seconds: preferences.historySeconds),
-                         maximum: 100, primaryColor: color, durationSeconds: preferences.historySeconds)
+            HistoryChart(points: visible(points), maximum: 100, primaryColor: color,
+                         durationSeconds: preferences.historySeconds, endingAt: chartEnd,
+                         inspectedTime: inspectionTime, onInspect: inspect)
                 .frame(height: 24).padding(.top, 3)
                 .accessibilityLabel(l10n(.usageChart, l10n(metric.titleKey), historyDuration))
+            chartSummary(points, speed: false).help(l10n(.statisticsHelp))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -351,7 +414,7 @@ struct PopoverView: View {
 
     private func rateChart(_ allPoints: [HistoryPoint], primaryColor: Color, secondaryColor: Color,
                            label: String) -> some View {
-        let points = HistoryWindow.visiblePoints(allPoints, seconds: preferences.historySeconds)
+        let points = visible(allPoints)
         let maximum = max(1_000, points.reduce(0.0) { max($0, max($1.primary, $1.secondary)) } * 1.15)
         return VStack(spacing: 4) {
             HStack {
@@ -363,8 +426,14 @@ struct PopoverView: View {
             }
             .font(.system(size: 9)).foregroundStyle(.secondary).monospacedDigit()
             HistoryChart(points: points, maximum: maximum, primaryColor: primaryColor,
-                         secondaryColor: secondaryColor, durationSeconds: preferences.historySeconds)
+                         secondaryColor: secondaryColor, durationSeconds: preferences.historySeconds, endingAt: chartEnd,
+                         inspectedTime: inspectionTime, onInspect: inspect)
                 .frame(height: 36).accessibilityLabel(label)
+            HStack(spacing: 12) {
+                chartSummary(allPoints, speed: true).foregroundStyle(primaryColor)
+                chartSummary(allPoints, speed: true, secondary: true).foregroundStyle(secondaryColor)
+            }
+            .help(l10n(.statisticsHelp))
         }
         .padding(.top, 6)
     }
@@ -380,53 +449,65 @@ struct PopoverView: View {
         .font(.system(size: 10)).monospacedDigit()
     }
 
+    private func visible(_ points: [HistoryPoint]) -> [HistoryPoint] {
+        HistoryInspection.window(points, seconds: preferences.historySeconds, endingAt: chartEnd)
+    }
+
+    private func inspect(_ timestamp: TimeInterval?) {
+        guard let timestamp else { inspectionTime = nil; inspectionEnd = nil; return }
+        if inspectionEnd == nil { inspectionEnd = monitor.timelineEnd }
+        let histories = [monitor.resources.cpuHistory, monitor.resources.memoryHistory, monitor.resources.diskHistory, monitor.history]
+        let reference = histories.max(by: { $0.count < $1.count }) ?? []
+        let candidate = HistoryInspection.nearestSample(reference, at: timestamp)?.timestamp ?? timestamp
+        inspectionTime = candidate >= chartEnd - Double(preferences.historySeconds) && candidate <= chartEnd ? candidate : timestamp
+    }
+
+    private func chartSummary(_ points: [HistoryPoint], speed: Bool, secondary: Bool = false) -> some View {
+        let summary = HistorySummary(points: visible(points))
+        let format: (Double?) -> String = { value in
+            if speed { return value.map { TrafficFormatter.speed($0).text } ?? "—" }
+            return SystemFormatter.percent(value)
+        }
+        let text: String
+        if let inspectionTime {
+            if let point = HistoryInspection.sample(points, at: inspectionTime) {
+                text = "● " + format(secondary ? point.secondary : point.primary)
+            } else { text = l10n(.noSample) }
+        } else {
+            text = l10n(.averagePeak, format(secondary ? summary.secondaryAverage : summary.primaryAverage),
+                        format(secondary ? summary.secondaryPeak : summary.primaryPeak))
+        }
+        return Text(text).font(.system(size: 9)).monospacedDigit().foregroundStyle(.secondary)
+            .lineLimit(1).minimumScaleFactor(0.75).frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var memoryHealthRow: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 5) {
+                Text(l10n(.memoryPressure)).foregroundStyle(.secondary)
+                Circle().fill(InsightStyle.pressureColor(monitor.resources.pressure)).frame(width: 5, height: 5)
+                Text(monitor.resources.pressure.map { l10n($0.titleKey) } ?? "—")
+                    .foregroundStyle(InsightStyle.pressureColor(monitor.resources.pressure))
+                Spacer(minLength: 6)
+                Text("Swap " + (monitor.resources.swap.map { TrafficFormatter.total($0.usedBytes) } ?? "—"))
+                    .monospacedDigit()
+            }
+            .help(l10n(.pressureHelp))
+            HStack {
+                Text(l10n(.swapChange, InsightStyle.delta(visible(monitor.resources.swapHistory))))
+                    .foregroundStyle(.secondary).monospacedDigit().help(l10n(.swapHelp))
+                Spacer()
+            }
+            errorLabel(monitor.resources.pressureError)
+            errorLabel(monitor.resources.swapError)
+        }
+        .font(.system(size: 10))
+    }
+
     @ViewBuilder private func errorLabel(_ error: Error?) -> some View {
         if let message = l10n.describe(error) {
             Text(message).font(.system(size: 10)).foregroundStyle(.orange).lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 6).help(message)
-        }
-    }
-}
-
-private struct HistoryChart: View {
-    let points: [HistoryPoint]
-    let maximum: Double
-    let primaryColor: Color
-    var secondaryColor: Color?
-    let durationSeconds: Int
-
-    var body: some View {
-        Canvas { context, size in
-            context.clip(to: Path(CGRect(origin: .zero, size: size)))
-            for fraction in [0.0, 0.5, 1.0] {
-                var grid = Path()
-                let y = 1 + (size.height - 2) * fraction
-                grid.move(to: CGPoint(x: 0, y: y))
-                grid.addLine(to: CGPoint(x: size.width, y: y))
-                context.stroke(grid, with: .color(.secondary.opacity(0.16)),
-                               style: StrokeStyle(lineWidth: 0.5, dash: fraction == 1 ? [] : [3, 4]))
-            }
-            guard points.count > 1, let now = points.last?.timestamp else { return }
-            let plotted = HistoryWindow.plotPoints(points, maximumCount: max(6, Int(size.width * 2)))
-            for isPrimary in [true, false] {
-                guard let color = isPrimary ? primaryColor : secondaryColor else { continue }
-                let positions = plotted.map { point in
-                    CGPoint(x: (point.timestamp - now + Double(durationSeconds)) / Double(durationSeconds) * size.width,
-                            y: size.height - 1 - min(1, max(0, (isPrimary ? point.primary : point.secondary) / maximum)) * (size.height - 2))
-                }
-                var line = Path()
-                line.addLines(positions)
-                if isPrimary, let first = positions.first, let last = positions.last {
-                    var fill = line
-                    fill.addLine(to: CGPoint(x: last.x, y: size.height))
-                    fill.addLine(to: CGPoint(x: first.x, y: size.height))
-                    fill.closeSubpath()
-                    context.fill(fill, with: .linearGradient(
-                        Gradient(colors: [color.opacity(0.22), color.opacity(0.01)]),
-                        startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height)))
-                }
-                context.stroke(line, with: .color(color), style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
-            }
         }
     }
 }

@@ -29,6 +29,10 @@ struct PreferencesTests {
         #expect(first.language == .system)
         #expect(first.refreshSeconds == 1)
         #expect(first.historySeconds == 3600)
+        #expect(!first.notificationsEnabled)
+        #expect(first.notificationCooldownMinutes == 10)
+        first.notificationsEnabled = true
+        first.notificationCooldownMinutes = 30
         for metric in [MonitorMetric.cpu, .memory, .disk, .network] { first.setVisible(metric, false) }
         first.language = .english
         first.setRefreshSeconds(17)
@@ -39,6 +43,8 @@ struct PreferencesTests {
         #expect(restored.language == .english)
         #expect(restored.refreshSeconds == 17)
         #expect(restored.historySeconds == 300)
+        #expect(restored.notificationsEnabled)
+        #expect(restored.notificationCooldownMinutes == 30)
         restored.setHistorySeconds(100000)
         #expect(AppPreferences(defaults: defaults).historySeconds == 86400)
         #expect(restored.refreshSeconds == 17)

@@ -60,6 +60,12 @@ public final class AppPreferences: ObservableObject {
     }
     @Published public private(set) var refreshSeconds: Int
     @Published public private(set) var historySeconds: Int
+    @Published public var notificationsEnabled: Bool {
+        didSet { defaults.set(notificationsEnabled, forKey: "notificationsEnabled") }
+    }
+    @Published public var notificationCooldownMinutes: Int {
+        didSet { defaults.set(notificationCooldownMinutes, forKey: "notificationCooldownMinutes") }
+    }
     private let defaults: UserDefaults
     public var localizer: Localizer { Localizer(language: language) }
 
@@ -73,6 +79,10 @@ public final class AppPreferences: ObservableObject {
             ? 1 : RefreshInterval.normalized(defaults.integer(forKey: "refreshSeconds"))
         historySeconds = defaults.object(forKey: "historySeconds") == nil
             ? HistoryWindow.defaultSeconds : HistoryWindow.normalized(defaults.integer(forKey: "historySeconds"))
+        notificationsEnabled = defaults.bool(forKey: "notificationsEnabled")
+        let cooldown = defaults.object(forKey: "notificationCooldownMinutes") == nil
+            ? 10 : defaults.integer(forKey: "notificationCooldownMinutes")
+        notificationCooldownMinutes = min(60, max(1, cooldown))
     }
 
     public func setVisible(_ metric: MonitorMetric, _ visible: Bool) {

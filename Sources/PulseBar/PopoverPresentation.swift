@@ -1,16 +1,25 @@
 import AppKit
 import Combine
 
+enum InsightPane { case cpu, memory, events }
+
 final class PopoverPresentation: ObservableObject {
     @Published var showsSettings = false
-    @Published private(set) var height: CGFloat = 560
+    @Published var insight: InsightPane?
+    @Published private(set) var height: CGFloat = 640
 
     var contentSize: NSSize {
-        NSSize(width: showsSettings ? 661 : 400, height: height)
+        NSSize(width: showsSettings ? 661 : (insight != nil ? 741 : 400), height: height)
     }
 
     func prepare(on screen: NSScreen?) {
         showsSettings = false
-        height = min(560, max(280, screen?.visibleFrame.height ?? 584) - 24)
+        insight = nil
+        height = min(640, max(280, screen?.visibleFrame.height ?? 664) - 24)
+    }
+
+    func toggleInsight(_ pane: InsightPane) {
+        showsSettings = false
+        insight = insight == pane ? nil : pane
     }
 }

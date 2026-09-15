@@ -2,6 +2,44 @@ import AppKit
 import Foundation
 import SpeedCore
 
+#if DEBUG
+// Exercise the real timer, background process sampler, and event store without
+// opening a window, touching user history, or requesting notification permission.
+if CommandLine.arguments.contains("--verify-insights") {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent("PulseBar-check-" + UUID().uuidString)
+    let store = PerformanceEventStore(url: directory.appendingPathComponent("events.json"))
+    let monitor = SystemMonitor(eventStore: store)
+    monitor.start(refreshSeconds: 1)
+    RunLoop.main.run(until: Date().addingTimeInterval(13))
+    monitor.stop()
+    do {
+        let saved = try store.load()
+        let payload: [String: Any] = [
+            "cpuSamples": monitor.resources.cpuHistory.count,
+            "memorySamples": monitor.resources.memoryHistory.count,
+            "diskSamples": monitor.resources.diskHistory.count,
+            "networkSamples": monitor.history.count,
+            "swapSamples": monitor.resources.swapHistory.count,
+            "memoryPressure": monitor.resources.pressure?.rawValue as Any? ?? NSNull(),
+            "sampledProcesses": monitor.processCount,
+            "events": monitor.events.count,
+            "savedEvents": saved.count,
+            "eventKinds": saved.map { $0.kind.rawValue },
+            "eventRankingCounts": saved.map { ["cpu": $0.topCPU.count, "memory": $0.topMemory.count] },
+            "eventStoreError": monitor.eventStoreError?.localizedDescription as Any? ?? NSNull()
+        ]
+        print(String(decoding: try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]), as: UTF8.self))
+        try? FileManager.default.removeItem(at: directory)
+        exit(monitor.resources.cpuHistory.count >= 5 && monitor.processCount > 0 && saved == monitor.events
+             && !monitor.resources.hasError && monitor.eventStoreError == nil ? 0 : 1)
+    } catch {
+        fputs("\(error.localizedDescription)\n", stderr)
+        try? FileManager.default.removeItem(at: directory)
+        exit(1)
+    }
+}
+#endif
+
 // A read-only diagnostic path exercises the exact same reader and accumulator
 // as the menu bar, without launching a second GUI instance.
 if let index = CommandLine.arguments.firstIndex(of: "--sample") {
@@ -24,9 +62,12 @@ if let index = CommandLine.arguments.firstIndex(of: "--sample") {
     var accumulator = TrafficAccumulator()
     var cpuAccumulator = CPUAccumulator()
     var diskAccumulator = DiskAccumulator()
+    let processReader = ProcessReader()
+    var processAccumulator = ProcessAccumulator()
     accumulator.setRefreshInterval(interval)
     cpuAccumulator.setRefreshInterval(interval)
     diskAccumulator.setRefreshInterval(interval)
+    processAccumulator.setRefreshInterval(interval)
     var hadError = false
     for sample in 0..<count {
         var row: [String: Any] = ["sample": sample, "uptime": ProcessInfo.processInfo.systemUptime, "refreshSeconds": interval]
@@ -60,6 +101,23 @@ if let index = CommandLine.arguments.firstIndex(of: "--sample") {
                              "usedPercent": memory.usedPercent, "appBytes": memory.appBytes,
                              "wiredBytes": memory.wiredBytes, "compressedBytes": memory.compressedBytes] as [String: Any]
         } catch { errors["memory"] = error.localizedDescription }
+        do { row["memoryPressure"] = try systemReader.readMemoryPressure().rawValue }
+        catch { errors["memoryPressure"] = error.localizedDescription }
+        do {
+            let swap = try systemReader.readSwap()
+            row["swap"] = ["usedBytes": swap.usedBytes, "totalBytes": swap.totalBytes]
+        } catch { errors["swap"] = error.localizedDescription }
+        do {
+            let snapshot = try processReader.read()
+            let apps = processAccumulator.consume(snapshot)
+            let encodeApp: (AppUsage) -> [String: Any] = { app in
+                ["name": app.name, "cpuPercent": app.cpuPercent.map { $0 as Any } ?? NSNull(),
+                 "memoryBytes": app.memoryBytes, "processCount": app.processCount]
+            }
+            row["apps"] = ["topCPU": AppRanking.cpu(apps).map(encodeApp),
+                           "topMemory": AppRanking.memory(apps).map(encodeApp),
+                           "sampledProcesses": snapshot.processes.count, "skippedProcesses": snapshot.skippedCount]
+        } catch { errors["apps"] = error.localizedDescription; processAccumulator.resetBaseline() }
         do {
             let snapshot = try systemReader.readDisks()
             let rate = diskAccumulator.consume(snapshot)
