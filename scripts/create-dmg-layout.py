@@ -29,6 +29,9 @@ with DSStore.open(str(destination), "w+") as store:
     store["."]["icvp"] = {
         "viewOptionsVersion": 1,
         "backgroundType": 0,
+        "backgroundColorRed": 1.0,
+        "backgroundColorGreen": 1.0,
+        "backgroundColorBlue": 1.0,
         "gridOffsetX": 0.0,
         "gridOffsetY": 0.0,
         "gridSpacing": 100.0,
