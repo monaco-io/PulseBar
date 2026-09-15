@@ -1,58 +1,58 @@
 # GitHub 发布与更新
 
-仓库：<https://github.com/monaco-io/PulseBar>
+## 发布布局
+
+**Release 只上传 `PulseBar.dmg`。** 安装和自动更新共用同一个签名 DMG。安装说明随 DMG 分发，版本说明放在发布正文；不再上传 ZIP、独立说明或校验文本。GitHub 页面会显示资产的 SHA-256，并自动附带两个源码下载链接，它们不是手动上传的附件。
+
+签名更新清单单独保存在 `codex/updates` 分支：
+<https://raw.githubusercontent.com/monaco-io/PulseBar/codex/updates/appcast.xml>
+
+App 内的 `SUFeedURL` 固定指向此地址；feed 内的 DMG 链接指向具体版本 tag。`1.7.0` 的旧更新地址在 Release 附件中，精简后不再提供；这版及更早的用户需手动安装 1.7.1 一次。
 
 ## 日常发布
 
-1. 在 `Resources/Info.plist` 中提高 `CFBundleShortVersionString`（例如 `1.7.1`）和 `CFBundleVersion`（例如 `14`）。版本号与构建号都必须高于上一稳定版；不要复用版本或覆盖已发布安装包。
-2. 添加 `docs/releases/v1.7.1.md` 版本说明，提交代码并确保 main 上的 **Build and test** 成功。
-3. 创建并推送对应 tag：
+1. 同时提高 `Resources/Info.plist` 中的 `CFBundleShortVersionString` 和 `CFBundleVersion`。
+2. 添加 `docs/releases/v版本号.md`，提交代码并确认 CI 成功。
+3. 创建并推送对应 tag，例如：
 
    ```sh
-   git tag -a v1.7.1 -m 'PulseBar 1.7.1'
-   git push origin v1.7.1
+   git tag -a v1.7.2 -m 'PulseBar 1.7.2'
+   git push origin v1.7.2
    ```
 
-**Publish release** 会核对 tag、版本及递增的构建号，运行测试，编译 arm64 / x86_64 通用 App，诊断采样，生成安装包并签名，再上传为草稿。全部文件上传完毕才公开为 Latest，避免客户端读取尚未齐全的版本。所有 Actions 固定到提交 SHA。
+**Publish release** 核对递增版本，运行测试，编译双架构 App 并诊断采样。打包脚本生成 `dist/release/PulseBar.dmg` 和 `dist/updates/appcast.xml`；验证 DMG 挂载、资源、系统要求、版本及数字签名。先上传 DMG 为草稿并公开为 Latest，再将签名清单原样提交到更新分支。新清单公开之前，旧清单仍指向可用的旧版 DMG，避免更新读取尚未发布的文件。GitHub Raw 的缓存可能使新清单延迟数分钟出现。
 
-每版提供：`PulseBar.dmg`、`PulseBar.zip`、`appcast.xml`、`SHA256SUMS.txt`、`INSTALL.txt`、`RELEASE_NOTES.md`。下载按钮固定使用 `releases/latest/download/PulseBar.dmg`，更新入口固定使用 `releases/latest/download/appcast.xml`；更新清单内的 ZIP 地址指向具体 tag，避免版本混用。当前 feed 只保留最新稳定版，不生成差分更新；以后如提高最低系统版本，需要在发布脚本中保留兼容旧系统的 feed 条目。
+发布任务串行运行。更新分支不触发常规 CI，不需要 GitHub Pages 或额外访问凭据。保持仓库公开；App 不内置 GitHub token。
 
-## 更新签名
+## 签名与验证
 
-使用 [Sparkle 2.10.0](https://sparkle-project.org/documentation/) 官方二进制及工具。`Package.swift` 固定版本和官方 SHA-256，无需完整 Xcode 即可构建。第三方许可位于 `Resources/Sparkle-LICENSE.txt`，并随 App 分发。
+使用 [Sparkle 2.10.0](https://sparkle-project.org/documentation/) 官方二进制及工具，SwiftPM 固定版本和官方 SHA-256。第三方许可随 App 分发。
 
-- 公钥：`Resources/Info.plist` 中的 `SUPublicEDKey`。
-- 私钥：开发机钥匙串中的 Sparkle 账户 `monaco-io.PulseBar`，以及当前仓库的 Actions Secret `SPARKLE_PRIVATE_KEY`。
-- 私钥仅传给 tag 发布工作流中的签名步骤；PR 与常规 CI 不获得私钥。
-- `generate_appcast` 同时签名 ZIP 和 feed；`sign_update --verify` 在发布前进行密码学校验。另校对版本、系统要求、文件长度、打包资源和 SHA-256。
-- `SURequireSignedFeed` 和 `SUVerifyUpdateBeforeExtraction` 均开启。不要手改已签名的 XML，也不要在发布后用同名文件替换安装包。
+- 公钥：`Resources/Info.plist` 的 `SUPublicEDKey`。
+- 私钥：开发机钥匙串账户 `monaco-io.PulseBar`，以及仓库 Actions Secret `SPARKLE_PRIVATE_KEY`。PR 和常规 CI 不读取私钥。
+- `generate_appcast` 对 DMG 和 feed 签名，`sign_update --verify` 做密码学校验，`verify-release.py` 检查安装包和清单一致。
+- `SURequireSignedFeed` 和 `SUVerifyUpdateBeforeExtraction` 保持开启。不要手改签名后的 XML，不要覆盖已发布的 DMG。
 
-保留并安全备份原签名密钥。未来迁移开发机时使用 Sparkle `generate_keys` 的导出 / 导入功能；不要把私钥写入代码、release 附件、日志或聊天。使用同一公钥持续发布，否则已安装的客户端会拒绝更新。
+安全保留原签名密钥。迁移开发机可使用 Sparkle `generate_keys` 导出 / 导入；私钥不进入代码、附件、日志或聊天。
 
-## 本地构建发布文件
+## 本地打包
 
-在钥匙串已有上述账户的 Mac 上：
+钥匙串已有上述账户时：
 
 ```sh
-./scripts/swift-local.sh test --disable-xctest
-./scripts/package-release.sh v1.7.0
+./scripts/package-release.sh v1.7.1
 ```
 
-文件位于 `dist/release/`。脚本不上传，正式上传由 tag 工作流完成。
-
-## Apple 签名与公证
-
-目前仓库未配置 Apple Developer ID 证书，因此 GitHub 产物采用 ad-hoc 签名，**不属于 Apple 已公证应用**。Sparkle 的更新签名可校验后续更新来源，首次安装仍需按 [Apple 的安全设置说明](https://support.apple.com/102445)允许打开。
-
-如以后有 Developer ID，构建脚本支持 `CODE_SIGN_IDENTITY`，按从内到外顺序签名 Sparkle helpers、framework 和 App 并启用 Hardened Runtime。本地打包还支持 `NOTARY_KEYCHAIN_PROFILE`，用 `notarytool` 提交并装订票据后再生成最终 ZIP / DMG。GitHub 托管构建需另行配置证书导入、临时钥匙串和公证凭据；当前工作流没有这些凭据，也不会把未公证状态报成已公证。
+脚本只生成本地文件，正式发布由 tag 工作流完成。内部构建仍可生成 ZIP 作为 CI 预览，它不会出现在 Release 中。
 
 ## 失败恢复
 
-- 测试、打包或校验失败不会发布新版。修复后可重跑失败工作流，或在 Actions 手动指定已有 tag。
-- 若上传中断留下 Draft，先检查草稿及资产；脚本遇到同名 Release 会停止，避免覆盖。确认未发布的残留草稿后再处理重试。
-- 已公开版本有问题时，发布更高版本修复；不要降低构建号或改写已发布 tag。
-- 仓库需要保持公开，否则下载与更新清单的匿名 HTTPS 请求将失败。App 不内置 GitHub token。
+测试或打包失败时不发布新版；修复后重跑任务。存在同名 Release 时脚本停止，避免覆盖。
 
-## 验收
+如果 DMG 已公开但 feed 推送失败，旧 feed 保持可用。确认 `dist/updates/appcast.xml` 的签名、版本及已公开的 DMG 地址后，将该文件原样提交并推送到 `codex/updates` 分支即可恢复；不要重新打包覆盖 DMG。已发布版本有问题时发布更高版本修复。
 
-验证工作流成功、Release 对应提交、匿名下载可用、校验文件匹配，以及安装包中的双架构与签名。再从已安装的 App 打开“检查更新”，验证“已是最新版”；使用构建号较低的本地测试副本验证发现新版、下载、安装并重启。测试副本不得上传成稳定 Release。
+## Apple 公证
+
+目前为 ad-hoc 签名，尚无 Apple Developer ID 公证。首次安装可能需要按 [Apple 安全设置说明](https://support.apple.com/102445)允许打开。
+
+本地构建支持 `CODE_SIGN_IDENTITY` 按从内到外的顺序签名 helpers、framework 和 App 并启用 Hardened Runtime；打包支持 `NOTARY_KEYCHAIN_PROFILE` 提交公证并装订票据后生成 DMG。GitHub 托管构建尚未配置 Apple 证书和公证凭据。

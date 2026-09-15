@@ -4,15 +4,15 @@
 
 ## 下载安装
 
-**[下载最新版 DMG](https://github.com/monaco-io/PulseBar/releases/latest/download/PulseBar.dmg)** · [ZIP](https://github.com/monaco-io/PulseBar/releases/latest/download/PulseBar.zip) · [版本说明](https://github.com/monaco-io/PulseBar/releases/latest) · [SHA-256 校验](https://github.com/monaco-io/PulseBar/releases/latest/download/SHA256SUMS.txt)
+**[下载最新版 DMG](https://github.com/monaco-io/PulseBar/releases/latest/download/PulseBar.dmg)** · [版本说明](https://github.com/monaco-io/PulseBar/releases/latest)
 
 支持 **macOS 13+，Apple Silicon 和 Intel**。打开 DMG，把 PulseBar 拖入 Applications，再从应用程序目录启动。当前版本采用 ad-hoc 签名，尚无 Apple Developer ID 公证；若系统阻止打开，确认来源后在“系统设置 → 隐私与安全性”中选择“仍要打开”。详见[安装说明](docs/INSTALL.txt)。
 
 ### 软件更新
 
-点击菜单栏读数 → **设置 → 软件更新**，可查看当前版本、手动检查更新、开关每日自动检查或打开下载页。自动检查发现新版后，“设置”旁显示下载提示；由你选择下载、安装并重启，设置与本地事件历史保留。1.6 及更早版本需要先手动安装 1.7.0 一次。
+点击菜单栏读数 → **设置 → 软件更新**，可查看当前版本、手动检查更新、开关每日自动检查或打开下载页。自动检查发现新版后，“设置”旁显示下载提示；由你选择下载、安装并重启，设置与本地事件历史保留。1.7.0 及更早版本需要先手动安装 1.7.1 一次，迁移到新的更新地址。
 
-更新使用 [Sparkle](https://sparkle-project.org/)，从 GitHub Releases 读取更新清单；清单与安装档案均使用 Ed25519 签名验证，关闭系统信息上报。更新检查会访问 GitHub；监控数据与事件历史保留在本机。
+更新使用 [Sparkle](https://sparkle-project.org/)，从独立地址读取更新清单，下载 GitHub Release 中的同一个 DMG；清单与 DMG 均使用 Ed25519 签名验证，关闭系统信息上报。更新检查会访问 GitHub；监控数据与事件历史保留在本机。
 
 ## 使用
 

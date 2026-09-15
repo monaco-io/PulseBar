@@ -11,7 +11,7 @@
    不需要关闭 Gatekeeper 或修改全局安全设置。
 4. 点击菜单栏读数 → 设置 → 软件更新，可手动检查更新或关闭自动检查。
    默认每天检查，由你确认下载和安装；更新文件及更新清单均经过签名验证。
-5. 1.6 及更早版本需手动下载安装 1.7.0 一次，之后可以在应用内升级。
+5. 1.7.0 及更早版本需手动下载安装 1.7.1 一次，迁移后可以在应用内升级。
    手动覆盖前先退出旧版本；设置和本地事件历史会保留。
 
 下载与版本说明：https://github.com/monaco-io/PulseBar/releases/latest
@@ -31,5 +31,5 @@ Do not disable Gatekeeper or change global security settings.
 Click the menu bar readings > Settings > Software update to check for updates.
 Automatic checks run daily; you choose when to download and install.
 Update archives and the update feed are cryptographically signed.
-Versions 1.6 and earlier need one manual installation of 1.7.0 to get the updater.
+Versions 1.7.0 and earlier need one manual installation of 1.7.1 to use the new update feed.
 Quit the old version before replacing it. Preferences and local event history remain.

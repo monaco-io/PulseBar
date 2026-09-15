@@ -56,7 +56,18 @@ jobs:
         run: |
           gh release create "$RELEASE_TAG" --verify-tag --draft \
             --title "PulseBar ${RELEASE_TAG#v}" --notes-file "docs/releases/$RELEASE_TAG.md" \
-            dist/release/PulseBar.dmg dist/release/PulseBar.zip \
-            dist/release/appcast.xml dist/release/SHA256SUMS.txt \
-            dist/release/INSTALL.txt dist/release/RELEASE_NOTES.md
+            dist/release/PulseBar.dmg
           gh release edit "$RELEASE_TAG" --draft=false --latest
+      - name: Publish signed feed after the DMG is publicly available
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch origin codex/updates
+          feed_checkout="$(mktemp -d "$RUNNER_TEMP/pulsebar-feed.XXXXXX")"
+          git worktree add --detach "$feed_checkout" origin/codex/updates
+          cp dist/updates/appcast.xml "$feed_checkout/appcast.xml"
+          git -C "$feed_checkout" config user.name 'github-actions[bot]'
+          git -C "$feed_checkout" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C "$feed_checkout" add appcast.xml
+          git -C "$feed_checkout" commit -m "Update feed for $RELEASE_TAG"
+          git -C "$feed_checkout" push origin HEAD:refs/heads/codex/updates

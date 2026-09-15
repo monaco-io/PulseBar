@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Fail before release work if a tag is inconsistent, already published, or a downgrade."""
 import json
+import base64
 import plistlib
 import re
 import subprocess
 import sys
-import urllib.request
 import xml.etree.ElementTree as ET
 
 tag = sys.argv[1]
@@ -33,8 +33,12 @@ for release in stable:
         if version <= tuple(map(int, old_tag[1:].split("."))):
             sys.exit("Stable release version must increase")
 if stable:
-    with urllib.request.urlopen(info["SUFeedURL"], timeout=30) as response:
-        root = ET.fromstring(response.read())
+    # Read the branch through the authenticated API: the public Raw URL can
+    # still cache the previous feed immediately after publishing a release.
+    feed = json.loads(subprocess.check_output([
+        "gh", "api", "repos/monaco-io/PulseBar/contents/appcast.xml?ref=codex%2Fupdates"
+    ]))
+    root = ET.fromstring(base64.b64decode(feed["content"]))
     builds = [int(node.text) for node in root.findall(".//{http://www.andymatuschak.org/xml-namespaces/sparkle}version")]
     if not builds or build <= max(builds):
         sys.exit("CFBundleVersion must exceed the published feed's build number")

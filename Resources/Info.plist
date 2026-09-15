@@ -7,9 +7,9 @@
     <key>CFBundleName</key><string>PulseBar</string>
     <key>CFBundleDisplayName</key><string>脉动</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>1.7.0</string>
-    <key>CFBundleVersion</key><string>13</string>
-    <key>SUFeedURL</key><string>https://github.com/monaco-io/PulseBar/releases/latest/download/appcast.xml</string>
+    <key>CFBundleShortVersionString</key><string>1.7.1</string>
+    <key>CFBundleVersion</key><string>14</string>
+    <key>SUFeedURL</key><string>https://raw.githubusercontent.com/monaco-io/PulseBar/codex/updates/appcast.xml</string>
     <key>PulseBarReleasesURL</key><string>https://github.com/monaco-io/PulseBar/releases/latest</string>
     <key>SUPublicEDKey</key><string>zyl7DI5xp8plJ5Ot/ttiy6kkrG35WAdICoKAPEuKU0k=</string>
     <key>SUEnableAutomaticChecks</key><true/>
