@@ -71,7 +71,7 @@
 "openLoginSettings" = "打开登录项设置…";
 "loginItemFailed" = "无法更改开机启动：%@";
 
-"appRanking" = "应用资源排行";
+"appRanking" = "应用";
 "topCPU" = "CPU 占用排行";
 "topMemory" = "内存占用排行";
 "processCount" = "%d 个进程";
@@ -125,3 +125,10 @@
 "updateHelp" = "每天从 GitHub 检查新版本，由你选择何时下载和安装。";
 "downloadAndReleaseNotes" = "下载与版本说明";
 "updateStartFailed" = "无法启动软件更新：%@";
+
+"overview" = "总览";
+"moreActions" = "更多操作";
+"samplingSection" = "采样与曲线";
+"behaviorSection" = "启动与通知";
+"resetDone" = "本次统计已重置，继续监测。";
+"selectedTab" = "已选中";

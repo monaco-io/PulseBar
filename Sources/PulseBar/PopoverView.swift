@@ -13,10 +13,12 @@ struct PopoverView: View {
     @State private var inspectionEnd: TimeInterval?
     @State private var refreshDraft = ""
     @State private var historyDraft = ""
+    @State private var resetFeedback = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var editingRefresh: Bool
     @FocusState private var editingHistory: Bool
     private var l10n: Localizer { preferences.localizer }
-    private var showsSettings: Bool { presentation.showsSettings }
+    private var route: PanelRoute { presentation.route }
     private var historyDuration: String { l10n.duration(preferences.historySeconds) }
     private var chartEnd: TimeInterval { inspectionEnd ?? monitor.timelineEnd }
     private let downloadColor = Color(nsColor: .systemBlue)
@@ -26,36 +28,20 @@ struct PopoverView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
-            monitorPanel.frame(width: 400, height: panelHeight)
-            if showsSettings {
+            monitorPanel.frame(width: presentation.overviewWidth, height: panelHeight)
+            if route.hasDetails && !presentation.usesInlineDetails {
                 Divider()
-                VStack(alignment: .leading, spacing: 18) {
-                    Label(l10n(.settings), systemImage: "gearshape")
-                        .font(.system(size: 14, weight: .semibold))
-                    ScrollView { settingsContent }
-                }
-                .font(.system(size: 11)).controlSize(.small)
-                .padding(20)
-                .frame(width: 260, height: panelHeight, alignment: .top)
-            } else if let pane = presentation.insight {
-                Divider()
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack {
-                        Text(l10n(pane == .cpu ? .topCPU : pane == .memory ? .topMemory : .events))
-                            .font(.system(size: 14, weight: .semibold))
-                        Spacer()
-                        Button { presentation.insight = nil } label: { Image(systemName: "xmark") }
-                            .buttonStyle(.plain).accessibilityLabel(l10n(.closeDetail))
-                    }
-                    ScrollView {
-                        if pane == .events { EventTimelineView(monitor: monitor, localizer: l10n) }
-                        else { RankingPane(monitor: monitor, preferences: preferences, metric: pane == .cpu ? .cpu : .memory) }
-                    }
-                }
-                .padding(20).frame(width: 340, height: panelHeight, alignment: .top)
+                detailPanel
+                    .frame(width: PanelLayout.detailWidth, height: panelHeight)
+                    .background(Color.primary.opacity(0.025))
+                    .modifier(PanelReveal())
             }
         }
-        .frame(width: presentation.contentSize.width, height: panelHeight)
+        .frame(width: presentation.contentSize.width, height: panelHeight, alignment: .leading)
+        // Leading alignment keeps the overview stationary when the outer
+        // window changes width. Intrinsic sizing must not recenter its contents.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .clipped()
         .environment(\.locale, l10n.locale)
         .onAppear {
             refreshDraft = String(preferences.refreshSeconds)
@@ -69,132 +55,208 @@ struct PopoverView: View {
         }
         .onChange(of: preferences.refreshSeconds) { refreshDraft = String($0) }
         .onChange(of: preferences.historySeconds) { historyDraft = HistoryWindow.hoursText(seconds: $0); inspect(nil) }
-        .onChange(of: monitor.sessionStart) { _ in inspect(nil) }
+        .onChange(of: monitor.sessionStart) { _ in
+            inspect(nil)
+            resetFeedback = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { resetFeedback = false }
+        }
+        .onChange(of: route) { destination in
+            editingRefresh = false
+            editingHistory = false
+            if destination == .settings { loginItem.refresh(); eventNotifications.refresh() }
+        }
         .onChange(of: editingRefresh) { if !$0 { commitRefreshInterval() } }
         .onChange(of: editingHistory) { if !$0 { commitHistoryWindow() } }
     }
 
     private var monitorPanel: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 5) {
-                HStack {
-                    Image(systemName: "waveform.path.ecg")
-                        .font(.system(size: 18, weight: .medium)).foregroundStyle(.secondary)
-                    Text(l10n(.appTitle)).font(.system(size: 16, weight: .semibold))
-                    Spacer()
-                    Circle().fill(monitor.networkError != nil || monitor.resources.hasError ? Color.orange : uploadColor)
-                        .frame(width: 6, height: 6)
-                    Text(monitor.networkError != nil || monitor.resources.hasError
-                         ? l10n(.partialError) : l10n(.updatingEvery, preferences.refreshSeconds))
-                        .font(.system(size: 10)).foregroundStyle(.secondary)
-                }
-                Text(inspectionTime.map {
-                    l10n(.inspecting, InsightStyle.time(Date().addingTimeInterval($0 - ProcessInfo.processInfo.systemUptime), localizer: l10n))
-                } ?? l10n(.liveHistory, historyDuration))
-                    .font(.system(size: 9)).foregroundStyle(.secondary).monospacedDigit()
+            header
+            if route.hasDetails && presentation.usesInlineDetails {
+                detailPanel.frame(maxHeight: .infinity)
+            } else {
+                overviewContent.frame(maxHeight: .infinity, alignment: .top)
             }
-            .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 10)
-
-            Group {
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack(alignment: .top, spacing: 24) {
-                        usageColumn(.cpu, symbol: "cpu", value: monitor.resources.cpu?.usedPercent,
-                                    detail: cpuDetail, points: monitor.resources.cpuHistory, color: cpuColor,
-                                    error: monitor.resources.cpuError, help: l10n(.cpuHelp))
-                        usageColumn(.memory, symbol: "memorychip", value: monitor.resources.memory?.usedPercent,
-                                    detail: memoryDetail, points: monitor.resources.memoryHistory, color: memoryColor,
-                                    error: monitor.resources.memoryError, help: memoryHelp)
-                    }
-                    .padding(.bottom, 10)
-                    memoryHealthRow.padding(.bottom, 8)
-                    Divider()
-
-                    HStack {
-                        Label(l10n(.diskIO), systemImage: "internaldrive").font(.system(size: 12, weight: .semibold))
-                        Spacer()
-                        Text(monitor.resources.disks.isEmpty ? "—" : monitor.resources.disks.joined(separator: l10n(.listSeparator)))
-                            .font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
-                            .help(l10n(.diskHelp))
-                    }
-                    .padding(.top, 10).padding(.bottom, 6)
-                    HStack(spacing: 24) {
-                        speedColumn(.read, symbol: "arrow.down", speed: monitor.resources.diskRate?.read, color: downloadColor)
-                        speedColumn(.write, symbol: "arrow.up", speed: monitor.resources.diskRate?.write, color: memoryColor)
-                    }
-                    rateChart(monitor.resources.diskHistory, primaryColor: downloadColor, secondaryColor: memoryColor,
-                              label: l10n(.diskChart, historyDuration))
-                    totalsRow(.sessionIO, first: monitor.resources.totalDiskRead, second: monitor.resources.totalDiskWritten,
-                              firstColor: downloadColor, secondColor: memoryColor)
-                        .padding(.top, 6)
-                    errorLabel(monitor.resources.diskError)
-                    Divider().padding(.top, 10)
-
-                    HStack {
-                        Label(l10n(.network), systemImage: "network").font(.system(size: 12, weight: .semibold))
-                        Spacer()
-                    }
-                    .padding(.top, 10).padding(.bottom, 6)
-                    HStack(spacing: 24) {
-                        speedColumn(.download, symbol: "arrow.down", speed: monitor.networkError == nil ? monitor.rate.download : nil,
-                                    color: downloadColor)
-                        speedColumn(.upload, symbol: "arrow.up", speed: monitor.networkError == nil ? monitor.rate.upload : nil,
-                                    color: uploadColor)
-                    }
-                    rateChart(monitor.history, primaryColor: downloadColor, secondaryColor: uploadColor,
-                              label: l10n(.networkChart, historyDuration))
-                    totalsRow(.sessionTraffic, first: monitor.totalReceived, second: monitor.totalSent,
-                              firstColor: downloadColor, secondColor: uploadColor)
-                        .padding(.top, 6)
-                    HStack(alignment: .top) {
-                        Text(l10n(.interfaces)).foregroundStyle(.secondary)
-                        Spacer(minLength: 16)
-                        Text(monitor.interfaces.isEmpty ? l10n(.noInterfaces) : monitor.interfaceDescription(using: l10n))
-                            .multilineTextAlignment(.trailing).lineLimit(2).help(l10n(.networkHelp))
-                    }
-                    .font(.system(size: 10)).padding(.top, 6)
-                    errorLabel(monitor.networkError)
-                }
-                .padding(.horizontal, 20).padding(.bottom, 8)
-            }
-            .frame(maxHeight: .infinity, alignment: .top)
-
-            Divider().padding(.horizontal, 20)
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 14) {
-                    Button {
-                        editingRefresh = false
-                        editingHistory = false
-                        presentation.insight = nil
-                        presentation.showsSettings.toggle()
-                        if showsSettings { loginItem.refresh(); eventNotifications.refresh() }
-                    } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: showsSettings ? "chevron.left" : "chevron.right")
-                                .font(.system(size: 8, weight: .semibold)).frame(width: 8)
-                            Label(l10n(.settings), systemImage: "gearshape")
-                            if softwareUpdater.pendingVersion != nil {
-                                Image(systemName: "arrow.down.circle.fill").foregroundStyle(.blue)
-                                    .accessibilityLabel(l10n(.newVersionAvailable, softwareUpdater.pendingVersion ?? ""))
-                            }
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    .accessibilityLabel(l10n(.settings))
-                    .accessibilityValue(l10n(showsSettings ? .settingsExpanded : .settingsCollapsed))
-                    Button { presentation.toggleInsight(.events) } label: {
-                        Label(monitor.events.isEmpty ? l10n(.events) : "\(l10n(.events)) (\(monitor.events.count))", systemImage: "clock.arrow.circlepath")
-                    }
-                    .accessibilityLabel(l10n(.events))
-                    .accessibilityValue(String(monitor.events.count))
-                    Spacer()
-                    Button(l10n(.reset), action: monitor.reset).help(l10n(.resetHelp))
-                    Button(l10n(.quit)) { NSApplication.shared.terminate(nil) }.keyboardShortcut("q")
-                }
-                .buttonStyle(.plain)
-            }
-            .font(.system(size: 11)).controlSize(.small)
-            .padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 12)
+            navigationBar
         }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Image(systemName: "waveform.path.ecg")
+                    .font(.system(size: 17, weight: .semibold)).foregroundStyle(.tint)
+                Text(l10n(.appTitle)).font(.system(size: 16, weight: .semibold))
+                Spacer(minLength: 4)
+                Circle().fill(monitor.networkError != nil || monitor.resources.hasError ? Color.orange : uploadColor)
+                    .frame(width: 5, height: 5)
+                Text(monitor.networkError != nil || monitor.resources.hasError
+                     ? l10n(.partialError) : l10n(.updatingEvery, preferences.refreshSeconds))
+                    .font(.system(size: 10)).foregroundStyle(.secondary)
+                Menu {
+                    Button(l10n(.checkForUpdates), action: softwareUpdater.checkForUpdates)
+                        .disabled(!softwareUpdater.canPresentUpdate)
+                    Link(l10n(.downloadAndReleaseNotes), destination: softwareUpdater.releasesURL)
+                    Divider()
+                    Button(l10n(.reset), action: monitor.reset).help(l10n(.resetHelp))
+                    Divider()
+                    Button(l10n(.quit)) { NSApp.terminate(nil) }.keyboardShortcut("q")
+                } label: {
+                    Image(systemName: "ellipsis.circle").font(.system(size: 16))
+                }
+                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                .accessibilityLabel(l10n(.moreActions)).help(l10n(.moreActions))
+            }
+            Text(resetFeedback ? l10n(.resetDone) : inspectionTime.map {
+                l10n(.inspecting, InsightStyle.time(Date().addingTimeInterval($0 - ProcessInfo.processInfo.systemUptime), localizer: l10n))
+            } ?? l10n(.liveHistory, historyDuration))
+                .font(.system(size: 10)).foregroundStyle(resetFeedback ? uploadColor : Color.secondary)
+                .monospacedDigit().lineLimit(1)
+        }
+        .padding(.horizontal, 20).padding(.top, 14).padding(.bottom, 14)
+    }
+
+    private var overviewContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: 24) {
+                usageColumn(.cpu, symbol: "cpu", value: monitor.resources.cpu?.usedPercent,
+                            detail: cpuDetail, points: monitor.resources.cpuHistory, color: cpuColor,
+                            error: monitor.resources.cpuError, help: l10n(.cpuHelp))
+                usageColumn(.memory, symbol: "memorychip", value: monitor.resources.memory?.usedPercent,
+                            detail: memoryDetail, points: monitor.resources.memoryHistory, color: memoryColor,
+                            error: monitor.resources.memoryError, help: memoryHelp)
+            }
+            .padding(.bottom, 10)
+            memoryHealthRow.padding(.bottom, 8)
+            Divider()
+
+            HStack {
+                Label(l10n(.diskIO), systemImage: "internaldrive").font(.system(size: 12, weight: .semibold))
+                Spacer()
+                Text(monitor.resources.disks.isEmpty ? "—" : monitor.resources.disks.joined(separator: l10n(.listSeparator)))
+                    .font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                    .help(l10n(.diskHelp))
+            }
+            .padding(.top, 10).padding(.bottom, 6)
+            HStack(spacing: 24) {
+                speedColumn(.read, symbol: "arrow.down", speed: monitor.resources.diskRate?.read, color: downloadColor)
+                speedColumn(.write, symbol: "arrow.up", speed: monitor.resources.diskRate?.write, color: memoryColor)
+            }
+            rateChart(monitor.resources.diskHistory, primaryColor: downloadColor, secondaryColor: memoryColor,
+                      label: l10n(.diskChart, historyDuration))
+            totalsRow(.sessionIO, first: monitor.resources.totalDiskRead, second: monitor.resources.totalDiskWritten,
+                      firstColor: downloadColor, secondColor: memoryColor)
+                .padding(.top, 6)
+            errorLabel(monitor.resources.diskError)
+            Divider().padding(.top, 10)
+
+            HStack {
+                Label(l10n(.network), systemImage: "network").font(.system(size: 12, weight: .semibold))
+                Spacer()
+            }
+            .padding(.top, 10).padding(.bottom, 6)
+            HStack(spacing: 24) {
+                speedColumn(.download, symbol: "arrow.down", speed: monitor.networkError == nil ? monitor.rate.download : nil,
+                            color: downloadColor)
+                speedColumn(.upload, symbol: "arrow.up", speed: monitor.networkError == nil ? monitor.rate.upload : nil,
+                            color: uploadColor)
+            }
+            rateChart(monitor.history, primaryColor: downloadColor, secondaryColor: uploadColor,
+                      label: l10n(.networkChart, historyDuration))
+            totalsRow(.sessionTraffic, first: monitor.totalReceived, second: monitor.totalSent,
+                      firstColor: downloadColor, secondColor: uploadColor)
+                .padding(.top, 6)
+            HStack(alignment: .top) {
+                Text(l10n(.interfaces)).foregroundStyle(.secondary)
+                Spacer(minLength: 16)
+                Text(monitor.interfaces.isEmpty ? l10n(.noInterfaces) : monitor.interfaceDescription(using: l10n))
+                    .multilineTextAlignment(.trailing).lineLimit(2).help(l10n(.networkHelp))
+            }
+            .font(.system(size: 10)).padding(.top, 6)
+            errorLabel(monitor.networkError)
+        }
+        .padding(.horizontal, 20).padding(.bottom, 8)
+    }
+
+
+    private var navigationBar: some View {
+        VStack(spacing: 0) {
+            Divider().padding(.horizontal, 16)
+            HStack(spacing: 3) {
+                navigationItem(.overview, title: .overview, symbol: "waveform.path.ecg", key: "1")
+                navigationItem(route.isApps ? route : .cpuApps, title: .appRanking, symbol: "square.stack.3d.up", key: "2")
+                navigationItem(.events, title: .events, symbol: "clock.arrow.circlepath", key: "3")
+                navigationItem(.settings, title: .settings, symbol: "slider.horizontal.3", key: "4")
+            }
+            .padding(.horizontal, 12).padding(.vertical, 10)
+        }
+    }
+
+    private func navigationItem(_ destination: PanelRoute, title: TextKey, symbol: String, key: KeyEquivalent) -> some View {
+        let selected = route == destination
+        return Button { presentation.navigate(destination) } label: {
+            HStack(spacing: 5) {
+                Image(systemName: symbol).font(.system(size: 11, weight: .medium))
+                Text(l10n(title)).font(.system(size: 10, weight: selected ? .semibold : .medium))
+                if destination == .events && !monitor.events.isEmpty {
+                    Text(String(monitor.events.count)).font(.system(size: 8, weight: .semibold))
+                        .monospacedDigit().foregroundStyle(.secondary)
+                }
+                if destination == .settings && softwareUpdater.pendingVersion != nil {
+                    Circle().fill(.blue).frame(width: 5, height: 5)
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 18)
+        }
+        .buttonStyle(PanelButtonStyle(selected: selected, padding: 7))
+        .keyboardShortcut(key, modifiers: .command)
+        .accessibilityLabel(l10n(title))
+        .accessibilityValue(selected ? l10n(.selectedTab) : "")
+        .help(l10n(title))
+    }
+
+    private var detailPanel: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 10) {
+                Label(l10n(route == .settings ? .settings : route == .events ? .events : .appRanking),
+                      systemImage: route == .settings ? "slider.horizontal.3" : route == .events ? "clock.arrow.circlepath" : "square.stack.3d.up")
+                    .font(.system(size: 14, weight: .semibold))
+                Spacer()
+                Button { presentation.navigate(.overview) } label: {
+                    Image(systemName: "xmark").font(.system(size: 10, weight: .semibold))
+                }
+                .buttonStyle(PanelButtonStyle(padding: 6))
+                .accessibilityLabel(l10n(.closeDetail)).help(l10n(.closeDetail))
+            }
+            if route.isApps {
+                Picker(l10n(.appRanking), selection: Binding(get: { route }, set: { presentation.navigate($0) })) {
+                    Text(l10n(.cpu)).tag(PanelRoute.cpuApps)
+                    Text(l10n(.memory)).tag(PanelRoute.memoryApps)
+                }
+                .pickerStyle(.segmented).labelsHidden()
+            }
+            ScrollView {
+                ZStack(alignment: .topLeading) {
+                    Group {
+                    switch route {
+                    case .settings: settingsContent
+                    case .events: EventTimelineView(monitor: monitor, localizer: l10n)
+                    case .cpuApps, .memoryApps:
+                        RankingPane(monitor: monitor, preferences: preferences, metric: route == .cpuApps ? .cpu : .memory)
+                    case .overview: EmptyView()
+                    }
+                    }
+                    .id(route)
+                    .transition(.opacity)
+                }
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: route)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.trailing, 3)
+            }
+        }
+        .font(.system(size: 11)).controlSize(.small)
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var panelHeight: CGFloat {
@@ -203,8 +265,6 @@ struct PopoverView: View {
 
     private var settingsContent: some View {
         VStack(alignment: .leading, spacing: 10) {
-            SoftwareUpdateSettings(updater: softwareUpdater, localizer: l10n)
-            Divider()
             VStack(alignment: .leading, spacing: 8) {
                 Text(l10n(.menuBarItems)).foregroundStyle(.secondary)
                 HStack(spacing: 24) {
@@ -219,7 +279,6 @@ struct PopoverView: View {
                     Text(l10n(.atLeastOne)).font(.system(size: 10)).foregroundStyle(.secondary)
                 }
             }
-            Divider()
             HStack {
                 Text(l10n(.language))
                 Spacer()
@@ -231,6 +290,9 @@ struct PopoverView: View {
                 .labelsHidden().pickerStyle(.menu).frame(width: 132)
                 .accessibilityLabel(l10n(.language))
             }
+            Divider().padding(.vertical, 5)
+            Label(l10n(.samplingSection), systemImage: "waveform.path")
+                .font(.system(size: 11, weight: .semibold))
             HStack(spacing: 4) {
                 Text(l10n(.refresh))
                 Spacer()
@@ -263,7 +325,9 @@ struct PopoverView: View {
                     .labelsHidden().fixedSize().accessibilityLabel(l10n(.historyWindow))
             }
             .help(l10n(.historyHelp))
-            Divider()
+            Divider().padding(.vertical, 5)
+            Label(l10n(.behaviorSection), systemImage: "switch.2")
+                .font(.system(size: 11, weight: .semibold))
             HStack {
                 Text(l10n(.launchAtLogin))
                 Spacer()
@@ -305,6 +369,8 @@ struct PopoverView: View {
             if let error = eventNotifications.lastError {
                 Text(l10n(.notificationFailed, error)).font(.system(size: 10)).foregroundStyle(.orange)
             }
+            Divider().padding(.vertical, 5)
+            SoftwareUpdateSettings(updater: softwareUpdater, localizer: l10n)
         }
     }
 
@@ -374,7 +440,7 @@ struct PopoverView: View {
     private func usageColumn(_ metric: MonitorMetric, symbol: String, value: Double?, detail: String,
                              points: [HistoryPoint], color: Color, error: Error?, help: String) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            Button { presentation.toggleInsight(metric == .cpu ? .cpu : .memory) } label: {
+            Button { presentation.navigate(metric == .cpu ? .cpuApps : .memoryApps) } label: {
                 VStack(alignment: .leading, spacing: 5) {
                     HStack {
                         Label(l10n(metric.titleKey), systemImage: symbol)
@@ -387,7 +453,9 @@ struct PopoverView: View {
                 }
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain).help(l10n(metric == .cpu ? .topCPU : .topMemory))
+            .buttonStyle(PanelButtonStyle(selected: route == (metric == .cpu ? .cpuApps : .memoryApps), tint: color, padding: 5))
+            .padding(-5)
+            .help(l10n(metric == .cpu ? .topCPU : .topMemory))
             .accessibilityLabel(l10n(metric == .cpu ? .topCPU : .topMemory))
             .accessibilityValue(SystemFormatter.percent(value))
             Text(error == nil ? detail : l10n(.retrying))

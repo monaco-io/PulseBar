@@ -32,7 +32,7 @@ fi
 codesign --verify --deep --strict "$app_dir"
 lipo "$app_dir/Contents/MacOS/PulseBar" -verify_arch arm64 x86_64
 ln -s /Applications "$stage_dir/image/Applications"
-cp docs/INSTALL.txt "$stage_dir/image/Installation.txt"
+cp Resources/DMG/FinderLayout.dsstore "$stage_dir/image/.DS_Store"
 hdiutil create -quiet -volname "PulseBar $version" -srcfolder "$stage_dir/image" \
     -format UDZO -ov "$stage_dir/updates/PulseBar.dmg"
 notes="$project_dir/docs/releases/$release_tag.md"

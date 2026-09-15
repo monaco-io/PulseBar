@@ -27,7 +27,7 @@ struct PreferencesTests {
         let first = AppPreferences(defaults: defaults)
         #expect(first.selection.metrics.count == 4)
         #expect(first.language == .system)
-        #expect(first.refreshSeconds == 1)
+        #expect(first.refreshSeconds == 2)
         #expect(first.historySeconds == 3600)
         #expect(!first.notificationsEnabled)
         #expect(first.notificationCooldownMinutes == 10)

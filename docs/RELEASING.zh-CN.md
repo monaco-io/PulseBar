@@ -4,7 +4,9 @@
 
 ## 发布布局
 
-**Release 只上传 `PulseBar.dmg`。** 安装和自动更新共用同一个签名 DMG。安装说明随 DMG 分发，版本说明放在发布正文；不再上传 ZIP、独立说明或校验文本。GitHub 页面会显示资产的 SHA-256，并自动附带两个源码下载链接，它们不是手动上传的附件。
+**Release 只上传 `PulseBar.dmg`。** 安装和自动更新共用同一个签名 DMG。DMG 只显示 `PulseBar.app` 和 `Applications` 文件夹入口，左右排列为大图标。安装说明放在 README，版本说明放在发布正文；不再上传 ZIP、独立说明或校验文本。GitHub 页面会显示资产的 SHA-256，并自动附带两个源码下载链接，它们不是手动上传的附件。
+
+隐藏的 Finder 布局来自 `Resources/DMG/FinderLayout.dsstore`。修改 256 点图标或 800 × 440 窗口时，编辑 `scripts/create-dmg-layout.py`，在安装了 `ds-store==1.3.3` 的临时 Python 环境中运行，并同时提交脚本和生成的模板。正式打包直接复制模板，无需安装此依赖。
 
 签名更新清单单独保存在 `codex/updates` 分支：
 <https://raw.githubusercontent.com/monaco-io/PulseBar/codex/updates/appcast.xml>

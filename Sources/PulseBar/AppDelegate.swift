@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var globalClickMonitor: Any?
     private var subscriptions = Set<AnyCancellable>()
     private var popoverClickMonitor: Any?
+    private var menuTrackingDepth = 0
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApplication.shared.setActivationPolicy(.accessory)
@@ -27,14 +28,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let button = statusItem.button {
             button.target = self
             button.action = #selector(togglePopover)
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
             button.imagePosition = .imageOnly
             button.imageScaling = .scaleNone
         }
-        presentation.$showsSettings.combineLatest(presentation.$insight)
-            .map { settings, insight in settings ? 661 : (insight == nil ? 400 : 741) }
-            .removeDuplicates().dropFirst()
+        presentation.onNavigate = { [weak self] in
+            self?.panel?.makeFirstResponder(nil)
+            self?.resizePanel()
+        }
+        NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)
+            .sink { [weak self] _ in self?.menuTrackingDepth += 1 }
+            .store(in: &subscriptions)
+        NotificationCenter.default.publisher(for: NSMenu.didEndTrackingNotification)
             .sink { [weak self] _ in
-                DispatchQueue.main.async { [weak self] in self?.resizePanel() }
+                guard let self else { return }
+                self.menuTrackingDepth = max(0, self.menuTrackingDepth - 1)
             }
             .store(in: &subscriptions)
         NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
@@ -61,8 +69,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         eventNotifications.onOpenEvent = { [weak self] in
             self?.showPopover()
-            self?.presentation.showsSettings = false
-            self?.presentation.insight = .events
+            self?.presentation.navigate(.events)
         }
         monitor.start(refreshSeconds: preferences.refreshSeconds)
 
@@ -79,6 +86,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) { monitor.stop() }
 
     @objc private func togglePopover() {
+        if let event = NSApp.currentEvent,
+           event.type == .rightMouseUp || event.modifierFlags.contains(.control) {
+            showStatusMenu()
+            return
+        }
         if panel?.isVisible == true { closePanel() } else { showPopover() }
     }
 
@@ -92,8 +104,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         availableFrame = screen.visibleFrame
         presentation.prepare(on: screen)
         if panel == nil {
-            let window = MonitorPanel(contentRect: .zero, styleMask: [.borderless], backing: .buffered, defer: false)
+            let window = MonitorPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
             window.title = "PulseBar"
+            window.identifier = NSUserInterfaceItemIdentifier("PulseBar.monitor")
+            window.animationBehavior = .none
             window.isReleasedWhenClosed = false
             window.level = .popUpMenu
             window.isMovable = false
@@ -106,20 +120,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let controller = NSHostingController(rootView: PopoverView(
                 monitor: monitor, preferences: preferences, loginItem: loginItem,
                 presentation: presentation, eventNotifications: eventNotifications, softwareUpdater: softwareUpdater
-            ).background(.regularMaterial).clipShape(RoundedRectangle(cornerRadius: 12)))
+            ).ignoresSafeArea().background(PanelMaterial().ignoresSafeArea()).clipShape(RoundedRectangle(cornerRadius: 14)))
             controller.sizingOptions = []
             window.contentViewController = controller
             panel = window
         }
         resizePanel(force: true)
-        NSApplication.shared.activate(ignoringOtherApps: true)
+        panel?.contentView?.layoutSubtreeIfNeeded()
+        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        panel?.alphaValue = reduceMotion ? 1 : 0
         panel?.makeKeyAndOrderFront(nil)
         panel?.makeFirstResponder(nil)
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = reduceMotion ? 0 : 0.12
+            panel?.animator().alphaValue = 1
+        }
+        recordLayout("open")
         button.highlight(true)
         popoverClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { [weak self] event in
             guard let self, let window = self.panel, window.isVisible else { return event }
+            // Native menus have their own windows and handle Escape themselves.
+            // They belong to this interaction and are not outside clicks.
+            if self.menuTrackingDepth > 0 { return event }
             if event.type == .keyDown {
-                if event.keyCode == 53 { self.closePanel(); return nil }
+                if event.keyCode == 53 {
+                    if self.presentation.route.hasDetails { self.presentation.navigate(.overview) }
+                    else { self.closePanel() }
+                    return nil
+                }
                 return event
             }
             if event.window === window {
@@ -134,35 +162,77 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return event
         }
         globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            self?.closePanel()
+            guard let self, self.menuTrackingDepth == 0 else { return }
+            self.closePanel()
         }
     }
 
     private func resizePanel(force: Bool = false) {
         guard let panel, force || panel.isVisible,
               let anchorFrame, let availableFrame else { return }
-        // A single window owns placement; expanding a sidebar keeps its left/top
-        // edge fixed unless a display boundary requires a minimal adjustment.
-        let size = presentation.contentSize
-        let frame = PanelPlacement.frame(size: size, anchor: anchorFrame, visibleFrame: availableFrame)
-        panel.setFrame(frame, display: true, animate: false)
-        // Optional on-device geometry evidence, disabled during ordinary use.
-        if let file = ProcessInfo.processInfo.environment["PULSEBAR_LAYOUT_LOG"] {
-            let line = "\(Date()) settings=\(presentation.showsSettings) insight=\(String(describing: presentation.insight)) frame=\(frame) available=\(availableFrame)\n"
-            if let data = line.data(using: .utf8) {
-                if !FileManager.default.fileExists(atPath: file) { FileManager.default.createFile(atPath: file, contents: nil) }
-                if let handle = FileHandle(forWritingAtPath: file) {
-                    handle.seekToEndOfFile(); handle.write(data); try? handle.close()
-                }
-            }
+        let frame = PanelPlacement.frame(size: presentation.contentSize, anchor: anchorFrame, visibleFrame: availableFrame)
+        // AppKit frame interpolation competes with NSHostingView layout and
+        // briefly offsets individual rows. Commit geometry atomically; SwiftUI
+        // animates only the detail reveal and controls inside the stable window.
+        if panel.frame != frame {
+            panel.setFrame(frame, display: false, animate: false)
+            panel.contentView?.layoutSubtreeIfNeeded()
+            panel.displayIfNeeded()
+        }
+        recordLayout("navigate", target: frame)
+    }
+
+    private func recordLayout(_ event: String, target: NSRect? = nil) {
+        guard let file = ProcessInfo.processInfo.environment["PULSEBAR_LAYOUT_LOG"], let panel else { return }
+        let line = "\(Date()) event=\(event) window=\(panel.windowNumber) route=\(presentation.route.rawValue) frame=\(panel.frame) target=\(target ?? panel.frame) visible=\(panel.isVisible)\n"
+        guard let data = line.data(using: .utf8) else { return }
+        if !FileManager.default.fileExists(atPath: file) { FileManager.default.createFile(atPath: file, contents: nil) }
+        if let handle = FileHandle(forWritingAtPath: file) {
+            handle.seekToEndOfFile(); handle.write(data); try? handle.close()
         }
     }
 
+    private func showStatusMenu() {
+        guard let button = statusItem.button else { return }
+        let l10n = preferences.localizer
+        let menu = NSMenu()
+        for (route, title) in [(PanelRoute.overview, TextKey.overview), (.cpuApps, .topCPU),
+                               (.memoryApps, .topMemory), (.events, .events), (.settings, .settings)] {
+            let item = NSMenuItem(title: l10n(title), action: #selector(navigateFromMenu(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = route.rawValue
+            item.state = panel?.isVisible == true && presentation.route == route ? .on : .off
+            menu.addItem(item)
+        }
+        menu.addItem(.separator())
+        let update = NSMenuItem(title: l10n(.checkForUpdates), action: #selector(checkForUpdates), keyEquivalent: "")
+        update.target = self
+        update.isEnabled = softwareUpdater.canPresentUpdate
+        menu.addItem(update)
+        let reset = NSMenuItem(title: l10n(.reset), action: #selector(resetMonitoring), keyEquivalent: "")
+        reset.target = self; menu.addItem(reset)
+        menu.addItem(.separator())
+        let quit = NSMenuItem(title: l10n(.quit), action: #selector(quit), keyEquivalent: "q")
+        quit.target = self; menu.addItem(quit)
+        menu.autoenablesItems = false
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.minY), in: button)
+    }
+
+    @objc private func navigateFromMenu(_ sender: NSMenuItem) {
+        guard let value = sender.representedObject as? String, let route = PanelRoute(rawValue: value) else { return }
+        showPopover()
+        presentation.navigate(route)
+    }
+    @objc private func checkForUpdates() { softwareUpdater.checkForUpdates() }
+    @objc private func resetMonitoring() { monitor.reset() }
+    @objc private func quit() { NSApp.terminate(nil) }
+
     private func closePanel() {
         panel?.makeFirstResponder(nil)
+        recordLayout("close")
         panel?.orderOut(nil)
-        presentation.showsSettings = false
-        presentation.insight = nil
+        panel?.alphaValue = 1
+        presentation.navigate(.overview)
         if let popoverClickMonitor { NSEvent.removeMonitor(popoverClickMonitor) }
         if let globalClickMonitor { NSEvent.removeMonitor(globalClickMonitor) }
         popoverClickMonitor = nil

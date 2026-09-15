@@ -1,3 +1,49 @@
+# PulseBar interaction design
+
+## v1.8: stable navigation and restrained motion
+
+The panel is a compact instrument for reading live system activity. Preserve the four-chart overview while making app detail, events, and preferences easy to find.
+
+### Visual tokens
+
+- Native popover material: light reference `#F5F5F7`, dark reference `#242426`.
+- Primary label: dynamic system label, light reference `#1D1D1F`.
+- CPU `#FF9500`, memory `#AF52DE`, incoming traffic `#007AFF`, outgoing traffic `#248A3D`; use their adaptive system-color equivalents.
+- SF system type: 16 pt title, 24–25 pt rounded live values with monospaced digits, 11–12 pt controls, 9–10 pt chart context.
+- Overview width 400 pt; one 320 pt detail column for every destination. Main labels align left and values align right. Show one detail destination at a time.
+
+### Navigation
+
+```text
+PulseBar                   Live status   More
+CPU details        Memory details       | Apps / Events / Settings   Close
+CPU + memory charts                      | CPU / Memory selector
+Pressure and swap                        | Detail content
+Disk reads / writes and chart            |
+Network down / up and chart              |
+Overview     Apps     Events     Settings |
+```
+
+- The bottom navigation is persistent. Selecting an already active destination keeps it open. Overview and the detail close button return to the compact monitor.
+- CPU and memory readings are shortcuts to the corresponding Apps tab. Switching between Apps, Events, and Settings keeps the same window size.
+- Settings groups: menu bar display; sampling and language; startup and notifications; software updates. The update section no longer pushes everyday controls down the page.
+- New installations refresh every 2 seconds. Preserve saved intervals. Language choices appear as Follow System, English, then 简体中文.
+- More and right-click menus provide navigation, update checks, Reset, and Quit. Opening or selecting native menus must not dismiss the panel as an outside click.
+- On displays too narrow for the detail column, details replace the middle content while the header and bottom navigation stay available.
+
+### Motion and stability
+
+- A single route value replaces competing settings/insight flags. Window geometry is committed from the new route once per navigation change.
+- Keep the window and hosting controller alive; commit window geometry without AppKit frame interpolation. Align content to the leading edge and use one width for every detail destination.
+- Use a short ease-out opening, a quiet detail reveal, and subtle hover/pressed feedback. Window width changes atomically so AppKit and SwiftUI never animate competing layouts. Live samples do not animate the entire panel. Respect Reduce Motion and Reduce Transparency.
+- Escape closes a native menu first; otherwise it returns from details to Overview, then dismisses the panel. Clicking outside dismisses the panel.
+
+### Design review
+
+Four identical metric cards would obscure the relationships between percentages and paired I/O rates. Keep the existing instrument-like chart hierarchy; spend the visual emphasis on a clear selected navigation item and direct metric shortcuts. Avoid continuous pulsing and decorative entrance animations on every row.
+
+## Earlier design notes
+
 # 系统监控组件的界面方向
 
 ## v1.5：折叠设置与登录启动

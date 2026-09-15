@@ -2,8 +2,8 @@ import Foundation
 
 public enum AppLanguage: String, CaseIterable {
     case system
-    case simplifiedChinese = "zh-Hans"
     case english = "en"
+    case simplifiedChinese = "zh-Hans"
 
     public func resolved(preferredLanguages: [String] = Locale.preferredLanguages) -> AppLanguage {
         guard self == .system else { return self }
@@ -25,6 +25,7 @@ public enum AppLanguage: String, CaseIterable {
 }
 
 public enum TextKey: String, CaseIterable {
+    case overview, moreActions, samplingSection, behaviorSection, resetDone, selectedTab
     case softwareUpdate, checkForUpdates, automaticUpdateChecks, updateHelp, downloadAndReleaseNotes, updateStartFailed, newVersionAvailable
     case appTitle, cpu, memory, diskIO, network, read, write, download, upload
     case updatingEvery, partialError, waiting, retrying, userSystem, memoryRatio

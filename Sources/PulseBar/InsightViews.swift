@@ -158,6 +158,7 @@ struct EventTimelineView: View {
     let localizer: Localizer
     @State private var expandedID: UUID?
     @State private var confirmsClear = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -170,7 +171,11 @@ struct EventTimelineView: View {
             }
             ForEach(monitor.events) { event in
                 VStack(alignment: .leading, spacing: 8) {
-                    Button { expandedID = expandedID == event.id ? nil : event.id } label: {
+                    Button {
+                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) {
+                            expandedID = expandedID == event.id ? nil : event.id
+                        }
+                    } label: {
                         HStack(alignment: .top, spacing: 8) {
                             Image(systemName: event.kind == .highCPU ? "cpu" : "memorychip")
                                 .foregroundStyle(event.kind == .memoryCritical ? Color.red : .orange)
@@ -183,12 +188,14 @@ struct EventTimelineView: View {
                                     .font(.system(size: 10)).foregroundStyle(.secondary)
                             }
                             Spacer(minLength: 2)
-                            Image(systemName: expandedID == event.id ? "chevron.down" : "chevron.right")
+                            Image(systemName: "chevron.right")
                                 .font(.system(size: 9)).foregroundStyle(.secondary)
+                                .rotationEffect(.degrees(expandedID == event.id ? 90 : 0))
                         }
                         .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PanelButtonStyle(selected: expandedID == event.id, padding: 7))
+                    .padding(-7)
                     if expandedID == event.id {
                         HStack {
                             Text("CPU " + SystemFormatter.percent(event.cpuPercent))

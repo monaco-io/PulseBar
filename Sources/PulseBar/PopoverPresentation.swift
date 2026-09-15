@@ -1,25 +1,30 @@
 import AppKit
 import Combine
-
-enum InsightPane { case cpu, memory, events }
+import SpeedCore
 
 final class PopoverPresentation: ObservableObject {
-    @Published var showsSettings = false
-    @Published var insight: InsightPane?
-    @Published private(set) var height: CGFloat = 640
+    @Published private(set) var navigation = PanelNavigation()
+    @Published private(set) var height: CGFloat = 660
+    @Published private(set) var availableWidth: CGFloat = 1280
+    var onNavigate: (() -> Void)?
+
+    var route: PanelRoute { navigation.route }
+    var usesInlineDetails: Bool { PanelLayout.usesInlineDetails(availableWidth: availableWidth) }
+    var overviewWidth: CGFloat { min(PanelLayout.overviewWidth, availableWidth) }
 
     var contentSize: NSSize {
-        NSSize(width: showsSettings ? 661 : (insight != nil ? 741 : 400), height: height)
+        NSSize(width: PanelLayout.width(for: route, availableWidth: availableWidth), height: height)
     }
 
     func prepare(on screen: NSScreen?) {
-        showsSettings = false
-        insight = nil
-        height = min(640, max(280, screen?.visibleFrame.height ?? 664) - 24)
+        availableWidth = screen?.visibleFrame.width ?? 1280
+        height = min(660, max(280, screen?.visibleFrame.height ?? 684) - 24)
+        navigate(.overview)
     }
 
-    func toggleInsight(_ pane: InsightPane) {
-        showsSettings = false
-        insight = insight == pane ? nil : pane
+    func navigate(_ route: PanelRoute) {
+        guard route != navigation.route else { return }
+        navigation.show(route)
+        onNavigate?()
     }
 }

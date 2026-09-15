@@ -76,7 +76,7 @@ public final class AppPreferences: ObservableObject {
         } else { selection = MenuBarSelection() }
         language = AppLanguage(rawValue: defaults.string(forKey: "appLanguage") ?? "") ?? .system
         refreshSeconds = defaults.object(forKey: "refreshSeconds") == nil
-            ? 1 : RefreshInterval.normalized(defaults.integer(forKey: "refreshSeconds"))
+            ? 2 : RefreshInterval.normalized(defaults.integer(forKey: "refreshSeconds"))
         historySeconds = defaults.object(forKey: "historySeconds") == nil
             ? HistoryWindow.defaultSeconds : HistoryWindow.normalized(defaults.integer(forKey: "historySeconds"))
         notificationsEnabled = defaults.bool(forKey: "notificationsEnabled")

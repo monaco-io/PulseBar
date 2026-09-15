@@ -4,7 +4,9 @@ English | [简体中文](RELEASING.zh-CN.md)
 
 ## Release layout
 
-**Upload only `PulseBar.dmg` to each Release.** Installation and in-app updates use the same signed DMG. Installation instructions are included in the disk image; release notes belong in the release body. Do not upload ZIPs, separate notes, or checksum files. GitHub displays the asset digest and automatically adds two source archive links.
+**Upload only `PulseBar.dmg` to each Release.** Installation and in-app updates use the same signed DMG. The disk image shows only `PulseBar.app` and the `Applications` folder shortcut, side by side with large icons. Installation instructions belong in the README; release notes belong in the release body. Do not upload ZIPs, separate notes, or checksum files. GitHub displays the asset digest and automatically adds two source archive links.
+
+The hidden Finder layout is copied from `Resources/DMG/FinderLayout.dsstore`. To change its 256-point icons or 800 × 440 window, edit `scripts/create-dmg-layout.py`, run it in a temporary Python environment with `ds-store==1.3.3`, and commit both the script and regenerated template. Release builds use the template without installing that dependency.
 
 The signed update feed is stored on the `codex/updates` branch:
 

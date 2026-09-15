@@ -71,7 +71,7 @@
 "openLoginSettings" = "Open Login Items…";
 "loginItemFailed" = "Could not update launch at login: %@";
 
-"appRanking" = "App usage";
+"appRanking" = "Apps";
 "topCPU" = "Top CPU apps";
 "topMemory" = "Top memory apps";
 "processCount" = "%d processes";
@@ -125,3 +125,10 @@
 "updateHelp" = "Checks GitHub for new versions daily. You choose when to download and install.";
 "downloadAndReleaseNotes" = "Downloads & release notes";
 "updateStartFailed" = "Unable to start updates: %@";
+
+"overview" = "Overview";
+"moreActions" = "More actions";
+"samplingSection" = "Sampling";
+"behaviorSection" = "Behavior";
+"resetDone" = "Session reset. Monitoring continues.";
+"selectedTab" = "Selected";

@@ -33,6 +33,10 @@ def verify(directory, tag, feed_path=None):
         mount.mkdir()
         subprocess.run(["hdiutil", "attach", "-quiet", "-readonly", "-nobrowse", "-mountpoint", str(mount), str(dmg.resolve())], check=True)
         try:
+            visible_entries = {entry.name for entry in mount.iterdir() if not entry.name.startswith(".")}
+            assert visible_entries == {"PulseBar.app", "Applications"}, f"Unexpected DMG contents: {visible_entries}"
+            layout = pathlib.Path(__file__).resolve().parent.parent / "Resources/DMG/FinderLayout.dsstore"
+            assert (mount / ".DS_Store").read_bytes() == layout.read_bytes(), "DMG Finder layout differs from the template"
             app = mount / "PulseBar.app"
             info = plistlib.loads((app / "Contents/Info.plist").read_bytes())
             assert (mount / "Applications").is_symlink()
@@ -51,7 +55,7 @@ def verify(directory, tag, feed_path=None):
     assert item.findtext(f"{sparkle}version") == info["CFBundleVersion"]
     assert item.findtext(f"{sparkle}shortVersionString") == info["CFBundleShortVersionString"]
     assert item.findtext(f"{sparkle}minimumSystemVersion") == info["LSMinimumSystemVersion"]
-    print(f"Verified {tag} ({info['CFBundleVersion']}): sole DMG asset, mounted app and signed feed agree")
+    print(f"Verified {tag} ({info['CFBundleVersion']}): sole DMG asset, two visible items, Finder layout, mounted app and signed feed agree")
     print(f"DMG SHA-256: {hashlib.sha256(dmg.read_bytes()).hexdigest()}")
 
 

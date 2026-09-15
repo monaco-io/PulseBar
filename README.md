@@ -23,6 +23,7 @@ Updates use [Sparkle](https://sparkle-project.org/) and download the same DMG of
 ## Features
 
 - **Live monitoring:** whole-Mac CPU usage, memory used and total, memory pressure, swap usage, physical disk reads/writes, network downloads/uploads, and session totals.
+- **Refresh interval:** 2 seconds by default, adjustable from 1 to 60 seconds. Existing custom intervals are preserved.
 - **Menu bar controls:** display any combination of CPU, memory, disk, and network readings, with at least one enabled. Hidden menu bar metrics continue sampling and remain visible in the panel.
 - **Full chart overview:** all four charts remain visible. Settings, app rankings, and events open in a side panel, one at a time.
 - **Top apps:** click the CPU or memory heading to see the top five apps. Helper processes are grouped with their app where possible; Activity Monitor is one click away.
@@ -34,7 +35,11 @@ Updates use [Sparkle](https://sparkle-project.org/) and download the same DMG of
 
 Launch `PulseBar.app` to see readings in the menu bar, without a Dock icon. Click the readings to open the panel; click outside or press Escape to close it.
 
-Settings start collapsed whenever the panel opens. Preferences apply immediately and are saved.
+Use the bottom navigation to switch between **Overview, Apps, Events, and Settings**. Apps has CPU and Memory tabs; clicking a metric heading is a direct shortcut. Details share one width, so switching destinations keeps the window stable. On narrow displays, details stay inside the compact panel.
+
+Use **More** in the header for update checks, Reset, and Quit, or right-click the menu bar readings for a shortcut menu. Escape returns to Overview before closing the panel; Command-1 through Command-4 select the main destinations. Native menus handle their own Escape key.
+
+Settings start collapsed whenever the panel opens. Preferences apply immediately and are saved. Opening, detail reveals, and button feedback use brief animations and respect the system Reduce Motion setting.
 
 | Setting | Behavior |
 | --- | --- |
