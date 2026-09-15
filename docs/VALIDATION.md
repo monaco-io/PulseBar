@@ -125,3 +125,17 @@
 - 最终默认恢复 B/s。程序保持运行，不自动添加登录项。
 
 原始采样保存在本地 `artifacts/live-samples.ndjson`，该目录不进入版本控制。本次未进行其他 Mac 架构或 macOS 13 真机兼容测试，也未进行 Developer ID 签名、公证或对外发布。
+## v1.7.0：GitHub 下载与签名更新
+
+验证日期：2026-09-15。发布提交：`21c35817d5089181ef6b6f2689a5a74c74cac8e6`，tag：`v1.7.0`，build：`13`。
+
+- 本地及 GitHub macOS 15 ARM64 Runner 的 55 项测试通过，arm64 / x86_64 通用 App 构建与真实诊断采样通过。
+- [CI](https://github.com/monaco-io/PulseBar/actions/runs/34923194689) 和 [正式发布工作流](https://github.com/monaco-io/PulseBar/actions/runs/34923369168)均成功。仓库已公开，[1.7.0 Release](https://github.com/monaco-io/PulseBar/releases/tag/v1.7.0)为非草稿、非预发布的 Latest。
+- DMG、ZIP、appcast、SHA256SUMS、安装说明和版本说明六个附件均可匿名下载，HTTP 200；版本、构建号、最低系统版本、ZIP 长度及 SHA-256 一致。DMG 只读挂载成功，Applications 链接正确，App 深度严格签名校验通过。
+- 使用 Sparkle 工具对实际公开下载的 feed 和 ZIP 做密码学校验，均通过。本地对两种文件各篡改一个字节后，校验均拒绝。
+- 升级端到端验证：隔离源码副本仅降低本地版本为 `1.6.99 (12)`，并增加定时调用现有 `SoftwareUpdater.checkForUpdates()` 的测试入口；此副本未上传。原生控制工具无法稳定操作监控 App 的无标题栏 NSPanel，因此本次没有把自动点击设置入口计为通过。
+- 标准 Sparkle 更新窗口实际显示“1.7.0 is now available—you have 1.6.99”及版本说明。通过原生 UI 点击 **Install Update**，看到 **Ready to Install**，再点击 **Install and Relaunch**，App 成功安装并重启。Sparkle 日志确认 feed 和 update 的 EdDSA 签名均有效。
+- 更新后的 `~/Applications/PulseBar.app` 为正式 `1.7.0 (13)`，严格签名通过，程序二进制 SHA-256 为 `b93eb3de14cb602f0a88bd0485a40911357983577e9886fbfc7b32ac923dcc10`，与公开 ZIP 完全一致，确认已移除测试入口。原有 English、2 秒刷新、12 小时范围及 3 条本地事件仍在。
+- 本地证据：`artifacts/github-v1.7.0/`、`published-artifact-verification.log`、`update-signature-verification.log`、`update-e2e-verification.json`、`update-e2e-sparkle.log`。
+
+当前使用 ad-hoc 签名和 Sparkle Ed25519 更新签名，没有 Apple Developer ID 公证。未进行 Intel / macOS 13 真机验收。旧版本需手动安装 1.7.0 一次才具备更新入口。
