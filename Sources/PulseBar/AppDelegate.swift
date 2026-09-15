@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let monitor = SystemMonitor()
     private let preferences = AppPreferences()
     private let loginItem = LoginItemController()
+    private let softwareUpdater = SoftwareUpdater()
     private let presentation = PopoverPresentation()
     private let eventNotifications = EventNotifications()
     private var statusItem: NSStatusItem!
@@ -19,6 +20,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApplication.shared.setActivationPolicy(.accessory)
+        softwareUpdater.beforeUserInitiatedCheck = { [weak self] in self?.closePanel() }
+        softwareUpdater.start()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.autosaveName = "NetSpeedStatusItem"
         if let button = statusItem.button {
@@ -102,7 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
             let controller = NSHostingController(rootView: PopoverView(
                 monitor: monitor, preferences: preferences, loginItem: loginItem,
-                presentation: presentation, eventNotifications: eventNotifications
+                presentation: presentation, eventNotifications: eventNotifications, softwareUpdater: softwareUpdater
             ).background(.regularMaterial).clipShape(RoundedRectangle(cornerRadius: 12)))
             controller.sizingOptions = []
             window.contentViewController = controller

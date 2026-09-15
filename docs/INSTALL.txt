@@ -1,0 +1,35 @@
+脉动 · PulseBar — 安装与更新
+
+系统要求：macOS 13 或更新版本，支持 Apple Silicon 和 Intel。
+
+1. 打开 PulseBar.dmg，把 PulseBar 拖到 Applications（应用程序）。
+   如没有管理员权限，可把 App 放到用户目录下的 Applications 文件夹。
+2. 从应用程序目录打开 PulseBar；顶部菜单栏出现监控读数，Dock 中没有图标。
+3. 当前发布采用本地签名，尚无 Apple Developer ID 公证。
+   如果系统阻止打开，先确认安装包来自 monaco-io/PulseBar 的 GitHub Release，
+   再进入“系统设置 → 隐私与安全性”，在 PulseBar 的提示旁选择“仍要打开”。
+   不需要关闭 Gatekeeper 或修改全局安全设置。
+4. 点击菜单栏读数 → 设置 → 软件更新，可手动检查更新或关闭自动检查。
+   默认每天检查，由你确认下载和安装；更新文件及更新清单均经过签名验证。
+5. 1.6 及更早版本需手动下载安装 1.7.0 一次，之后可以在应用内升级。
+   手动覆盖前先退出旧版本；设置和本地事件历史会保留。
+
+下载与版本说明：https://github.com/monaco-io/PulseBar/releases/latest
+
+English
+
+Requires macOS 13 or later. One universal app supports Apple Silicon and Intel.
+Open the DMG and drag PulseBar to Applications, then launch it from there.
+You can use ~/Applications if you do not have administrator access.
+PulseBar lives in the menu bar and does not show a Dock icon.
+
+This release is ad-hoc signed and is not Apple notarized. If macOS blocks it,
+verify that it came from the monaco-io/PulseBar GitHub Release, then use
+System Settings > Privacy & Security > Open Anyway for PulseBar.
+Do not disable Gatekeeper or change global security settings.
+
+Click the menu bar readings > Settings > Software update to check for updates.
+Automatic checks run daily; you choose when to download and install.
+Update archives and the update feed are cryptographically signed.
+Versions 1.6 and earlier need one manual installation of 1.7.0 to get the updater.
+Quit the old version before replacing it. Preferences and local event history remain.

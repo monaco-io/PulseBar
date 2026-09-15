@@ -8,6 +8,7 @@ struct PopoverView: View {
     @ObservedObject var loginItem: LoginItemController
     @ObservedObject var presentation: PopoverPresentation
     @ObservedObject var eventNotifications: EventNotifications
+    @ObservedObject var softwareUpdater: SoftwareUpdater
     @State private var inspectionTime: TimeInterval?
     @State private var inspectionEnd: TimeInterval?
     @State private var refreshDraft = ""
@@ -198,6 +199,8 @@ struct PopoverView: View {
 
     private var settingsContent: some View {
         VStack(alignment: .leading, spacing: 10) {
+            SoftwareUpdateSettings(updater: softwareUpdater, localizer: l10n)
+            Divider()
             VStack(alignment: .leading, spacing: 8) {
                 Text(l10n(.menuBarItems)).foregroundStyle(.secondary)
                 HStack(spacing: 24) {

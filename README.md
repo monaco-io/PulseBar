@@ -2,6 +2,18 @@
 
 原生 macOS 菜单栏组件，实时显示 CPU、内存、磁盘 I/O 和下载 / 上传速度。支持应用资源排行、内存压力和 Swap、曲线联动查看，以及带应用快照的异常事件时间线。
 
+## 下载安装
+
+**[下载最新版 DMG](https://github.com/monaco-io/PulseBar/releases/latest/download/PulseBar.dmg)** · [ZIP](https://github.com/monaco-io/PulseBar/releases/latest/download/PulseBar.zip) · [版本说明](https://github.com/monaco-io/PulseBar/releases/latest) · [SHA-256 校验](https://github.com/monaco-io/PulseBar/releases/latest/download/SHA256SUMS.txt)
+
+支持 **macOS 13+，Apple Silicon 和 Intel**。打开 DMG，把 PulseBar 拖入 Applications，再从应用程序目录启动。当前版本采用 ad-hoc 签名，尚无 Apple Developer ID 公证；若系统阻止打开，确认来源后在“系统设置 → 隐私与安全性”中选择“仍要打开”。详见[安装说明](docs/INSTALL.txt)。
+
+### 软件更新
+
+点击菜单栏读数 → **设置 → 软件更新**，可查看当前版本、手动检查更新、开关每日自动检查或打开下载页。检测到新版后，由你选择下载、安装并重启，设置与本地事件历史保留。1.6 及更早版本需要先手动安装 1.7.0 一次。
+
+更新使用 [Sparkle](https://sparkle-project.org/)，从 GitHub Releases 读取更新清单；清单与安装档案均使用 Ed25519 签名验证，关闭系统信息上报。更新检查会访问 GitHub；监控数据与事件历史保留在本机。
+
 ## 使用
 
 需要 macOS 13 或更新版本。双击 `PulseBar.app`，读数出现在屏幕顶部菜单栏，不占用 Dock 图标。
@@ -29,14 +41,14 @@
 
 ## 构建和运行
 
-仅使用系统框架，无第三方依赖。安装 Xcode Command Line Tools（`xcode-select --install`），Swift 6.0 或更新版本即可构建。
+监控功能使用系统框架，软件更新使用 Sparkle 2.10.0。安装 Xcode Command Line Tools（`xcode-select --install`），Swift 6.0 或更新版本即可构建。首次构建从 Sparkle 官方 Release 下载固定版本的二进制依赖，SwiftPM 校验其 SHA-256。
 
 ```sh
 ./scripts/build-app.sh
 open dist/PulseBar.app
 ```
 
-构建脚本生成当前 Mac 架构的 `dist/PulseBar.app` 并做本地 ad-hoc 签名。可将其复制到 `~/Applications` 长期使用，再按需开启开机启动；不会自动添加登录项。不包含 Developer ID 签名或公证，面向本机使用。
+构建脚本分别编译 arm64 / x86_64，再合并为通用 `dist/PulseBar.app` 和 `dist/PulseBar.zip`，默认做本地 ad-hoc 签名。可将其复制到 `~/Applications` 长期使用，再按需开启开机启动。Sparkle 框架及全部资源随 App 打包，不依赖开发目录。正式发布与可选 Developer ID 签名、公证步骤见[发布说明](docs/RELEASING.md)。
 
 ```sh
 ./scripts/swift-local.sh test --disable-xctest

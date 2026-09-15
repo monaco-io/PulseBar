@@ -1,0 +1,62 @@
+name: Publish release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to publish (for example v1.7.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pulsebar-stable-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-15
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+          fetch-depth: 0
+      - name: Validate release version and ordering
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/check-release-version.py "$RELEASE_TAG"
+          git rev-parse --verify "refs/tags/$RELEASE_TAG"
+          test "$(git rev-list -n 1 "$RELEASE_TAG")" = "$(git rev-parse HEAD)"
+      - name: Test
+        run: ./scripts/swift-local.sh test --disable-xctest
+      - name: Build universal app
+        run: ./scripts/build-app.sh
+      - name: Sample packaged app
+        run: dist/PulseBar.app/Contents/MacOS/PulseBar --sample 3
+      - name: Package and sign update
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          SKIP_BUILD: '1'
+        run: |
+          test -n "$SPARKLE_PRIVATE_KEY" || { echo 'Missing SPARKLE_PRIVATE_KEY repository secret'; exit 1; }
+          ./scripts/package-release.sh "$RELEASE_TAG"
+      - name: Upload complete release as draft, then publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$RELEASE_TAG" --verify-tag --draft \
+            --title "PulseBar ${RELEASE_TAG#v}" --notes-file "docs/releases/$RELEASE_TAG.md" \
+            dist/release/PulseBar.dmg dist/release/PulseBar.zip \
+            dist/release/appcast.xml dist/release/SHA256SUMS.txt \
+            dist/release/INSTALL.txt dist/release/RELEASE_NOTES.md
+          gh release edit "$RELEASE_TAG" --draft=false --latest

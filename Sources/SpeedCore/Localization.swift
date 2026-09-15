@@ -25,6 +25,7 @@ public enum AppLanguage: String, CaseIterable {
 }
 
 public enum TextKey: String, CaseIterable {
+    case softwareUpdate, checkForUpdates, automaticUpdateChecks, updateHelp, downloadAndReleaseNotes, updateStartFailed
     case appTitle, cpu, memory, diskIO, network, read, write, download, upload
     case updatingEvery, partialError, waiting, retrying, userSystem, memoryRatio
     case cpuHelp, memoryHelp, memoryBreakdown, diskHelp, networkHelp
