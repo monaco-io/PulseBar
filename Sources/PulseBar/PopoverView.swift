@@ -172,6 +172,10 @@ struct PopoverView: View {
                             Image(systemName: showsSettings ? "chevron.left" : "chevron.right")
                                 .font(.system(size: 8, weight: .semibold)).frame(width: 8)
                             Label(l10n(.settings), systemImage: "gearshape")
+                            if softwareUpdater.pendingVersion != nil {
+                                Image(systemName: "arrow.down.circle.fill").foregroundStyle(.blue)
+                                    .accessibilityLabel(l10n(.newVersionAvailable, softwareUpdater.pendingVersion ?? ""))
+                            }
                         }
                         .contentShape(Rectangle())
                     }

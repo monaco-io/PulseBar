@@ -32,11 +32,11 @@ sparkle_framework="${frameworks[0]}"
 [[ -d "$sparkle_framework" ]] || { echo 'Sparkle framework is missing' >&2; exit 1; }
 ditto --norsrc --noextattr "$sparkle_framework" "$app_dir/Contents/Frameworks/Sparkle.framework"
 cp Resources/Sparkle-LICENSE.txt "$app_dir/Contents/Resources/Sparkle-LICENSE.txt"
-icon_flags=()
+icon_command=(swift)
 if [[ -f "$project_dir/.build/toolchain-compat/overlay.json" ]]; then
-    icon_flags=(-vfsoverlay "$project_dir/.build/toolchain-compat/overlay.json")
+    icon_command+=(-vfsoverlay "$project_dir/.build/toolchain-compat/overlay.json")
 fi
-swift "${icon_flags[@]}" scripts/make-icon.swift "$stage_dir/AppIcon.iconset"
+"${icon_command[@]}" scripts/make-icon.swift "$stage_dir/AppIcon.iconset"
 iconutil -c icns "$stage_dir/AppIcon.iconset" -o "$app_dir/Contents/Resources/AppIcon.icns"
 xattr -cr "$app_dir"
 # Sparkle includes signed nested helpers. Re-sign inside out only for Developer ID builds.

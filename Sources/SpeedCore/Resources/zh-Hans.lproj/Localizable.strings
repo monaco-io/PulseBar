@@ -119,6 +119,7 @@
 "notificationPending" = "正在等待通知授权…";
 "rankingTime" = "更新于 %@";
 "softwareUpdate" = "软件更新";
+"newVersionAvailable" = "发现新版本 %@";
 "checkForUpdates" = "检查更新…";
 "automaticUpdateChecks" = "自动检查更新";
 "updateHelp" = "每天从 GitHub 检查新版本，由你选择何时下载和安装。";

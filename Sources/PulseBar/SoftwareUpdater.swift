@@ -5,14 +5,16 @@ import SpeedCore
 import SwiftUI
 
 /// Sparkle owns update scheduling, signature verification and atomic installation.
-final class SoftwareUpdater: ObservableObject {
+final class SoftwareUpdater: NSObject, ObservableObject, SPUStandardUserDriverDelegate {
     @Published private(set) var canCheckForUpdates = false
     @Published private(set) var automaticallyChecksForUpdates = false
     @Published private(set) var startError: String?
+    @Published private(set) var pendingVersion: String?
     var beforeUserInitiatedCheck: (() -> Void)?
-    private let controller = SPUStandardUpdaterController(
-        startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil
+    private lazy var controller = SPUStandardUpdaterController(
+        startingUpdater: false, updaterDelegate: nil, userDriverDelegate: self
     )
+    var canPresentUpdate: Bool { canCheckForUpdates || pendingVersion != nil }
 
     var version: String {
         let info = Bundle.main.infoDictionary ?? [:]
@@ -24,7 +26,8 @@ final class SoftwareUpdater: ObservableObject {
             ?? "https://github.com/monaco-io/PulseBar/releases/latest")!
     }
 
-    init() {
+    override init() {
+        super.init()
         controller.updater.publisher(for: \.canCheckForUpdates)
             .assign(to: &$canCheckForUpdates)
         controller.updater.publisher(for: \.automaticallyChecksForUpdates)
@@ -41,11 +44,31 @@ final class SoftwareUpdater: ObservableObject {
     }
 
     func checkForUpdates() {
-        guard canCheckForUpdates else { return }
+        guard canPresentUpdate else { return }
         beforeUserInitiatedCheck?()
         NSApplication.shared.activate(ignoringOtherApps: true)
         controller.checkForUpdates(nil)
     }
+
+    // Menu-bar apps have no Dock icon. Show scheduled reminders in Settings,
+    // and let a user-initiated check bring Sparkle's window to the front.
+    var supportsGentleScheduledUpdateReminders: Bool { true }
+
+    func standardUserDriverShouldHandleShowingScheduledUpdate(_ update: SUAppcastItem, andInImmediateFocus immediateFocus: Bool) -> Bool {
+        false
+    }
+
+    func standardUserDriverWillHandleShowingUpdate(_ handleShowingUpdate: Bool, forUpdate update: SUAppcastItem, state: SPUUserUpdateState) {
+        if !state.userInitiated { pendingVersion = update.displayVersionString }
+    }
+
+    func standardUserDriverDidReceiveUserAttention(forUpdate update: SUAppcastItem) {
+        pendingVersion = nil
+    }
+
+    func standardUserDriverWillFinishUpdateSession() { pendingVersion = nil }
+
+    func standardUserDriverWillShowModalAlert() { beforeUserInitiatedCheck?() }
 }
 
 struct SoftwareUpdateSettings: View {
@@ -60,7 +83,10 @@ struct SoftwareUpdateSettings: View {
                 Text(updater.version).foregroundStyle(.secondary).monospacedDigit()
             }
             Button(localizer(.checkForUpdates), action: updater.checkForUpdates)
-                .disabled(!updater.canCheckForUpdates)
+                .disabled(!updater.canPresentUpdate)
+            if let version = updater.pendingVersion {
+                Text(localizer(.newVersionAvailable, version)).foregroundStyle(.blue)
+            }
             Toggle(localizer(.automaticUpdateChecks), isOn: Binding(
                 get: { updater.automaticallyChecksForUpdates },
                 set: { updater.setAutomaticallyChecksForUpdates($0) }

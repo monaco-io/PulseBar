@@ -119,6 +119,7 @@
 "notificationPending" = "Waiting for notification permission…";
 "rankingTime" = "Updated %@";
 "softwareUpdate" = "Software update";
+"newVersionAvailable" = "Version %@ is available";
 "checkForUpdates" = "Check for updates…";
 "automaticUpdateChecks" = "Automatically check for updates";
 "updateHelp" = "Checks GitHub for new versions daily. You choose when to download and install.";
