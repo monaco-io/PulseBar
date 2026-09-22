@@ -183,3 +183,8 @@ Published on 2026-09-15 from tag `v1.8.0`, commit `c2fb859fd2a5756bef0bab875ba7a
 - The installed app now comes from the public DMG. Binary SHA-256: `76caab12a27ee41a4af1d49c9f6f6a49a2cc64b7460772139006113b6c785372`. Deep strict signing and three diagnostic samples passed. Saved preferences and all 16 existing event IDs were preserved. Native UI confirmed Refresh 2, the complete overview/settings layout, and the update result “PulseBar 1.8.0 is currently the newest version available.”
 - Release preflight also verified two large Finder icons and the native language order Follow system → English → 简体中文. Cancelling the language menu retained the Settings panel. This release check verifies the live feed from the current version; a complete upgrade from 1.7.1 was not repeated. Apple notarization and Intel/macOS 13 hardware testing remain outside this verification.
 - Evidence: `artifacts/github-v1.8.0/verification.json`, `public-verification.log`, `install-verification.log`, `official-sample.ndjson`, `release.log`, and the native tool captures. `dist/release/PulseBar.dmg` now matches the public artifact.
+
+
+## 2026-09-22: single instance and performance checks
+
+Local update installed in both existing Applications locations; not published. All 64 tests, universal build/signature checks, 60 cold/warm launch attempts, crash recovery, and packaged sampling passed. Background queues and CLI sampling now have explicit autorelease boundaries; redundant menu bar drawing and hover statistics were reduced. See [the performance report](PERFORMANCE.md) for measurements, the unchanged system XPC cycles reported by `leaks`, and the limits of the short runtime check.

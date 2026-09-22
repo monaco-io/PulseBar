@@ -18,6 +18,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var subscriptions = Set<AnyCancellable>()
     private var popoverClickMonitor: Any?
     private var menuTrackingDepth = 0
+    private var pendingReopen = false
+    private var statusUpdateScheduled = false
+    private var lastStatusImageKey: [String] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApplication.shared.setActivationPolicy(.accessory)
@@ -53,13 +56,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [weak self] _ in self?.closePanel() }
             .store(in: &subscriptions)
 
-        Publishers.CombineLatest3(monitor.$rate, monitor.$networkError, monitor.$resources)
-            .combineLatest(preferences.$selection, preferences.$language, preferences.$historySeconds)
-            .sink { [weak self] snapshot, selection, language, historySeconds in
-                self?.updateStatus(snapshot.0, error: snapshot.1, resources: snapshot.2,
-                                   selection: selection, localizer: Localizer(language: language), historySeconds: historySeconds)
-            }
+        // Read the completed state once after synchronous @Published writes.
+        // Keeping ResourceState in CombineLatest also retained its history arrays.
+        monitor.objectWillChange.merge(with: preferences.objectWillChange)
+            .sink { [weak self] _ in self?.scheduleStatusUpdate() }
             .store(in: &subscriptions)
+        scheduleStatusUpdate()
         preferences.$refreshSeconds.dropFirst().removeDuplicates()
             .sink { [weak self] seconds in self?.monitor.setRefreshInterval(seconds) }
             .store(in: &subscriptions)
@@ -73,17 +75,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         monitor.start(refreshSeconds: preferences.refreshSeconds)
 
-        if CommandLine.arguments.contains("--show") {
+        if pendingReopen || CommandLine.arguments.contains("--show") {
+            pendingReopen = false
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.showPopover() }
         }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        showPopover()
+        requestReopen()
         return true
     }
 
-    func applicationWillTerminate(_ notification: Notification) { monitor.stop() }
+    func requestReopen() {
+        if statusItem == nil { pendingReopen = true }
+        else { showPopover() }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        closePanel()
+        monitor.stop()
+        subscriptions.removeAll()
+    }
 
     @objc private func togglePopover() {
         if let event = NSApp.currentEvent,
@@ -240,6 +252,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.highlight(false)
     }
 
+    private func scheduleStatusUpdate() {
+        guard !statusUpdateScheduled else { return }
+        statusUpdateScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.statusUpdateScheduled = false
+            self.updateStatus(self.monitor.rate, error: self.monitor.networkError, resources: self.monitor.resources,
+                selection: self.preferences.selection, localizer: self.preferences.localizer,
+                historySeconds: self.preferences.historySeconds)
+        }
+    }
+
     private func updateStatus(_ rate: TrafficRate, error: Error?, resources: ResourceState,
                               selection: MenuBarSelection, localizer: Localizer, historySeconds: Int) {
         guard let button = statusItem?.button else { return }
@@ -249,14 +273,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let memory = SystemFormatter.percent(resources.memory?.usedPercent)
         let read = resources.diskRate.map { TrafficFormatter.speed($0.read).text } ?? "—"
         let write = resources.diskRate.map { TrafficFormatter.speed($0.write).text } ?? "—"
-        let image = MenuBarLabel.image(cpu: cpu, memory: memory, diskRead: read, diskWrite: write,
-                                       download: down, upload: up, selection: selection)
-        if statusItem.length != image.size.width + 12 { statusItem.length = image.size.width + 12 }
+        let imageKey = selection.orderedMetrics.map(\.rawValue) + [cpu, memory, read, write, down, up]
+        if imageKey != lastStatusImageKey {
+            let image = MenuBarLabel.image(cpu: cpu, memory: memory, diskRead: read, diskWrite: write,
+                                           download: down, upload: up, selection: selection)
+            if statusItem.length != image.size.width + 12 { statusItem.length = image.size.width + 12 }
+            button.image = image
+            lastStatusImageKey = imageKey
+        }
         if panel?.isVisible == true, ProcessInfo.processInfo.environment["PULSEBAR_LAYOUT_LOG"] != nil {
             // Record the actual settled window geometry after normal sampling/layout.
             if let panel { NSLog("PulseBar settled frame %@", NSStringFromRect(panel.frame)) }
         }
-        button.image = image
         var values: [String] = []
         var errors: [Error?] = []
         for metric in selection.orderedMetrics {

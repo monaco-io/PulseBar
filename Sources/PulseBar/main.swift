@@ -70,85 +70,100 @@ if let index = CommandLine.arguments.firstIndex(of: "--sample") {
     processAccumulator.setRefreshInterval(interval)
     var hadError = false
     for sample in 0..<count {
-        var row: [String: Any] = ["sample": sample, "uptime": ProcessInfo.processInfo.systemUptime, "refreshSeconds": interval]
-        var errors: [String: String] = [:]
-        do {
-            let snapshot = try reader.read()
-            let rate = accumulator.consume(snapshot)
-            row.merge([
-                "uptime": snapshot.timestamp,
-                "downloadBytesPerSecond": rate.download,
-                "uploadBytesPerSecond": rate.upload,
-                "sessionReceived": accumulator.totalReceived,
-                "sessionSent": accumulator.totalSent,
-                "interfaces": snapshot.interfaces.map { ["name": $0.name, "received": $0.received, "sent": $0.sent] as [String: Any] }
-            ]) { _, new in new }
-        } catch {
-            errors["network"] = error.localizedDescription
-            accumulator.resetBaseline()
-        }
-        do {
-            if let cpu = cpuAccumulator.consume(try systemReader.readCPU()) {
-                row["cpu"] = ["usedPercent": cpu.usedPercent, "userPercent": cpu.userPercent, "systemPercent": cpu.systemPercent]
-            } else { row["cpu"] = NSNull() }
-        } catch {
-            errors["cpu"] = error.localizedDescription
-            cpuAccumulator.resetBaseline()
-        }
-        do {
-            let memory = try systemReader.readMemory()
-            row["memory"] = ["usedBytes": memory.usedBytes, "totalBytes": memory.totalBytes,
-                             "usedPercent": memory.usedPercent, "appBytes": memory.appBytes,
-                             "wiredBytes": memory.wiredBytes, "compressedBytes": memory.compressedBytes] as [String: Any]
-        } catch { errors["memory"] = error.localizedDescription }
-        do { row["memoryPressure"] = try systemReader.readMemoryPressure().rawValue }
-        catch { errors["memoryPressure"] = error.localizedDescription }
-        do {
-            let swap = try systemReader.readSwap()
-            row["swap"] = ["usedBytes": swap.usedBytes, "totalBytes": swap.totalBytes]
-        } catch { errors["swap"] = error.localizedDescription }
-        do {
-            let snapshot = try processReader.read()
-            let apps = processAccumulator.consume(snapshot)
-            let encodeApp: (AppUsage) -> [String: Any] = { app in
-                ["name": app.name, "cpuPercent": app.cpuPercent.map { $0 as Any } ?? NSNull(),
-                 "memoryBytes": app.memoryBytes, "processCount": app.processCount]
+        autoreleasepool {
+            var row: [String: Any] = ["sample": sample, "uptime": ProcessInfo.processInfo.systemUptime, "refreshSeconds": interval]
+            var errors: [String: String] = [:]
+            do {
+                let snapshot = try reader.read()
+                let rate = accumulator.consume(snapshot)
+                row.merge([
+                    "uptime": snapshot.timestamp,
+                    "downloadBytesPerSecond": rate.download,
+                    "uploadBytesPerSecond": rate.upload,
+                    "sessionReceived": accumulator.totalReceived,
+                    "sessionSent": accumulator.totalSent,
+                    "interfaces": snapshot.interfaces.map { ["name": $0.name, "received": $0.received, "sent": $0.sent] as [String: Any] }
+                ]) { _, new in new }
+            } catch {
+                errors["network"] = error.localizedDescription
+                accumulator.resetBaseline()
             }
-            row["apps"] = ["topCPU": AppRanking.cpu(apps).map(encodeApp),
-                           "topMemory": AppRanking.memory(apps).map(encodeApp),
-                           "sampledProcesses": snapshot.processes.count, "skippedProcesses": snapshot.skippedCount]
-        } catch { errors["apps"] = error.localizedDescription; processAccumulator.resetBaseline() }
-        do {
-            let snapshot = try systemReader.readDisks()
-            let rate = diskAccumulator.consume(snapshot)
-            row["disk"] = [
-                "readBytesPerSecond": rate.map { $0.read as Any } ?? NSNull(),
-                "writeBytesPerSecond": rate.map { $0.write as Any } ?? NSNull(),
-                "sessionRead": diskAccumulator.totalRead,
-                "sessionWritten": diskAccumulator.totalWritten,
-                "devices": snapshot.disks.map {
-                    ["id": $0.id, "name": $0.name, "readBytes": $0.readBytes, "writtenBytes": $0.writtenBytes] as [String: Any]
+            do {
+                if let cpu = cpuAccumulator.consume(try systemReader.readCPU()) {
+                    row["cpu"] = ["usedPercent": cpu.usedPercent, "userPercent": cpu.userPercent, "systemPercent": cpu.systemPercent]
+                } else { row["cpu"] = NSNull() }
+            } catch {
+                errors["cpu"] = error.localizedDescription
+                cpuAccumulator.resetBaseline()
+            }
+            do {
+                let memory = try systemReader.readMemory()
+                row["memory"] = ["usedBytes": memory.usedBytes, "totalBytes": memory.totalBytes,
+                                 "usedPercent": memory.usedPercent, "appBytes": memory.appBytes,
+                                 "wiredBytes": memory.wiredBytes, "compressedBytes": memory.compressedBytes] as [String: Any]
+            } catch { errors["memory"] = error.localizedDescription }
+            do { row["memoryPressure"] = try systemReader.readMemoryPressure().rawValue }
+            catch { errors["memoryPressure"] = error.localizedDescription }
+            do {
+                let swap = try systemReader.readSwap()
+                row["swap"] = ["usedBytes": swap.usedBytes, "totalBytes": swap.totalBytes]
+            } catch { errors["swap"] = error.localizedDescription }
+            do {
+                let snapshot = try processReader.read()
+                let apps = processAccumulator.consume(snapshot)
+                let encodeApp: (AppUsage) -> [String: Any] = { app in
+                    ["name": app.name, "cpuPercent": app.cpuPercent.map { $0 as Any } ?? NSNull(),
+                     "memoryBytes": app.memoryBytes, "processCount": app.processCount]
                 }
-            ] as [String: Any]
-        } catch {
-            errors["disk"] = error.localizedDescription
-            diskAccumulator.resetBaseline()
-        }
-        if !errors.isEmpty { row["errors"] = errors; hadError = true }
-        do {
-            let data = try JSONSerialization.data(withJSONObject: row, options: [.sortedKeys])
-            print(String(decoding: data, as: UTF8.self))
-            fflush(stdout)
-        } catch {
-            fputs("\(error.localizedDescription)\n", stderr)
-            exit(1)
+                row["apps"] = ["topCPU": AppRanking.cpu(apps).map(encodeApp),
+                               "topMemory": AppRanking.memory(apps).map(encodeApp),
+                               "sampledProcesses": snapshot.processes.count, "skippedProcesses": snapshot.skippedCount]
+            } catch { errors["apps"] = error.localizedDescription; processAccumulator.resetBaseline() }
+            do {
+                let snapshot = try systemReader.readDisks()
+                let rate = diskAccumulator.consume(snapshot)
+                row["disk"] = [
+                    "readBytesPerSecond": rate.map { $0.read as Any } ?? NSNull(),
+                    "writeBytesPerSecond": rate.map { $0.write as Any } ?? NSNull(),
+                    "sessionRead": diskAccumulator.totalRead,
+                    "sessionWritten": diskAccumulator.totalWritten,
+                    "devices": snapshot.disks.map {
+                        ["id": $0.id, "name": $0.name, "readBytes": $0.readBytes, "writtenBytes": $0.writtenBytes] as [String: Any]
+                    }
+                ] as [String: Any]
+            } catch {
+                errors["disk"] = error.localizedDescription
+                diskAccumulator.resetBaseline()
+            }
+            if !errors.isEmpty { row["errors"] = errors; hadError = true }
+            do {
+                let data = try JSONSerialization.data(withJSONObject: row, options: [.sortedKeys])
+                print(String(decoding: data, as: UTF8.self))
+                fflush(stdout)
+            } catch {
+                fputs("\(error.localizedDescription)\n", stderr)
+                exit(1)
+            }
         }
         if sample + 1 < count { Thread.sleep(forTimeInterval: Double(interval)) }
     }
     exit(hadError ? 1 : 0)
 } else {
-    let app = NSApplication.shared
-    let delegate = AppDelegate()
-    app.delegate = delegate
-    app.run()
+    do {
+        let activation = AppInstance()
+        guard let instance = try AppInstance.acquire() else {
+            AppInstance.reopenExisting()
+            exit(0)
+        }
+        withExtendedLifetime((instance, activation)) {
+            let app = NSApplication.shared
+            let delegate = AppDelegate()
+            app.delegate = delegate
+            activation.onReopen = { [weak delegate] in delegate?.requestReopen() }
+            withExtendedLifetime(delegate) { app.run() }
+        }
+    } catch {
+        fputs("PulseBar could not acquire its instance lock: \(error.localizedDescription)\n", stderr)
+        exit(1)
+    }
 }

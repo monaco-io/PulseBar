@@ -35,6 +35,8 @@ Updates use [Sparkle](https://sparkle-project.org/) and download the same DMG of
 
 Launch `PulseBar.app` to see readings in the menu bar, without a Dock icon. Click the readings to open the panel; click outside or press Escape to close it.
 
+Repeated launches reopen the existing panel. Only one GUI instance runs per macOS user, including when launching updated copies from different folders. The read-only `--sample` diagnostic can run separately.
+
 Use the bottom navigation to switch between **Overview, Apps, Events, and Settings**. Apps has CPU and Memory tabs; clicking a metric heading is a direct shortcut. Details share one width, so switching destinations keeps the window stable. On narrow displays, details stay inside the compact panel.
 
 Use **More** in the header for update checks, Reset, and Quit, or right-click the menu bar readings for a shortcut menu. Escape returns to Overview before closing the panel; Command-1 through Command-4 select the main destinations. Native menus handle their own Escape key.

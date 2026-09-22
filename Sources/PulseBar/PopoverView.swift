@@ -491,6 +491,7 @@ struct PopoverView: View {
                            label: String) -> some View {
         let points = visible(allPoints)
         let maximum = max(1_000, points.reduce(0.0) { max($0, max($1.primary, $1.secondary)) } * 1.15)
+        let summary = inspectionTime == nil ? HistorySummary(points: points) : nil
         return VStack(spacing: 4) {
             HStack {
                 Text(l10n(.secondsAgo, historyDuration))
@@ -505,8 +506,8 @@ struct PopoverView: View {
                          inspectedTime: inspectionTime, onInspect: inspect)
                 .frame(height: 36).accessibilityLabel(label)
             HStack(spacing: 12) {
-                chartSummary(allPoints, speed: true).foregroundStyle(primaryColor)
-                chartSummary(allPoints, speed: true, secondary: true).foregroundStyle(secondaryColor)
+                chartSummary(allPoints, speed: true, summary: summary).foregroundStyle(primaryColor)
+                chartSummary(allPoints, speed: true, secondary: true, summary: summary).foregroundStyle(secondaryColor)
             }
             .help(l10n(.statisticsHelp))
         }
@@ -537,8 +538,8 @@ struct PopoverView: View {
         inspectionTime = candidate >= chartEnd - Double(preferences.historySeconds) && candidate <= chartEnd ? candidate : timestamp
     }
 
-    private func chartSummary(_ points: [HistoryPoint], speed: Bool, secondary: Bool = false) -> some View {
-        let summary = HistorySummary(points: visible(points))
+    private func chartSummary(_ points: [HistoryPoint], speed: Bool, secondary: Bool = false,
+                              summary: HistorySummary? = nil) -> some View {
         let format: (Double?) -> String = { value in
             if speed { return value.map { TrafficFormatter.speed($0).text } ?? "—" }
             return SystemFormatter.percent(value)
@@ -549,6 +550,7 @@ struct PopoverView: View {
                 text = "● " + format(secondary ? point.secondary : point.primary)
             } else { text = l10n(.noSample) }
         } else {
+            let summary = summary ?? HistorySummary(points: visible(points))
             text = l10n(.averagePeak, format(secondary ? summary.secondaryAverage : summary.primaryAverage),
                         format(secondary ? summary.secondaryPeak : summary.primaryPeak))
         }

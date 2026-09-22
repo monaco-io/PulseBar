@@ -57,8 +57,8 @@ final class SystemMonitor: ObservableObject {
     var onEvent: ((PerformanceEvent) -> Void)?
     private var eventDetector = PerformanceEventDetector()
     private let eventStore: PerformanceEventStore
-    private let eventQueue = DispatchQueue(label: "PulseBar.event-storage", qos: .utility)
-    private let processQueue = DispatchQueue(label: "PulseBar.process-sampling", qos: .utility)
+    private let eventQueue = DispatchQueue(label: "PulseBar.event-storage", qos: .utility, autoreleaseFrequency: .workItem)
+    private let processQueue = DispatchQueue(label: "PulseBar.process-sampling", qos: .utility, autoreleaseFrequency: .workItem)
     private let processSampler = ProcessSampler()
     private var processSampling = false
     private var processGeneration = 0
@@ -78,6 +78,11 @@ final class SystemMonitor: ObservableObject {
     init(eventStore: PerformanceEventStore = PerformanceEventStore()) {
         self.eventStore = eventStore
         do { events = try eventStore.load() } catch { eventStoreError = error }
+    }
+
+    deinit {
+        timer?.invalidate()
+        for observer in workspaceObservers { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
     }
 
     func interfaceDescription(using localizer: Localizer) -> String {
