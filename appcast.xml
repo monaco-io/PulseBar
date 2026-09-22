@@ -4,34 +4,28 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>PulseBar</title>
         <item>
-            <title>1.8.0</title>
-            <pubDate>Tue, 15 Sep 2026 06:02:26 +0000</pubDate>
+            <title>1.8.1</title>
+            <pubDate>Tue, 22 Sep 2026 12:32:42 +0000</pubDate>
             <link>https://github.com/monaco-io/PulseBar</link>
-            <sparkle:version>15</sparkle:version>
-            <sparkle:shortVersionString>1.8.0</sparkle:shortVersionString>
+            <sparkle:version>16</sparkle:version>
+            <sparkle:shortVersionString>1.8.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# PulseBar 1.8.0
+            <description sparkle:format="markdown"><![CDATA[# PulseBar 1.8.1
 
-## What's changed
+- Repeated launches now reopen the existing panel and keep one main instance per macOS user, including updated app copies in different folders.
+- Simultaneous launches are handled safely, and the app can restart after a crash without manual lock cleanup.
+- Background sampling releases temporary objects promptly, reducing memory accumulation. The command-line sampling tool uses the same explicit cleanup boundary.
+- Menu bar readings avoid redundant image rendering, and chart inspection skips unused history statistics.
+- Monitor cleanup now removes timers and workspace observers when the monitor is released.
 
-- A clearer bottom navigation for Overview, Apps, Events, and Settings.
-- A simpler disk image with just the app and Applications folder shortcut, displayed as two large icons.
-- A 2-second default refresh interval and English listed above Simplified Chinese in the language menu.
-- A consistent detail width and atomic navigation to prevent flicker when switching views.
-- Native dropdown menus remain open without dismissing the monitoring panel.
-- A More menu for updates, Reset, and Quit, plus a right-click menu on the menu bar readings.
-- Subtle opening, detail reveal, button feedback, and event expansion animations that respect Reduce Motion.
-- Grouped settings, direct CPU/Memory tabs in Apps, and a compact detail layout for narrow displays.
-- Escape returns from details to Overview, then closes the panel. Command-1 through Command-4 select the main destinations.
+Requires macOS 13 or later, on Apple Silicon or Intel. Existing preferences and local event history are preserved.
 
-Requires macOS 13 or later, on Apple Silicon or Intel. Preferences, monitoring behavior, and local event history are preserved.
-
-[简体中文](https://github.com/monaco-io/PulseBar/blob/main/docs/releases/v1.8.0.zh-CN.md)
+[简体中文](https://github.com/monaco-io/PulseBar/blob/main/docs/releases/v1.8.1.zh-CN.md)
 ]]></description>
-            <enclosure url="https://github.com/monaco-io/PulseBar/releases/download/v1.8.0/PulseBar.dmg" length="2503232" type="application/octet-stream" sparkle:edSignature="UgDEI0DilGDyfBqQ7e5Fm7oS78qxmupH9OALs6lpUSmUxOp1SgvFtVTZ/U5LISPiVplij0hdJLmi/AERaRAEBQ=="></enclosure>
+            <enclosure url="https://github.com/monaco-io/PulseBar/releases/download/v1.8.1/PulseBar.dmg" length="2518143" type="application/octet-stream" sparkle:edSignature="V+4FwRecilO3gCtwBSkQstm0n418Y9VTqFGe6zFeg0UyHNqELdo0wpOUgi57aC86B83lWS6QnDcDLW2wULGbBA=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: wii+YWjUaAGg2F8YEDiB7hHsneZ8rq76sFPCKMLJH7aGnL4tHDSAwd9UyvRgFEZR+XatGBc68R6yY4pLZE5VAA==
-length: 2316
+edSignature: sda/NSRrni3qW0wUHb0YqzdBen6dN99Rm3AE1FcK7xfs5CY/0X2AYbLYTJ4QJu2qI3+dVxkKRBW7OPJdpj8yBA==
+length: 2021
 -->
