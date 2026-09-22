@@ -188,3 +188,16 @@ Published on 2026-09-15 from tag `v1.8.0`, commit `c2fb859fd2a5756bef0bab875ba7a
 ## 2026-09-22: single instance and performance checks
 
 Local update installed in both existing Applications locations; not published. All 64 tests, universal build/signature checks, 60 cold/warm launch attempts, crash recovery, and packaged sampling passed. Background queues and CLI sampling now have explicit autorelease boundaries; redundant menu bar drawing and hover statistics were reduced. See [the performance report](PERFORMANCE.md) for measurements, the unchanged system XPC cycles reported by `leaks`, and the limits of the short runtime check.
+
+
+## v1.8.1: published single-instance and performance fixes
+
+Published on 2026-09-22 from tag `v1.8.1`, commit `e6a357939ad519f833e4f7b05f093c14a9aef7ab`, build `16`.
+
+- [Source CI](https://github.com/monaco-io/PulseBar/actions/runs/35727353934) and [Publish release](https://github.com/monaco-io/PulseBar/actions/runs/35727664752) succeeded. Both passed all 64 tests, universal arm64/x86_64 builds, and packaged sampling. Independent review found no release-blocking defects.
+- [PulseBar 1.8.1](https://github.com/monaco-io/PulseBar/releases/tag/v1.8.1) is public and Latest, with exactly one uploaded asset, `PulseBar.dmg`. Anonymous download returned HTTP 200. The 2,518,143-byte payload matches GitHub's asset digest: `dbe586adc042cfbe80bd5e5e4c811137ba59f1f460c0127d2c71fcb20819f91a`.
+- The mounted DMG contains only the app and Applications shortcut as visible items. Finder layout matches the source template; app resources, deep strict signing, and both architectures passed verification. Feed and DMG Ed25519 signatures were independently checked using only the app's public key.
+- The canonical public Raw feed returns 1.8.1/build 16 and exactly matches the signed feed on `codex/updates` at `f5edfcf0c350a4e407d3b894031122cb89abac11`. Release notes match the committed English Markdown.
+- Both `/Applications/PulseBar.app` and `~/Applications/PulseBar.app` were replaced with the public DMG's app. Their binary SHA-256 is `e3e0e7b60739d1f47f91365e0bcb4cf2100cb35eb8b35a9563fd662ebe59a146`; deep strict signing passed. Saved monitoring preferences and all 197 pre-release event IDs were preserved. Local `dist` app, DMG, and feed now match the public release.
+- Three official installed-app samples returned no errors. Five additional launches across the installed copies exited successfully while retaining one GUI process. Native launch started the official app, but its accessibility inspection timed out; no successful updater-dialog or complete in-app upgrade interaction is claimed for this release.
+- Backups and evidence are under `artifacts/github-v1.8.1/`, including `ci.log`, `release.log`, `public-verification.log`, `verification.json`, `install-verification.json`, and `official-samples.ndjson`. The detailed memory findings and short-test limits remain in [PERFORMANCE.md](PERFORMANCE.md). Apple notarization and Intel/macOS 13 hardware acceptance remain outside this release verification.
