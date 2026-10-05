@@ -201,3 +201,14 @@ Published on 2026-09-22 from tag `v1.8.1`, commit `e6a357939ad519f833e4f7b05f093
 - Both `/Applications/PulseBar.app` and `~/Applications/PulseBar.app` were replaced with the public DMG's app. Their binary SHA-256 is `e3e0e7b60739d1f47f91365e0bcb4cf2100cb35eb8b35a9563fd662ebe59a146`; deep strict signing passed. Saved monitoring preferences and all 197 pre-release event IDs were preserved. Local `dist` app, DMG, and feed now match the public release.
 - Three official installed-app samples returned no errors. Five additional launches across the installed copies exited successfully while retaining one GUI process. Native launch started the official app, but its accessibility inspection timed out; no successful updater-dialog or complete in-app upgrade interaction is claimed for this release.
 - Backups and evidence are under `artifacts/github-v1.8.1/`, including `ci.log`, `release.log`, `public-verification.log`, `verification.json`, `install-verification.json`, and `official-samples.ndjson`. The detailed memory findings and short-test limits remain in [PERFORMANCE.md](PERFORMANCE.md). Apple notarization and Intel/macOS 13 hardware acceptance remain outside this release verification.
+
+
+## 2026-10-05: v1.9.0 temperature release preflight
+
+Local candidate `1.9.0` / build `17`; not yet published at this check.
+
+- All 75 tests passed, including temperature encodings, invalid-value rejection, component aggregation, and generation-specific sensor mappings. The universal arm64/x86_64 release build completed. The task location adds Finder metadata; a clean app copy in `/tmp` passed deep strict code-signature verification and both-architecture checks.
+- Three packaged-app diagnostic samples returned no errors and real CPU temperatures of approximately 84.6–88.8 °C, GPU temperatures of 79.2–80.8 °C, and storage temperatures around 36.0 °C. No accepted memory or battery sensor was present on the development M4 iMac; those components were omitted. These are observed readings, not thermal health assessments.
+- A 13-second real `SystemMonitor` integration check passed with CPU, memory, disk, network, and Swap samples, plus CPU/GPU/storage temperatures. The isolated event store reported no error.
+- Native UI captures verified the complete English overview and Chinese overview with expanded Settings. The original Follow System language, 2-second refresh, and 12-hour history were restored. All saved monitoring preferences matched their prior values, and all 13 original event IDs were retained.
+- Evidence is under `artifacts/temperature/`, including `tests.log`, `build.log`, `packaged-samples.ndjson`, `integration.json`, and `local-verification.json`; native UI captures are in the task's tool results. Public CI, the released DMG, and the signed update feed still require verification after publication. Intel and macOS 13 hardware testing were not performed.

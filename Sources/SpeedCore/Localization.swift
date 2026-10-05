@@ -25,6 +25,7 @@ public enum AppLanguage: String, CaseIterable {
 }
 
 public enum TextKey: String, CaseIterable {
+    case temperatures, cpuTemperature, gpuTemperature, memoryTemperature, storageTemperature, batteryTemperature, temperatureHelp
     case overview, moreActions, samplingSection, behaviorSection, resetDone, selectedTab
     case softwareUpdate, checkForUpdates, automaticUpdateChecks, updateHelp, downloadAndReleaseNotes, updateStartFailed, newVersionAvailable
     case appTitle, cpu, memory, diskIO, network, read, write, download, upload

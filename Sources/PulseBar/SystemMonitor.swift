@@ -38,6 +38,7 @@ private final class ProcessSampler {
 }
 
 final class SystemMonitor: ObservableObject {
+    @Published private(set) var temperatures: [TemperatureReading] = []
     @Published private(set) var rate = TrafficRate.zero
     @Published private(set) var history: [HistoryPoint] = []
     @Published private(set) var resources = ResourceState()
@@ -62,6 +63,11 @@ final class SystemMonitor: ObservableObject {
     private let processSampler = ProcessSampler()
     private var processSampling = false
     private var processGeneration = 0
+    private let temperatureQueue = DispatchQueue(label: "PulseBar.temperature-sampling", qos: .utility, autoreleaseFrequency: .workItem)
+    private let temperatureReader = TemperatureReader()
+    private var temperatureSampling = false
+    private var temperatureGeneration = 0
+    private var lastTemperatureSample: TimeInterval?
 
     private let reader = InterfaceReader()
     private let systemReader = SystemReader()
@@ -141,6 +147,7 @@ final class SystemMonitor: ObservableObject {
         for observer in workspaceObservers { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
         workspaceObservers.removeAll()
         resetProcessBaselines()
+        resetTemperatures()
         eventQueue.sync {} // Complete any atomic event write before the app exits.
     }
 
@@ -154,6 +161,7 @@ final class SystemMonitor: ObservableObject {
         diskAccumulator.reset()
         resources = ResourceState()
         resetProcessBaselines()
+        resetTemperatures()
         sessionStart = Date()
         sample()
     }
@@ -164,6 +172,35 @@ final class SystemMonitor: ObservableObject {
         sampleResources(at: timestamp)
         timelineEnd = timestamp
         sampleProcesses(at: timestamp)
+        sampleTemperatures(at: timestamp)
+    }
+
+    private func resetTemperatures() {
+        temperatureGeneration += 1
+        lastTemperatureSample = nil
+        temperatures = []
+    }
+
+    private func sampleTemperatures(at timestamp: TimeInterval) {
+        let interval = max(5, Double(refreshSeconds))
+        if let last = lastTemperatureSample {
+            // Never carry an old temperature across sleep or a stalled timer.
+            if timestamp - last > max(15, interval * 1.5) { resetTemperatures() }
+            else if timestamp - last < interval { return }
+        }
+        guard !temperatureSampling else { return }
+        temperatureSampling = true
+        lastTemperatureSample = timestamp
+        let generation = temperatureGeneration
+        temperatureQueue.async { [weak self, temperatureReader] in
+            let readings = temperatureReader.read()
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.temperatureSampling = false
+                guard generation == self.temperatureGeneration, self.timer != nil else { return }
+                self.temperatures = readings
+            }
+        }
     }
 
     private func sampleNetwork(at timestamp: TimeInterval) {
@@ -189,6 +226,7 @@ final class SystemMonitor: ObservableObject {
     }
 
     private func resetResourceBaselines() {
+        resetTemperatures()
         cpuAccumulator.resetBaseline()
         diskAccumulator.resetBaseline()
         var next = resources

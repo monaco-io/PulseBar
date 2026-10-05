@@ -132,3 +132,10 @@
 "behaviorSection" = "Behavior";
 "resetDone" = "Session reset. Monitoring continues.";
 "selectedTab" = "Selected";
+"temperatures" = "Temperature · highest sensor";
+"cpuTemperature" = "CPU";
+"gpuTemperature" = "GPU";
+"memoryTemperature" = "Memory";
+"storageTemperature" = "Storage";
+"batteryTemperature" = "Battery";
+"temperatureHelp" = "Highest current reading from identified hardware sensors. Checked in the background at least 5 seconds apart. Unavailable or invalid readings are hidden; this is not a temperature history or a health score.";

@@ -128,6 +128,9 @@ struct PopoverView: View {
             }
             .padding(.bottom, 10)
             memoryHealthRow.padding(.bottom, 8)
+            if !monitor.temperatures.isEmpty {
+                temperatureSection.padding(.bottom, 8)
+            }
             Divider()
 
             HStack {
@@ -579,6 +582,37 @@ struct PopoverView: View {
             errorLabel(monitor.resources.swapError)
         }
         .font(.system(size: 10))
+    }
+
+    private var temperatureSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label(l10n(.temperatures), systemImage: "thermometer.medium")
+                .font(.system(size: 10, weight: .medium)).foregroundStyle(.secondary)
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 4) {
+                ForEach(monitor.temperatures) { reading in
+                    HStack(spacing: 4) {
+                        Text(temperatureTitle(reading.component)).foregroundStyle(.secondary)
+                        Spacer(minLength: 2)
+                        Text(String(format: "%.1f °C", locale: Locale(identifier: "en_US_POSIX"), reading.celsius))
+                            .monospacedDigit()
+                    }
+                    .font(.system(size: 10))
+                    .help(l10n(.temperatureHelp) + "\n" + reading.sensorIDs.joined(separator: ", "))
+                    .accessibilityElement(children: .combine)
+                }
+            }
+        }
+        .help(l10n(.temperatureHelp))
+    }
+
+    private func temperatureTitle(_ component: TemperatureComponent) -> String {
+        switch component {
+        case .cpu: return l10n(.cpuTemperature)
+        case .gpu: return l10n(.gpuTemperature)
+        case .memory: return l10n(.memoryTemperature)
+        case .storage: return l10n(.storageTemperature)
+        case .battery: return l10n(.batteryTemperature)
+        }
     }
 
     @ViewBuilder private func errorLabel(_ error: Error?) -> some View {

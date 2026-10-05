@@ -2,7 +2,7 @@
 
 English | [简体中文](README.zh-CN.md)
 
-A native macOS menu bar monitor for CPU, memory, disk I/O, and network activity. See which apps use the most resources, inspect linked history charts, and review local performance events.
+A native macOS menu bar monitor for CPU, memory, disk I/O, and network activity. See which apps use the most resources, inspect linked history charts, review local performance events, and see available hardware temperatures.
 
 ## Download and install
 
@@ -23,6 +23,7 @@ Updates use [Sparkle](https://sparkle-project.org/) and download the same DMG of
 ## Features
 
 - **Live monitoring:** whole-Mac CPU usage, memory used and total, memory pressure, swap usage, physical disk reads/writes, network downloads/uploads, and session totals.
+- **Hardware temperatures:** the panel shows CPU, GPU, memory, storage, or battery temperatures in °C only when a known sensor returns a valid reading. Each value is the highest reading among the available sensors mapped to that component. Unavailable components are hidden; if none are readable, the temperature row is hidden. Availability varies by Mac and macOS version. See [temperature compatibility](docs/TEMPERATURES.md).
 - **Refresh interval:** 2 seconds by default, adjustable from 1 to 60 seconds. Existing custom intervals are preserved.
 - **Menu bar controls:** display any combination of CPU, memory, disk, and network readings, with at least one enabled. Hidden menu bar metrics continue sampling and remain visible in the panel.
 - **Full chart overview:** all four charts remain visible. Settings, app rankings, and events open in a side panel, one at a time.
@@ -55,7 +56,7 @@ Settings start collapsed whenever the panel opens. Preferences apply immediately
 
 **Reset** clears charts and session disk/network totals. **Quit** exits the app. Charts retain up to 24 hours from the current run and clear on exit; changing the visible range reuses collected samples without changing the refresh interval. Missing periods are not filled with invented data.
 
-Rates use MB/s; capacities and totals automatically select B, KB, MB, GB, or larger units. Readings use one decimal place and decimal units (`1 GB = 1000 MB`). Very small nonzero rates show `<0.1 MB/s`. CPU and disk need one sampling interval to establish a baseline. Unavailable metrics show `—` and retry while other metrics continue updating.
+Rates use MB/s; capacities and totals automatically select B, KB, MB, GB, or larger units. Readings use one decimal place and decimal units (`1 GB = 1000 MB`). Very small nonzero rates show `<0.1 MB/s`. CPU and disk need one sampling interval to establish a baseline. Unavailable usage and I/O metrics show `—` and retry while other metrics continue updating. Unavailable temperature readings are hidden. In the panel, temperature sampling runs in the background at most once every 5 seconds; a longer configured refresh interval also applies to temperatures.
 
 ## Build and run
 
@@ -70,11 +71,11 @@ The build creates a universal arm64/x86_64 app and a local development ZIP in `d
 
 ```sh
 ./scripts/swift-local.sh test --disable-xctest
-.build/release/PulseBar --sample 5
-.build/release/PulseBar --sample 3 --interval 6
+dist/PulseBar.app/Contents/MacOS/PulseBar --sample 5
+dist/PulseBar.app/Contents/MacOS/PulseBar --sample 3 --interval 6
 ```
 
-Diagnostic sampling outputs NDJSON with interface counters, `cpu`, `memory`, `disk`, `memoryPressure`, `swap`, and `apps`. Raw units are bytes and bytes per second. Initial CPU/disk rates are `null` while baselines are established. `--interval` affects diagnostic sampling only. This mode opens no UI, records no events, and sends no notifications. Metrics fail independently, reporting errors and a nonzero exit code after the remaining sampling completes.
+Diagnostic sampling outputs NDJSON with interface counters, `cpu`, `memory`, `disk`, `memoryPressure`, `swap`, `apps`, and `temperatures`. Each temperature entry contains `component`, `celsius`, and the contributing `sensorIDs`; no valid readings produce `temperatures: []`. Missing temperatures do not themselves cause diagnostic errors. Usage and I/O raw units are bytes and bytes per second; temperatures use °C. Initial CPU/disk rates are `null` while baselines are established. `--interval` affects diagnostic sampling only, including a temperature read attempt per sample (subject to unavailable-sensor retry delays). The panel's 5-second minimum does not apply to this diagnostic mode. This mode opens no UI, records no events, and sends no notifications. Metrics fail independently, reporting errors and a nonzero exit code after the remaining sampling completes.
 
 The wrapper handles some Command Line Tools installations with duplicate `SwiftBridging` definitions or older `PackageDescription` interfaces. Compatibility files stay in `.build`; system toolchains are untouched. Standard toolchains can also use `swift build` and `swift test` directly.
 
@@ -84,6 +85,7 @@ The wrapper handles some Command Line Tools installations with duplicate `SwiftB
 - **Memory:** `HOST_VM_INFO64` app memory (internal pages minus purgeable pages), wired memory, and physical compressed pages. File cache is excluded, and uncompressed size is not counted again. Usage percentage is separate from memory pressure. See [Apple's memory terminology](https://support.apple.com/guide/activity-monitor/view-memory-usage-actmntr1004/mac).
 - **Apps:** accessible process counters from `proc_pid_rusage` and process identity APIs. CPU Mach ticks are converted using `mach_timebase_info`; memory uses `ri_phys_footprint` and cannot be summed to reconcile system memory totals. Exited or inaccessible processes are skipped. Some launchd/XPC services cannot reliably be assigned to their calling app.
 - **Pressure and swap:** direct readings from `kern.memorystatus_vm_pressure_level` and `vm.swapusage`. Pressure is never inferred from memory usage percentage.
+- **Temperatures:** read-only AppleSMC queries through IOKit. Only known component mappings and supported temperature encodings are accepted; invalid, zero, or unavailable readings are omitted. Each displayed component uses the maximum of its currently valid mapped sensors. Memory pressure and macOS thermal state are never converted into temperatures. Apple Silicon has been sampled locally; Intel temperature sensors have not been tested on Intel hardware. See [implementation and compatibility](docs/TEMPERATURES.md).
 - **Disk:** physical-device counters from IOKit's `IOBlockStorageDriver`, without adding APFS volumes or partitions again. Virtual interfaces are excluded; cached reads may not cause physical I/O.
 - **Network:** kernel `NET_RT_IFLIST2` counters for active `en<N>` interfaces, including Wi-Fi, Ethernet, and common USB adapters. Local traffic and protocol overhead are included. Virtual interfaces are not counted again; VPN transport remains counted on the physical interface.
 

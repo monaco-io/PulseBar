@@ -2,7 +2,7 @@
 
 [English](README.md) | 简体中文
 
-原生 macOS 菜单栏组件，实时显示 CPU、内存、磁盘 I/O 和下载 / 上传速度。支持应用资源排行、内存压力和 Swap、曲线联动查看，以及带应用快照的异常事件时间线。
+原生 macOS 菜单栏组件，实时显示 CPU、内存、磁盘 I/O 和下载 / 上传速度。支持应用资源排行、内存压力和 Swap、曲线联动查看、带应用快照的异常事件时间线，以及可读取的硬件温度。
 
 ## 下载安装
 
@@ -28,6 +28,7 @@
 - “设置 → 菜单栏显示”分别控制 CPU、内存、磁盘和网速是否在菜单栏显示，修改后立即生效并保存。至少保留一项，最后一项的开关会禁用；隐藏后面板中的数据仍继续采样和显示。
 - 点击读数打开面板；点击外部或按 Escape 关闭。
 - 面板固定展示 CPU、内存、磁盘和网络数据与完整折线图，不使用滚动区域；网络下载为蓝线、上传为绿线。设置在右侧展开，不压缩或遮挡监控内容；标题与底部导航始终可见。
+- 面板按实际可读取的传感器显示 CPU、GPU、内存、存储或电池温度（°C），每项取当前有效且明确归属该部件的传感器最高值。某部件无有效读数时隐藏该项，全部不可读时隐藏整行；不会显示虚假的零值。可用性因 Mac 型号和 macOS 版本而异，详见[温度兼容性说明](docs/TEMPERATURES.md)。面板温度在后台采样，最快每 5 秒读取一次；刷新间隔超过 5 秒时跟随该间隔。
 - 网络和磁盘速率固定为 MB/s；内存容量、流量与磁盘累计按大小自动显示 B、KB、MB、GB、TB 等单位。采用十进制换算，1 GB = 1000 MB；内存已用 / 总量使用相同单位，例如 `21.3 / 25.8 GB`。读数统一保留一位小数，微小非零速率显示 `<0.1 MB/s`。
 - 内存显示使用率和已用 / 总容量；鼠标悬停可查看应用、联动和压缩内存。CPU 与内存占比仍使用百分比。
 - 点击面板中 CPU 或内存的标题 / 大号读数，在右侧查看占用最高的 5 个应用。辅助及子进程按所属应用合并，可直接打开活动监视器；切换排行不停止采样。主面板扩展到最高 640 pt，保留四图总览；排行、事件与设置侧栏一次只显示一个，较长的详情可滚动。
@@ -42,7 +43,7 @@
 - 设置中的“取样范围 / History”按小时输入，单位为“小时 / hour”，支持小数，例如 `0.5` 为 30 分钟、`2` 为 2 小时，最多 24 小时；上下按钮每次调整 0.5 小时。新安装默认 1 小时，旧设置保留原时长（例如 5 分钟显示为 `0.0833 hour`）。输入后按 Return，四类曲线和时间刻度同步变化，不改变刷新间隔。程序最多保留本次运行最近 24 小时的数据，扩大范围会复用已有采样；启动前或读取中断的数据不补造，退出后曲线清空。
 - “开机启动 / Launch at login”控制登录当前 Mac 账户时自动打开应用，通过 macOS [SMAppService](https://developer.apple.com/documentation/servicemanagement/smappservice/mainapp) 管理。首次运行不自动开启；开关读取系统实际状态，若需系统允许，会显示提示及“打开登录项设置”入口。可随时关闭；从系统设置返回后自动同步状态。
 - “重置”清空所有曲线、本次网络流量和磁盘读写累计；“退出”结束程序。
-- CPU 和磁盘首次采样先建立基线，一个刷新周期后开始显示。个别指标读取失败时显示 `—` 并自动重试，其他监控继续更新。
+- CPU 和磁盘首次采样先建立基线，一个刷新周期后开始显示。用量或 I/O 指标读取失败时显示 `—` 并自动重试，其他监控继续更新；温度不可用时隐藏对应读数。
 - 如果菜单栏空间不足，可关闭其他菜单栏项目或按住 Command 拖动读数调整位置。
 
 ## 构建和运行
@@ -58,11 +59,11 @@ open dist/PulseBar.app
 
 ```sh
 ./scripts/swift-local.sh test --disable-xctest
-.build/release/PulseBar --sample 5
-.build/release/PulseBar --sample 3 --interval 6
+dist/PulseBar.app/Contents/MacOS/PulseBar --sample 5
+dist/PulseBar.app/Contents/MacOS/PulseBar --sample 3 --interval 6
 ```
 
-采样命令输出 NDJSON，包括原有网卡计数和速率字段，以及 `cpu`、`memory`、`disk`、`memoryPressure`（1 正常 / 2 偏高 / 4 紧张）、`swap`、`apps`（前五名排行、已采样与不可读取进程数）。诊断原始数据仍以字节和字节每秒计量，界面速率换算为 MB/s，容量及累计自动选择单位。首次 CPU 和磁盘速率为 `null`，应用 CPU 排行等待基线。`--interval` 指定诊断采样秒数，默认 1，不修改 App 设置；诊断路径不记录事件、不发送通知。各指标独立读取；失败写入 `errors`，继续采样其他指标，最终返回非零退出码。不会启动额外界面。
+采样命令输出 NDJSON，包括原有网卡计数和速率字段，以及 `cpu`、`memory`、`disk`、`memoryPressure`（1 正常 / 2 偏高 / 4 紧张）、`swap`、`apps`（前五名排行、已采样与不可读取进程数）和 `temperatures`。温度数组每项包含 `component`、`celsius` 和参与计算的 `sensorIDs`；无有效读数时为 `temperatures: []`，温度缺失本身不会使诊断报错。用量和 I/O 的诊断原始数据仍以字节和字节每秒计量，温度采用 °C；界面速率换算为 MB/s，容量及累计自动选择单位。首次 CPU 和磁盘速率为 `null`，应用 CPU 排行等待基线。`--interval` 指定诊断采样秒数，默认 1，不修改 App 设置；每次诊断采样都会尝试读取温度（受不可用传感器重试等待限制），不受面板最快 5 秒一次的限制。诊断路径不记录事件、不发送通知。各指标独立读取；失败写入 `errors`，继续采样其他指标，最终返回非零退出码。不会启动额外界面。
 
 构建入口兼容部分 Command Line Tools 升级后残留的重复 `SwiftBridging` 模块定义和旧 `PackageDescription` 私有接口。兼容文件仅生成在项目 `.build` 中，不修改系统工具链。正常工具链也可以直接执行 `swift build` 和 `swift test`。
 
@@ -83,6 +84,10 @@ open dist/PulseBar.app
 CPU 使用 Mach `host_statistics(HOST_CPU_LOAD_INFO)` 的用户、系统、空闲和 nice 累计 tick 差值计算，所有逻辑核心合计归一化为 0–100%，不是启动以来的平均值。CPU 曲线和内存曲线固定为 0–100%。
 
 内存使用 [`host_statistics64`](https://developer.apple.com/documentation/kernel/1502863-host_statistics64) 的 `HOST_VM_INFO64` 和本机页大小：已用 = 应用（anonymous/internal 页扣除 purgeable 页）+ 联动（wired）+ 压缩数据实际占用页。不把文件缓存算作已用，也不把压缩前大小重复相加；占用百分比不等同于内存压力。分类含义参考 [Apple 活动监视器说明](https://support.apple.com/guide/activity-monitor/view-memory-usage-actmntr1004/mac)。
+
+### 硬件温度
+
+通过 IOKit 对 AppleSMC 发出只读查询，只接受已知部件映射、支持的温度编码和有效读数；零值、无效值或不可访问的读数直接省略，每项显示当前有效映射传感器的最高温度。不会将内存压力或 macOS 热状态当作温度。已在本机 Apple Silicon 读取真实传感器；尚未在 Intel 真机验证温度传感器。无需管理员权限或特权辅助服务；接口不可访问时隐藏温度，其他监控继续运行。详见[实现与兼容性](docs/TEMPERATURES.md)。
 
 ### 磁盘 I/O
 

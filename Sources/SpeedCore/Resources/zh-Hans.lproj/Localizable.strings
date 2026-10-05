@@ -132,3 +132,10 @@
 "behaviorSection" = "启动与通知";
 "resetDone" = "本次统计已重置，继续监测。";
 "selectedTab" = "已选中";
+"temperatures" = "温度 · 最高传感器读数";
+"cpuTemperature" = "CPU";
+"gpuTemperature" = "GPU";
+"memoryTemperature" = "内存";
+"storageTemperature" = "存储";
+"batteryTemperature" = "电池";
+"temperatureHelp" = "已识别硬件传感器的当前最高温度，后台采样至少间隔 5 秒。不可用或无效读数自动隐藏；温度不参与历史图表，也不表示健康评分。";

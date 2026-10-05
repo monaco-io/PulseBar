@@ -11,6 +11,7 @@ if CommandLine.arguments.contains("--verify-insights") {
     let monitor = SystemMonitor(eventStore: store)
     monitor.start(refreshSeconds: 1)
     RunLoop.main.run(until: Date().addingTimeInterval(13))
+    let temperatures = monitor.temperatures
     monitor.stop()
     do {
         let saved = try store.load()
@@ -20,6 +21,8 @@ if CommandLine.arguments.contains("--verify-insights") {
             "diskSamples": monitor.resources.diskHistory.count,
             "networkSamples": monitor.history.count,
             "swapSamples": monitor.resources.swapHistory.count,
+            "temperatures": temperatures.map { ["component": $0.component.rawValue,
+                                                  "celsius": $0.celsius, "sensorIDs": $0.sensorIDs] as [String: Any] },
             "memoryPressure": monitor.resources.pressure?.rawValue as Any? ?? NSNull(),
             "sampledProcesses": monitor.processCount,
             "events": monitor.events.count,
@@ -50,6 +53,7 @@ if let index = CommandLine.arguments.firstIndex(of: "--sample") {
     }
     let reader = InterfaceReader()
     let systemReader = SystemReader()
+    let temperatureReader = TemperatureReader()
     var interval = 1
     if let intervalIndex = CommandLine.arguments.firstIndex(of: "--interval") {
         guard CommandLine.arguments.indices.contains(intervalIndex + 1),
@@ -73,6 +77,12 @@ if let index = CommandLine.arguments.firstIndex(of: "--sample") {
         autoreleasepool {
             var row: [String: Any] = ["sample": sample, "uptime": ProcessInfo.processInfo.systemUptime, "refreshSeconds": interval]
             var errors: [String: String] = [:]
+            // Optional hardware sensors are absent on unsupported machines;
+            // they must not turn an otherwise healthy diagnostic into an error.
+            row["temperatures"] = temperatureReader.read().map { reading in
+                ["component": reading.component.rawValue, "celsius": reading.celsius,
+                 "sensorIDs": reading.sensorIDs] as [String: Any]
+            }
             do {
                 let snapshot = try reader.read()
                 let rate = accumulator.consume(snapshot)
