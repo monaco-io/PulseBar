@@ -4,28 +4,33 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>PulseBar</title>
         <item>
-            <title>1.9.0</title>
-            <pubDate>Mon, 05 Oct 2026 01:08:24 +0000</pubDate>
+            <title>1.10.0</title>
+            <pubDate>Mon, 05 Oct 2026 03:55:13 +0000</pubDate>
             <link>https://github.com/monaco-io/PulseBar</link>
-            <sparkle:version>17</sparkle:version>
-            <sparkle:shortVersionString>1.9.0</sparkle:shortVersionString>
+            <sparkle:version>18</sparkle:version>
+            <sparkle:shortVersionString>1.10.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# PulseBar 1.9.0
+            <description sparkle:format="markdown"><![CDATA[# PulseBar 1.10.0
 
-- The overview now shows available CPU, GPU, memory, storage, and battery temperatures in °C. Each component displays the highest valid reading from its known, exposed sensors.
-- Missing, inaccessible, or invalid temperature readings are hidden. If no supported temperatures are readable, the temperature row stays hidden; other monitoring continues normally.
-- Read-only overview temperature sampling runs in the background at most once every 5 seconds, without administrator access or a privileged helper.
+- The overview is organized into CPU, memory, GPU, storage, network, and the Mac's internal battery. Available temperatures appear alongside their hardware headings.
+- CPU shows logical-core count. Memory keeps usage, app/wired/compressed bytes, pressure, and Swap together with its history.
+- GPU utilization is shown separately for each named hardware device when its driver provides a valid reading. Percentages from different GPUs are not added together; the component temperature is not attributed to a particular device.
+- Storage adds startup-volume used, total, and ordinary available space, clearly separated from physical disk read/write activity. APFS shared-container space is not a sum of the startup volume's file sizes.
+- A present internal battery can show charge, power/charging state, maximum capacity, cycle count, and macOS time estimates when available. Desktops without an internal battery hide this section; UPS and peripheral batteries are excluded.
+- Hardware sections scroll between a fixed header and navigation. The four existing histories, app rankings, menu-bar choices, saved preferences, and local event history are preserved.
 
-Temperature availability depends on the Mac and macOS version. Apple Silicon sensor readings have been checked locally; Intel hardware has not been tested. See [temperature compatibility](https://github.com/monaco-io/PulseBar/blob/main/docs/TEMPERATURES.md).
+Unavailable or invalid optional hardware readings are hidden. GPU and temperature reads run in the background no faster than every 5 seconds; volume capacity and battery use a 30-second minimum, with longer configured refresh intervals respected. No administrator access or privileged helper is introduced.
 
-Requires macOS 13 or later, on Apple Silicon or Intel. Existing preferences and local event history are preserved.
+The layout and real CPU/GPU/storage readings were checked on an Apple M4 iMac. Intel hardware and physical MacBook battery behavior have not been tested in this round. Availability depends on the Mac, driver, and macOS version. See [hardware modules and measurement scope](https://github.com/monaco-io/PulseBar/blob/main/docs/HARDWARE-MODULES.md).
 
-[简体中文](https://github.com/monaco-io/PulseBar/blob/main/docs/releases/v1.9.0.zh-CN.md)
+Requires macOS 13 or later, on Apple Silicon or Intel. Releases retain the existing ad-hoc signing and signed Sparkle update flow; they are not Apple notarized.
+
+[简体中文](https://github.com/monaco-io/PulseBar/blob/main/docs/releases/v1.10.0.zh-CN.md)
 ]]></description>
-            <enclosure url="https://github.com/monaco-io/PulseBar/releases/download/v1.9.0/PulseBar.dmg" length="2598385" type="application/octet-stream" sparkle:edSignature="tn5lPbOLWpRqfTzKGXKQiHoP4OQEDSllBM9eWSp0dkaayQs3iJNqUG4t2966TxS3oj5ejqzvTMl3TVhd55a+DA=="></enclosure>
+            <enclosure url="https://github.com/monaco-io/PulseBar/releases/download/v1.10.0/PulseBar.dmg" length="2801351" type="application/octet-stream" sparkle:edSignature="TjAfeN1a2U1BeJzxhOMyoDea4mJ51BDiDJ7z4dWJPiON8uJYd943YtRF1/ILl99W8uVOqIm1pSRae+ChJfYWCw=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: bLbnE/Sit3UVWJxneQ3EJ63+aPbR0kPN+/GaczMG2FpnGpf6xBhs67PDCIELQ1J+JXw3LDLjb5q7AYl8H9LYAw==
-length: 2176
+edSignature: H68YRUOQ3pUd5UCANtHFeTa7HdOzkKbKjcvGViwH/YUN1fhXP/+b0tkAmy5mZDRNK755xNaPA1jiZ8qVZx7fAg==
+length: 3274
 -->
