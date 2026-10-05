@@ -203,6 +203,17 @@ Published on 2026-09-22 from tag `v1.8.1`, commit `e6a357939ad519f833e4f7b05f093
 - Backups and evidence are under `artifacts/github-v1.8.1/`, including `ci.log`, `release.log`, `public-verification.log`, `verification.json`, `install-verification.json`, and `official-samples.ndjson`. The detailed memory findings and short-test limits remain in [PERFORMANCE.md](PERFORMANCE.md). Apple notarization and Intel/macOS 13 hardware acceptance remain outside this release verification.
 
 
+## 2026-10-05: v1.9.0 public release verified
+
+Release tag `v1.9.0` resolves to `0de44efec4f31de5ef226076eeb3bc90e1d0cd28`, version `1.9.0`, build `17`.
+
+- [Source CI](https://github.com/monaco-io/PulseBar/actions/runs/37249912216) and [Publish release](https://github.com/monaco-io/PulseBar/actions/runs/37250073690) succeeded for that exact commit. Tests, universal builds, packaged sampling, DMG signing, publication, and signed feed publication all passed.
+- [PulseBar 1.9.0](https://github.com/monaco-io/PulseBar/releases/tag/v1.9.0) is public and Latest with one uploaded asset, `PulseBar.dmg`. Anonymous download returned HTTP 200. Its 2,598,385 bytes match GitHub's SHA-256 digest: `86137bebdb5acf1040b48923f47acb6fce64e09257ca4bde59cb83b276ba288f`.
+- Independent public-key verification passed for the DMG and update feed. The canonical anonymous Raw feed is byte-for-byte identical to the published signed feed and advertises 1.9.0/build 17. Mounted contents, Finder layout, both architectures, app resources, versions, and deep strict code signing passed.
+- Both existing installation locations now contain the public DMG's app. Their executable SHA-256 is `579db2d1109ae55cb71df98ac4db596cd5ae519670b5f8f65bc4a3afda5fc7ac`; strict signing passed. Old copies are backed up, the six checked monitoring preferences are unchanged, and all 13 previous event IDs are preserved.
+- Three official installed-app samples returned CPU/GPU/storage temperatures without metric errors. Native inspection and a screenshot of the official running app confirmed those temperature rows, absence of memory/battery temperature rows, and the full overview with charts and navigation.
+- Public and installation reports, logs, samples, DMG, feed, and backups are under `artifacts/temperature/`. Intel/macOS 13 hardware acceptance and Apple notarization were not performed.
+
 ## 2026-10-05: v1.9.0 temperature release preflight
 
 Local candidate `1.9.0` / build `17`; not yet published at this check.
