@@ -4,10 +4,9 @@ import SpeedCore
 
 final class PopoverPresentation: ObservableObject {
     @Published private(set) var navigation = PanelNavigation()
-    @Published private(set) var height: CGFloat = 660
+    @Published private(set) var height: CGFloat = 820
     @Published private(set) var availableWidth: CGFloat = 1280
-    private var availableHeight: CGFloat = 684
-    private var temperatureCount = 0
+    private var availableHeight: CGFloat = 844
     var onNavigate: (() -> Void)?
 
     var route: PanelRoute { navigation.route }
@@ -25,18 +24,15 @@ final class PopoverPresentation: ObservableObject {
         navigate(.overview)
     }
 
-    func setTemperatureCount(_ count: Int) {
-        guard temperatureCount != count else { return }
-        temperatureCount = count
-        updateHeight()
-        onNavigate?()
+    private func updateHeight() {
+        // Hardware sections scroll between the fixed header and navigation.
+        // Sensor availability must not resize the panel while it is open.
+        height = min(820, max(0, availableHeight - 24))
     }
 
-    private func updateHeight() {
-        let rows = CGFloat((temperatureCount + 1) / 2)
-        let extra = temperatureCount == 0 ? 0 : 24 + rows * 16
-        height = min(660 + extra, max(280, availableHeight) - 24)
-    }
+    #if DEBUG
+    func setPreviewHeight(_ value: CGFloat) { height = value }
+    #endif
 
     func navigate(_ route: PanelRoute) {
         guard route != navigation.route else { return }

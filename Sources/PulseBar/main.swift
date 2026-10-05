@@ -2,7 +2,41 @@ import AppKit
 import Foundation
 import SpeedCore
 
+private func hardwareDiagnostics(gpus: [GPUUsage], capacity: StorageCapacity?, battery: BatterySnapshot?) -> [String: Any] {
+    var payload: [String: Any] = [
+        "gpuUsage": gpus.map { ["id": $0.id, "name": $0.name, "utilizationPercent": $0.utilizationPercent] as [String: Any] },
+        "storageCapacity": NSNull(), "battery": NSNull()
+    ]
+    if let capacity {
+        payload["storageCapacity"] = ["name": capacity.name, "path": capacity.path, "totalBytes": capacity.totalBytes,
+                                      "availableBytes": capacity.availableBytes, "usedBytes": capacity.usedBytes,
+                                      "usedPercent": capacity.usedPercent] as [String: Any]
+    }
+    if let battery {
+        let state: String?
+        switch battery.powerState {
+        case .charging?: state = "charging"
+        case .full?: state = "full"
+        case .onBattery?: state = "onBattery"
+        case .externalPower?: state = "externalPower"
+        case nil: state = nil
+        }
+        payload["battery"] = [
+            "chargePercent": battery.chargePercent as Any? ?? NSNull(),
+            "powerState": state as Any? ?? NSNull(),
+            "maximumCapacityPercent": battery.healthPercent as Any? ?? NSNull(),
+            "cycleCount": battery.cycleCount as Any? ?? NSNull(),
+            "timeEstimate": battery.timeEstimate.map {
+                ["kind": $0.kind == .untilFull ? "untilFull" : "untilEmpty", "minutes": $0.minutes] as [String: Any]
+            } as Any? ?? NSNull()
+        ] as [String: Any]
+    }
+    return payload
+}
+
 #if DEBUG
+if CommandLine.arguments.contains("--preview-hardware") { HardwarePreview.run() }
+
 // Exercise the real timer, background process sampler, and event store without
 // opening a window, touching user history, or requesting notification permission.
 if CommandLine.arguments.contains("--verify-insights") {
@@ -12,10 +46,13 @@ if CommandLine.arguments.contains("--verify-insights") {
     monitor.start(refreshSeconds: 1)
     RunLoop.main.run(until: Date().addingTimeInterval(13))
     let temperatures = monitor.temperatures
+    let hardware = hardwareDiagnostics(gpus: monitor.gpuUsage, capacity: monitor.storageCapacity, battery: monitor.battery)
     monitor.stop()
+    let stoppedHardwareCleared = monitor.gpuUsage.isEmpty && monitor.storageCapacity == nil && monitor.battery == nil && monitor.temperatures.isEmpty
     do {
         let saved = try store.load()
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
+            "stoppedHardwareCleared": stoppedHardwareCleared,
             "cpuSamples": monitor.resources.cpuHistory.count,
             "memorySamples": monitor.resources.memoryHistory.count,
             "diskSamples": monitor.resources.diskHistory.count,
@@ -31,10 +68,11 @@ if CommandLine.arguments.contains("--verify-insights") {
             "eventRankingCounts": saved.map { ["cpu": $0.topCPU.count, "memory": $0.topMemory.count] },
             "eventStoreError": monitor.eventStoreError?.localizedDescription as Any? ?? NSNull()
         ]
+        payload.merge(hardware) { _, new in new }
         print(String(decoding: try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]), as: UTF8.self))
         try? FileManager.default.removeItem(at: directory)
         exit(monitor.resources.cpuHistory.count >= 5 && monitor.processCount > 0 && saved == monitor.events
-             && !monitor.resources.hasError && monitor.eventStoreError == nil ? 0 : 1)
+             && !monitor.resources.hasError && monitor.eventStoreError == nil && stoppedHardwareCleared ? 0 : 1)
     } catch {
         fputs("\(error.localizedDescription)\n", stderr)
         try? FileManager.default.removeItem(at: directory)
@@ -54,6 +92,9 @@ if let index = CommandLine.arguments.firstIndex(of: "--sample") {
     let reader = InterfaceReader()
     let systemReader = SystemReader()
     let temperatureReader = TemperatureReader()
+    let gpuReader = GPUReader()
+    let capacityReader = StorageCapacityReader()
+    let batteryReader = BatteryReader()
     var interval = 1
     if let intervalIndex = CommandLine.arguments.firstIndex(of: "--interval") {
         guard CommandLine.arguments.indices.contains(intervalIndex + 1),
@@ -83,6 +124,7 @@ if let index = CommandLine.arguments.firstIndex(of: "--sample") {
                 ["component": reading.component.rawValue, "celsius": reading.celsius,
                  "sensorIDs": reading.sensorIDs] as [String: Any]
             }
+            row.merge(hardwareDiagnostics(gpus: gpuReader.read(), capacity: capacityReader.read(), battery: batteryReader.read())) { _, new in new }
             do {
                 let snapshot = try reader.read()
                 let rate = accumulator.consume(snapshot)

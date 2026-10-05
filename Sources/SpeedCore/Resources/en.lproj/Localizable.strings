@@ -139,3 +139,29 @@
 "storageTemperature" = "Storage";
 "batteryTemperature" = "Battery";
 "temperatureHelp" = "Highest current reading from identified hardware sensors. Checked in the background at least 5 seconds apart. Unavailable or invalid readings are hidden; this is not a temperature history or a health score.";
+
+// Hardware modules
+"gpu" = "GPU";
+"storage" = "Storage";
+"battery" = "Battery";
+"logicalCores" = "%d logical cores";
+"appMemory" = "Apps";
+"wiredMemory" = "Wired";
+"compressedMemory" = "Compressed";
+"componentTemperature" = "%@ temperature %.1f degrees Celsius";
+"gpuUsageHelp" = "Device utilization reported by this GPU driver. Different GPUs are shown separately. Temperature is the highest valid known GPU sensor and is not tied to a particular device.";
+"startupVolumeSpace" = "Startup volume space";
+"capacityRatio" = "%@ / %@";
+"availableSpace" = "%@ available";
+"storageCapacityHelp" = "Ordinary free space on the startup data volume. APFS volumes share container capacity; used space can include other volumes and snapshots. This is separate from physical disk I/O.";
+"physicalDiskIO" = "Physical disk I/O";
+"batteryHealth" = "Maximum capacity %@";
+"batteryHealthHelp" = "Current full-charge capacity relative to design capacity, using compatible native battery values.";
+"batteryCycles" = "%d cycles";
+"batteryTimeUntilFull" = "About %d min until full";
+"batteryTimeUntilEmpty" = "About %d min remaining";
+"batteryTimeHelp" = "An estimate reported by macOS, shown only when available for the current charging or battery state.";
+"batteryCharging" = "Charging";
+"batteryFull" = "Fully charged";
+"batteryOnBattery" = "On battery";
+"batteryExternalPower" = "External power";

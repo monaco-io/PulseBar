@@ -25,6 +25,10 @@ public enum AppLanguage: String, CaseIterable {
 }
 
 public enum TextKey: String, CaseIterable {
+    case gpu, storage, battery, logicalCores, appMemory, wiredMemory, compressedMemory, componentTemperature
+    case gpuUsageHelp, startupVolumeSpace, capacityRatio, availableSpace, storageCapacityHelp, physicalDiskIO
+    case batteryHealth, batteryHealthHelp, batteryCycles, batteryTimeUntilFull, batteryTimeUntilEmpty, batteryTimeHelp
+    case batteryCharging, batteryFull, batteryOnBattery, batteryExternalPower
     case temperatures, cpuTemperature, gpuTemperature, memoryTemperature, storageTemperature, batteryTemperature, temperatureHelp
     case overview, moreActions, samplingSection, behaviorSection, resetDone, selectedTab
     case softwareUpdate, checkForUpdates, automaticUpdateChecks, updateHelp, downloadAndReleaseNotes, updateStartFailed, newVersionAvailable

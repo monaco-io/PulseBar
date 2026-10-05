@@ -1,6 +1,6 @@
 # Hardware temperatures
 
-PulseBar shows a component only when a known, accessible hardware sensor returns a valid temperature. CPU, GPU, memory, storage, and battery are supported categories; their availability depends on the Mac and macOS version. If no category has a valid reading, the overview hides the temperature row.
+PulseBar shows a component only when a known, accessible hardware sensor returns a valid temperature. CPU, GPU, memory, storage, and battery are supported categories; their availability depends on the Mac and macOS version. In the current hardware-module layout, valid readings appear beside their hardware headings; an unavailable reading is omitted. Battery temperature additionally requires a present internal host battery. See [hardware modules](HARDWARE-MODULES.md) for the version 1.10.0 layout.
 
 Each displayed value is the highest current reading among the exposed sensors mapped to that component. It is not an average, a complete inventory of all sensors, or a temperature inferred from CPU usage, memory pressure, or the system thermal state. Some mapped sensors measure proximity rather than a die; the component label does not imply that every Mac exposes a die sensor.
 

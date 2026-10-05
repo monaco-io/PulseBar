@@ -1,5 +1,18 @@
 # 本机验证记录
 
+## 2026-10-05：硬件模块改版（本地候选，未发布）
+
+- 基于 main `6aff86f3e226ade01d2cc3f798a2f727dd2d3e4a`，按 CPU、内存、GPU、存储、网络、内置电池分区，温度归各硬件标题。版本仍为 1.9.0（17）；本轮没有提交、推送、打标签、创建 release 或更新安装副本。
+- 使用现有 CLT/Swift 6.0.3 兼容脚本；Documents 工作目录出现构建期间文件时间戳变化，失败尝试不计通过。最终相同源码在 `/tmp/pulsebar-hardware-20261005/repo` 顺序构建，69 项源码、资源、脚本和 Package.swift 哈希一致；完整 91 项测试通过，包含电池来源/容量单位/状态/时间哨兵、GPU 无效值和分设备百分比、卷容量边界及原有配置、历史、事件、导航测试。
+- 最终 `scripts/build-app.sh` 完成 arm64+x86_64 通用候选，深度严格签名校验与架构检查通过。采用既有本地 ad-hoc 签名；没有增加权限、服务、凭据或签名证书。
+- 生产 `--sample 3` 无 errors，Apple M4 GPU 利用率有真实有效值，启动数据卷容量有效，电池为 `null`，CPU/GPU/存储温度有效，内存温度缺失。13 秒真实后台检查获得 CPU/磁盘各 13 个样本，内存/网络/Swap 各 14 个样本，事件读回一致，停止后 GPU/容量/电池/温度全部清空。
+- 隔离 DEBUG 预览使用真实 reader、独立配置与事件目录，不启动更新、通知回调、登录项或生产实例锁。英文、中文上半部/下半部及 660 pt 较矮窗口实际渲染均独立视检通过；固定页头和导航保持位置，下半部含完整网络曲线、累计、网卡。截图是运行窗口内容，不含无关桌面或电池测试数据。
+- 中文上下截图已作为 image 成功保存到 Library，上传用文件与最终视检 PNG 字节完全一致；文件身份元数据写回成功，两项从 Library 重新下载后的 PNG 与原图逐字节一致。Library 预备上传后端明确不可用且没有创建上传会话，随后按技能规定改用可用的本地文件创建批次；两项均返回 succeeded。
+- 原安装副本二进制 SHA-256 保持 `579db2d1109ae55cb71df98ac4db596cd5ae519670b5f8f65bc4a3afda5fc7ac`，配置前后完全一致（跟随系统、2 秒刷新、12 小时历史、四项菜单、事件通知开启）。原事件文件未作为测试存储使用；真实应用持续运行产生的新事件不被删除。
+- 边界：Intel 与 MacBook 电池尚未真机验证。数据不可获取时各可选字段降级隐藏；测试不能证明其他机型传感器可用。原生 UI 连接一次异常耗时约 10 分钟，其余视觉验证用本应用真实窗口的隔离渲染完成，未宣称交互工具覆盖所有按钮/屏幕配置。
+
+证据位于 `artifacts/hardware-modules/`：`tests.log`、`universal-build.log`、`diagnostic.ndjson`、`live-monitor.json`、`source-hashes.json`、`overview-zh-top.png`、`overview-zh-bottom.png`、`overview-en.png`、`overview-zh-compact.png`、`library-delivered.json`、本地候选与 `change.patch`。设计与接口见 [HARDWARE-MODULES.md](HARDWARE-MODULES.md)。
+
 ## v1.6.0 build 12：真实应用图标
 
 2026-09-15：应用排行与历史事件共用真实图标组件，从记录的应用包路径读取 macOS 原生图标，缓存最多 128 项；无应用路径或路径已不存在时保留通用图标。Release 构建、安装包及安装副本严格签名校验通过，已安装到 `~/Applications/PulseBar.app`。原生界面确认实时内存排行显示 ChatGPT、Code、微信图标；展开用户截图对应的 10:15:17 历史事件，确认微信、钉钉、ChatGPT、汽水音乐、Code 均显示真实彩色图标。未更改用户配置或事件数据，未推送。制品、旧版备份、构建日志与 SHA-256 位于 `artifacts/app-icons-12/`。

@@ -117,70 +117,241 @@ struct PopoverView: View {
     }
 
     private var overviewContent: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top, spacing: 24) {
-                usageColumn(.cpu, symbol: "cpu", value: monitor.resources.cpu?.usedPercent,
-                            detail: cpuDetail, points: monitor.resources.cpuHistory, color: cpuColor,
-                            error: monitor.resources.cpuError, help: l10n(.cpuHelp))
-                usageColumn(.memory, symbol: "memorychip", value: monitor.resources.memory?.usedPercent,
-                            detail: memoryDetail, points: monitor.resources.memoryHistory, color: memoryColor,
-                            error: monitor.resources.memoryError, help: memoryHelp)
+        #if DEBUG
+        ScrollViewReader { proxy in
+            hardwareContent.onReceive(NotificationCenter.default.publisher(for: Notification.Name("PulseBar.hardware-preview-scroll"))) { _ in
+                proxy.scrollTo("hardware-content", anchor: .bottom)
             }
-            .padding(.bottom, 10)
-            memoryHealthRow.padding(.bottom, 8)
-            if !monitor.temperatures.isEmpty {
-                temperatureSection.padding(.bottom, 8)
-            }
-            Divider()
-
-            HStack {
-                Label(l10n(.diskIO), systemImage: "internaldrive").font(.system(size: 12, weight: .semibold))
-                Spacer()
-                Text(monitor.resources.disks.isEmpty ? "—" : monitor.resources.disks.joined(separator: l10n(.listSeparator)))
-                    .font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
-                    .help(l10n(.diskHelp))
-            }
-            .padding(.top, 10).padding(.bottom, 6)
-            HStack(spacing: 24) {
-                speedColumn(.read, symbol: "arrow.down", speed: monitor.resources.diskRate?.read, color: downloadColor)
-                speedColumn(.write, symbol: "arrow.up", speed: monitor.resources.diskRate?.write, color: memoryColor)
-            }
-            rateChart(monitor.resources.diskHistory, primaryColor: downloadColor, secondaryColor: memoryColor,
-                      label: l10n(.diskChart, historyDuration))
-            totalsRow(.sessionIO, first: monitor.resources.totalDiskRead, second: monitor.resources.totalDiskWritten,
-                      firstColor: downloadColor, secondColor: memoryColor)
-                .padding(.top, 6)
-            errorLabel(monitor.resources.diskError)
-            Divider().padding(.top, 10)
-
-            HStack {
-                Label(l10n(.network), systemImage: "network").font(.system(size: 12, weight: .semibold))
-                Spacer()
-            }
-            .padding(.top, 10).padding(.bottom, 6)
-            HStack(spacing: 24) {
-                speedColumn(.download, symbol: "arrow.down", speed: monitor.networkError == nil ? monitor.rate.download : nil,
-                            color: downloadColor)
-                speedColumn(.upload, symbol: "arrow.up", speed: monitor.networkError == nil ? monitor.rate.upload : nil,
-                            color: uploadColor)
-            }
-            rateChart(monitor.history, primaryColor: downloadColor, secondaryColor: uploadColor,
-                      label: l10n(.networkChart, historyDuration))
-            totalsRow(.sessionTraffic, first: monitor.totalReceived, second: monitor.totalSent,
-                      firstColor: downloadColor, secondColor: uploadColor)
-                .padding(.top, 6)
-            HStack(alignment: .top) {
-                Text(l10n(.interfaces)).foregroundStyle(.secondary)
-                Spacer(minLength: 16)
-                Text(monitor.interfaces.isEmpty ? l10n(.noInterfaces) : monitor.interfaceDescription(using: l10n))
-                    .multilineTextAlignment(.trailing).lineLimit(2).help(l10n(.networkHelp))
-            }
-            .font(.system(size: 10)).padding(.top, 6)
-            errorLabel(monitor.networkError)
         }
-        .padding(.horizontal, 20).padding(.bottom, 8)
+        #else
+        hardwareContent
+        #endif
     }
 
+    private var hardwareContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                hardwareSection(.cpu, symbol: "cpu", color: cpuColor, component: .cpu, destination: .cpuApps) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Button { presentation.navigate(.cpuApps) } label: { usageValue(monitor.resources.cpu?.usedPercent) }
+                            .buttonStyle(.plain).help(l10n(.cpuHelp))
+                        Spacer()
+                        Text(l10n(.logicalCores, ProcessInfo.processInfo.processorCount))
+                            .font(.system(size: 10)).foregroundStyle(.secondary)
+                    }
+                    Text(cpuDetail).font(.system(size: 10)).foregroundStyle(.secondary).monospacedDigit()
+                    usageChart(monitor.resources.cpuHistory, color: cpuColor, metric: .cpu)
+                    errorLabel(monitor.resources.cpuError)
+                }
+                Divider()
+                hardwareSection(.memory, symbol: "memorychip", color: memoryColor, component: .memory, destination: .memoryApps) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Button { presentation.navigate(.memoryApps) } label: { usageValue(monitor.resources.memory?.usedPercent) }
+                            .buttonStyle(.plain).help(memoryHelp)
+                        Spacer()
+                        Text(memoryDetail).font(.system(size: 12)).monospacedDigit().help(memoryHelp)
+                    }
+                    if let memory = monitor.resources.memory {
+                        HStack(spacing: 12) {
+                            memoryAmount(.appMemory, memory.appBytes)
+                            memoryAmount(.wiredMemory, memory.wiredBytes)
+                            memoryAmount(.compressedMemory, memory.compressedBytes)
+                        }
+                    }
+                    usageChart(monitor.resources.memoryHistory, color: memoryColor, metric: .memory)
+                    memoryHealthRow
+                    errorLabel(monitor.resources.memoryError)
+                }
+                if !monitor.gpuUsage.isEmpty || temperature(.gpu) != nil {
+                    Divider()
+                    hardwareSection(.gpu, symbol: "square.3.layers.3d", color: Color(nsColor: .systemTeal), component: .gpu) {
+                        ForEach(monitor.gpuUsage) { gpu in
+                            HStack(alignment: .firstTextBaseline) {
+                                Text(gpu.name).font(.system(size: 11)).lineLimit(1)
+                                Spacer(minLength: 10)
+                                Text(SystemFormatter.percent(gpu.utilizationPercent))
+                                    .font(.system(size: 20, weight: .medium, design: .rounded)).monospacedDigit()
+                            }
+                            .help(l10n(.gpuUsageHelp))
+                        }
+                    }
+                }
+                Divider()
+                hardwareSection(.storage, symbol: "internaldrive", color: downloadColor, component: .storage) {
+                    if let capacity = monitor.storageCapacity {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(l10n(.startupVolumeSpace)).foregroundStyle(.secondary)
+                                Spacer()
+                                Text(l10n(.capacityRatio, TrafficFormatter.total(capacity.usedBytes), TrafficFormatter.total(capacity.totalBytes)))
+                                    .monospacedDigit()
+                            }
+                            ProgressView(value: capacity.usedPercent, total: 100).tint(downloadColor)
+                            HStack {
+                                Text(l10n(.availableSpace, TrafficFormatter.total(capacity.availableBytes)))
+                                Spacer()
+                                Text(SystemFormatter.percent(capacity.usedPercent)).monospacedDigit()
+                            }
+                            .foregroundStyle(.secondary)
+                        }
+                        .font(.system(size: 10)).help(l10n(.storageCapacityHelp))
+                    }
+                    HStack {
+                        Text(l10n(.physicalDiskIO)).foregroundStyle(.secondary)
+                        Spacer()
+                        Text(monitor.resources.disks.joined(separator: l10n(.listSeparator)))
+                            .lineLimit(1).truncationMode(.middle)
+                    }
+                    .font(.system(size: 10)).help(l10n(.diskHelp))
+                    HStack(spacing: 24) {
+                        speedColumn(.read, symbol: "arrow.down", speed: monitor.resources.diskRate?.read, color: downloadColor)
+                        speedColumn(.write, symbol: "arrow.up", speed: monitor.resources.diskRate?.write, color: memoryColor)
+                    }
+                    rateChart(monitor.resources.diskHistory, primaryColor: downloadColor, secondaryColor: memoryColor,
+                              label: l10n(.diskChart, historyDuration))
+                    totalsRow(.sessionIO, first: monitor.resources.totalDiskRead, second: monitor.resources.totalDiskWritten,
+                              firstColor: downloadColor, secondColor: memoryColor)
+                    errorLabel(monitor.resources.diskError)
+                }
+                Divider()
+                hardwareSection(.network, symbol: "network", color: uploadColor) {
+                    HStack(spacing: 24) {
+                        speedColumn(.download, symbol: "arrow.down", speed: monitor.networkError == nil ? monitor.rate.download : nil,
+                                    color: downloadColor)
+                        speedColumn(.upload, symbol: "arrow.up", speed: monitor.networkError == nil ? monitor.rate.upload : nil,
+                                    color: uploadColor)
+                    }
+                    rateChart(monitor.history, primaryColor: downloadColor, secondaryColor: uploadColor,
+                              label: l10n(.networkChart, historyDuration))
+                    totalsRow(.sessionTraffic, first: monitor.totalReceived, second: monitor.totalSent,
+                              firstColor: downloadColor, secondColor: uploadColor)
+                    HStack(alignment: .top) {
+                        Text(l10n(.interfaces)).foregroundStyle(.secondary)
+                        Spacer(minLength: 16)
+                        Text(monitor.interfaces.isEmpty ? l10n(.noInterfaces) : monitor.interfaceDescription(using: l10n))
+                            .multilineTextAlignment(.trailing).lineLimit(2).help(l10n(.networkHelp))
+                    }
+                    .font(.system(size: 10))
+                    errorLabel(monitor.networkError)
+                }
+                if let battery = displayableBattery {
+                    Divider()
+                    hardwareSection(.battery, symbol: "battery.100", color: uploadColor, component: .battery) {
+                        batteryContent(battery)
+                    }
+                }
+            }
+            .id("hardware-content")
+            .padding(.horizontal, 20).padding(.bottom, 12)
+        }
+        .scrollIndicators(.automatic)
+    }
+
+    private func hardwareSection<Content: View>(_ title: TextKey, symbol: String, color: Color,
+                                                component: TemperatureComponent? = nil, destination: PanelRoute? = nil,
+                                                @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                if let destination {
+                    Button { presentation.navigate(destination) } label: {
+                        HStack(spacing: 6) {
+                            Label(l10n(title), systemImage: symbol)
+                            Image(systemName: "chevron.right").font(.system(size: 9))
+                        }
+                        .foregroundStyle(color).font(.system(size: 12, weight: .semibold))
+                    }
+                    .buttonStyle(.plain).help(l10n(title == .cpu ? .topCPU : .topMemory))
+                } else {
+                    Label(l10n(title), systemImage: symbol)
+                        .foregroundStyle(color).font(.system(size: 12, weight: .semibold))
+                }
+                Spacer(minLength: 8)
+                if let component, let reading = temperature(component) {
+                    Label(String(format: "%.1f °C", locale: Locale(identifier: "en_US_POSIX"), reading.celsius), systemImage: "thermometer.medium")
+                        .font(.system(size: 10)).monospacedDigit().foregroundStyle(.secondary)
+                        .help(l10n(.temperatureHelp) + "\n" + reading.sensorIDs.joined(separator: ", "))
+                        .accessibilityLabel(l10n(.componentTemperature, l10n(title), reading.celsius))
+                }
+            }
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(l10n(title))
+    }
+
+    private func temperature(_ component: TemperatureComponent) -> TemperatureReading? {
+        monitor.temperatures.first { $0.component == component }
+    }
+
+    private func usageValue(_ value: Double?) -> some View {
+        Text(SystemFormatter.percent(value))
+            .font(.system(size: 24, weight: .medium, design: .rounded)).monospacedDigit()
+            .contentTransition(.identity)
+    }
+
+    private func usageChart(_ points: [HistoryPoint], color: Color, metric: MonitorMetric) -> some View {
+        VStack(spacing: 4) {
+            HistoryChart(points: visible(points), maximum: 100, primaryColor: color,
+                         durationSeconds: preferences.historySeconds, endingAt: chartEnd,
+                         inspectedTime: inspectionTime, onInspect: inspect)
+                .frame(height: 24)
+                .accessibilityLabel(l10n(.usageChart, l10n(metric.titleKey), historyDuration))
+            chartSummary(points, speed: false).help(l10n(.statisticsHelp))
+        }
+    }
+
+    private func memoryAmount(_ title: TextKey, _ bytes: UInt64) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(l10n(title)).foregroundStyle(.secondary)
+            Text(TrafficFormatter.total(bytes)).monospacedDigit()
+        }
+        .font(.system(size: 10)).frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var displayableBattery: BatterySnapshot? {
+        guard let battery = monitor.battery,
+              battery.chargePercent != nil || battery.powerState != nil || battery.healthPercent != nil ||
+              battery.cycleCount != nil || battery.timeEstimate != nil || temperature(.battery) != nil else { return nil }
+        return battery
+    }
+
+    private func batteryContent(_ battery: BatterySnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if battery.chargePercent != nil || battery.powerState != nil {
+                HStack(alignment: .firstTextBaseline) {
+                    if let charge = battery.chargePercent { usageValue(charge) }
+                    Spacer()
+                    if let state = battery.powerState {
+                        Text(batteryState(state)).font(.system(size: 11)).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            if battery.healthPercent != nil || battery.cycleCount != nil {
+                HStack {
+                    if let health = battery.healthPercent {
+                        Text(l10n(.batteryHealth, SystemFormatter.percent(health))).help(l10n(.batteryHealthHelp))
+                    }
+                    Spacer()
+                    if let cycles = battery.cycleCount { Text(l10n(.batteryCycles, cycles)) }
+                }
+                .font(.system(size: 10)).monospacedDigit()
+            }
+            if let estimate = battery.timeEstimate {
+                Text(l10n(estimate.kind == .untilFull ? .batteryTimeUntilFull : .batteryTimeUntilEmpty, estimate.minutes))
+                    .font(.system(size: 10)).foregroundStyle(.secondary).help(l10n(.batteryTimeHelp))
+            }
+        }
+    }
+
+    private func batteryState(_ state: BatteryPowerState) -> String {
+        switch state {
+        case .charging: return l10n(.batteryCharging)
+        case .full: return l10n(.batteryFull)
+        case .onBattery: return l10n(.batteryOnBattery)
+        case .externalPower: return l10n(.batteryExternalPower)
+        }
+    }
 
     private var navigationBar: some View {
         VStack(spacing: 0) {
@@ -440,40 +611,6 @@ struct PopoverView: View {
                                              SystemFormatter.memory(memory.wiredBytes), SystemFormatter.memory(memory.compressedBytes))
     }
 
-    private func usageColumn(_ metric: MonitorMetric, symbol: String, value: Double?, detail: String,
-                             points: [HistoryPoint], color: Color, error: Error?, help: String) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Button { presentation.navigate(metric == .cpu ? .cpuApps : .memoryApps) } label: {
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack {
-                        Label(l10n(metric.titleKey), systemImage: symbol)
-                            .font(.system(size: 12, weight: .medium)).foregroundStyle(color)
-                        Spacer(minLength: 4)
-                        Image(systemName: "chevron.right").font(.system(size: 9)).foregroundStyle(.secondary)
-                    }
-                    Text(SystemFormatter.percent(value)).font(.system(size: 25, weight: .medium, design: .rounded))
-                        .monospacedDigit().contentTransition(.identity)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(PanelButtonStyle(selected: route == (metric == .cpu ? .cpuApps : .memoryApps), tint: color, padding: 5))
-            .padding(-5)
-            .help(l10n(metric == .cpu ? .topCPU : .topMemory))
-            .accessibilityLabel(l10n(metric == .cpu ? .topCPU : .topMemory))
-            .accessibilityValue(SystemFormatter.percent(value))
-            Text(error == nil ? detail : l10n(.retrying))
-                .font(.system(size: 10)).foregroundStyle(error == nil ? Color.secondary : .orange)
-                .monospacedDigit().lineLimit(1).minimumScaleFactor(0.8).help(l10n.describe(error) ?? help)
-            HistoryChart(points: visible(points), maximum: 100, primaryColor: color,
-                         durationSeconds: preferences.historySeconds, endingAt: chartEnd,
-                         inspectedTime: inspectionTime, onInspect: inspect)
-                .frame(height: 24).padding(.top, 3)
-                .accessibilityLabel(l10n(.usageChart, l10n(metric.titleKey), historyDuration))
-            chartSummary(points, speed: false).help(l10n(.statisticsHelp))
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     private func speedColumn(_ title: TextKey, symbol: String, speed: Double?, color: Color) -> some View {
         let amount = speed.map { TrafficFormatter.speed($0) }
         return VStack(alignment: .leading, spacing: 4) {
@@ -563,56 +700,28 @@ struct PopoverView: View {
 
     private var memoryHealthRow: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 5) {
-                Text(l10n(.memoryPressure)).foregroundStyle(.secondary)
-                Circle().fill(InsightStyle.pressureColor(monitor.resources.pressure)).frame(width: 5, height: 5)
-                Text(monitor.resources.pressure.map { l10n($0.titleKey) } ?? "—")
-                    .foregroundStyle(InsightStyle.pressureColor(monitor.resources.pressure))
-                Spacer(minLength: 6)
-                Text("Swap " + (monitor.resources.swap.map { TrafficFormatter.total($0.usedBytes) } ?? "—"))
-                    .monospacedDigit()
+            if monitor.resources.pressure != nil || monitor.resources.swap != nil {
+                HStack(spacing: 5) {
+                    if let pressure = monitor.resources.pressure {
+                        Text(l10n(.memoryPressure)).foregroundStyle(.secondary)
+                        Circle().fill(InsightStyle.pressureColor(pressure)).frame(width: 5, height: 5)
+                        Text(l10n(pressure.titleKey)).foregroundStyle(InsightStyle.pressureColor(pressure))
+                    }
+                    Spacer(minLength: 6)
+                    if let swap = monitor.resources.swap {
+                        Text("Swap " + TrafficFormatter.total(swap.usedBytes)).monospacedDigit()
+                    }
+                }
+                .help(l10n(.pressureHelp))
             }
-            .help(l10n(.pressureHelp))
-            HStack {
+            if monitor.resources.swap != nil, !visible(monitor.resources.swapHistory).isEmpty {
                 Text(l10n(.swapChange, InsightStyle.delta(visible(monitor.resources.swapHistory))))
                     .foregroundStyle(.secondary).monospacedDigit().help(l10n(.swapHelp))
-                Spacer()
             }
             errorLabel(monitor.resources.pressureError)
             errorLabel(monitor.resources.swapError)
         }
         .font(.system(size: 10))
-    }
-
-    private var temperatureSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label(l10n(.temperatures), systemImage: "thermometer.medium")
-                .font(.system(size: 10, weight: .medium)).foregroundStyle(.secondary)
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 4) {
-                ForEach(monitor.temperatures) { reading in
-                    HStack(spacing: 4) {
-                        Text(temperatureTitle(reading.component)).foregroundStyle(.secondary)
-                        Spacer(minLength: 2)
-                        Text(String(format: "%.1f °C", locale: Locale(identifier: "en_US_POSIX"), reading.celsius))
-                            .monospacedDigit()
-                    }
-                    .font(.system(size: 10))
-                    .help(l10n(.temperatureHelp) + "\n" + reading.sensorIDs.joined(separator: ", "))
-                    .accessibilityElement(children: .combine)
-                }
-            }
-        }
-        .help(l10n(.temperatureHelp))
-    }
-
-    private func temperatureTitle(_ component: TemperatureComponent) -> String {
-        switch component {
-        case .cpu: return l10n(.cpuTemperature)
-        case .gpu: return l10n(.gpuTemperature)
-        case .memory: return l10n(.memoryTemperature)
-        case .storage: return l10n(.storageTemperature)
-        case .battery: return l10n(.batteryTemperature)
-        }
     }
 
     @ViewBuilder private func errorLabel(_ error: Error?) -> some View {

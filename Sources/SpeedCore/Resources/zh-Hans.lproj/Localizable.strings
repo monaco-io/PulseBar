@@ -139,3 +139,29 @@
 "storageTemperature" = "存储";
 "batteryTemperature" = "电池";
 "temperatureHelp" = "已识别硬件传感器的当前最高温度，后台采样至少间隔 5 秒。不可用或无效读数自动隐藏；温度不参与历史图表，也不表示健康评分。";
+
+// Hardware modules
+"gpu" = "GPU";
+"storage" = "存储";
+"battery" = "电池";
+"logicalCores" = "%d 个逻辑核心";
+"appMemory" = "应用";
+"wiredMemory" = "联动";
+"compressedMemory" = "压缩";
+"componentTemperature" = "%@温度 %.1f 摄氏度";
+"gpuUsageHelp" = "该 GPU 驱动报告的设备利用率。多个 GPU 分别显示。温度为已识别 GPU 传感器中的最高有效值，不对应特定设备。";
+"startupVolumeSpace" = "启动卷空间";
+"capacityRatio" = "%@ / %@";
+"availableSpace" = "可用 %@";
+"storageCapacityHelp" = "启动数据卷的普通可用空间。APFS 卷共享容器容量，已用空间可能包括其他卷和快照。此项与物理磁盘读写分开统计。";
+"physicalDiskIO" = "物理磁盘读写";
+"batteryHealth" = "最大容量 %@";
+"batteryHealthHelp" = "当前满充容量占设计容量的比例，使用单位一致的电池原生数据计算。";
+"batteryCycles" = "%d 次循环";
+"batteryTimeUntilFull" = "约 %d 分钟充满";
+"batteryTimeUntilEmpty" = "预计剩余 %d 分钟";
+"batteryTimeHelp" = "macOS 报告的估算值，仅在当前充电或电池供电状态下有有效数据时显示。";
+"batteryCharging" = "正在充电";
+"batteryFull" = "已充满";
+"batteryOnBattery" = "电池供电";
+"batteryExternalPower" = "外部供电";

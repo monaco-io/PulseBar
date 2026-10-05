@@ -1,6 +1,31 @@
 # PulseBar interaction design
 
-## v1.8: stable navigation and restrained motion
+## v1.10: hardware modules
+
+The overview groups readings by hardware while preserving the established app, event, and settings navigation.
+
+The overview follows hardware boundaries: CPU, memory, GPU, storage, network, and the Mac's internal battery. Readings belong to their module, with a valid component temperature on the right of its heading. A missing temperature leaves no empty placeholder. Optional GPU and battery sections disappear when they have no usable data; a battery temperature alone cannot create a host-battery section on a desktop.
+
+| Module | Headline and supporting readings |
+| --- | --- |
+| CPU | Whole-Mac utilization; user/system split; logical-core count; existing usage history; optional temperature. Heading and utilization remain Apps shortcuts. |
+| Memory | Used/total and utilization; app, wired, and physical compressed memory; pressure and swap; existing usage history; optional temperature. Heading and utilization remain Apps shortcuts. |
+| GPU | One named row per driver-reported device utilization; optional component temperature in the heading. Percentages are not combined and the temperature is not assigned to a particular GPU row. |
+| Storage | Startup-volume used/total, ordinary available space, and usage bar; separately labeled physical-device read/write rates, history, and session totals; optional temperature. |
+| Network | Download/upload rates, linked history, session traffic, and active interface names. |
+| Internal battery | Available charge, charging/full/battery/external-power state, retained maximum capacity, cycle count, official time estimate, and optional temperature. Requires one present internal host battery. |
+
+Use the existing native material, semantic colors, SF type, monospaced digits, and divider hierarchy. CPU remains orange, memory purple, incoming traffic blue, and outgoing traffic green; GPU uses system teal. Keep secondary facts quieter than live percentages and paired I/O rates. Capacity describes startup-volume space, while throughput explicitly describes physical disk I/O.
+
+The overview stays 400 pt wide. Its height is `min(820, screen.visibleFrame.height - 24)`; sensor availability does not resize an open panel. Only the middle content scrolls, with the header and Overview/Apps/Events/Settings navigation fixed. The four established history charts remain available within their modules, without requiring all four to fit on screen at once. Details retain the same 320 pt side column, or replace the middle content on narrow screens.
+
+CPU and memory headings and values open the matching Apps tab. Preserve linked chart inspection, keyboard/Escape navigation, Settings behavior, four menu-bar metric choices, saved preferences, and local performance events. New modules do not create additional menu-bar choices, historical series, or event categories.
+
+Optional reads run on background serial queues with at most one request in flight per queue. GPU/temperature sampling uses a minimum of 5 seconds and startup-volume/battery sampling a minimum of 30 seconds, each respecting longer Refresh settings. Stop, Reset, sleep/wake, and stale callback rejection clear optional values. A failed scheduled read replaces a previous value with absence rather than displaying stale data.
+
+See [hardware modules](HARDWARE-MODULES.md) for data sources, units, absence rules, and validation limits.
+
+## Previous design: v1.8 stable navigation and restrained motion
 
 The panel is a compact instrument for reading live system activity. Preserve the four-chart overview while making app detail, events, and preferences easy to find.
 

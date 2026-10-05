@@ -39,9 +39,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.panel?.makeFirstResponder(nil)
             self?.resizePanel()
         }
-        monitor.$temperatures.map(\.count).removeDuplicates()
-            .sink { [weak self] in self?.presentation.setTemperatureCount($0) }
-            .store(in: &subscriptions)
         NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)
             .sink { [weak self] _ in self?.menuTrackingDepth += 1 }
             .store(in: &subscriptions)

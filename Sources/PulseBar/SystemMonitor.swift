@@ -39,6 +39,9 @@ private final class ProcessSampler {
 
 final class SystemMonitor: ObservableObject {
     @Published private(set) var temperatures: [TemperatureReading] = []
+    @Published private(set) var gpuUsage: [GPUUsage] = []
+    @Published private(set) var storageCapacity: StorageCapacity?
+    @Published private(set) var battery: BatterySnapshot?
     @Published private(set) var rate = TrafficRate.zero
     @Published private(set) var history: [HistoryPoint] = []
     @Published private(set) var resources = ResourceState()
@@ -68,6 +71,15 @@ final class SystemMonitor: ObservableObject {
     private var temperatureSampling = false
     private var temperatureGeneration = 0
     private var lastTemperatureSample: TimeInterval?
+
+    private let hardwareQueue = DispatchQueue(label: "PulseBar.hardware-sampling", qos: .utility, autoreleaseFrequency: .workItem)
+    private let gpuReader = GPUReader()
+    private let capacityReader = StorageCapacityReader()
+    private let batteryReader = BatteryReader()
+    private var hardwareSampling = false
+    private var hardwareGeneration = 0
+    private var lastHardwareSample: TimeInterval?
+    private var lastSlowHardwareSample: TimeInterval?
 
     private let reader = InterfaceReader()
     private let systemReader = SystemReader()
@@ -148,6 +160,7 @@ final class SystemMonitor: ObservableObject {
         workspaceObservers.removeAll()
         resetProcessBaselines()
         resetTemperatures()
+        resetHardware()
         eventQueue.sync {} // Complete any atomic event write before the app exits.
     }
 
@@ -162,6 +175,7 @@ final class SystemMonitor: ObservableObject {
         resources = ResourceState()
         resetProcessBaselines()
         resetTemperatures()
+        resetHardware()
         sessionStart = Date()
         sample()
     }
@@ -173,6 +187,7 @@ final class SystemMonitor: ObservableObject {
         timelineEnd = timestamp
         sampleProcesses(at: timestamp)
         sampleTemperatures(at: timestamp)
+        sampleHardware(at: timestamp)
     }
 
     private func resetTemperatures() {
@@ -198,7 +213,56 @@ final class SystemMonitor: ObservableObject {
                 guard let self else { return }
                 self.temperatureSampling = false
                 guard generation == self.temperatureGeneration, self.timer != nil else { return }
+                guard ProcessInfo.processInfo.systemUptime - timestamp <= max(15, interval * 1.5) else {
+                    self.resetTemperatures()
+                    return
+                }
                 self.temperatures = readings
+            }
+        }
+    }
+
+    private func resetHardware() {
+        hardwareGeneration += 1
+        lastHardwareSample = nil
+        lastSlowHardwareSample = nil
+        gpuUsage = []
+        storageCapacity = nil
+        battery = nil
+    }
+
+    private func sampleHardware(at timestamp: TimeInterval) {
+        let interval = max(5, Double(refreshSeconds))
+        let slowInterval = max(30, Double(refreshSeconds))
+        if let last = lastHardwareSample {
+            if timestamp - last > max(15, interval * 1.5) { resetHardware() }
+            else if timestamp - last < interval { return }
+        }
+        guard !hardwareSampling else { return }
+        hardwareSampling = true
+        lastHardwareSample = timestamp
+        let readSlow = lastSlowHardwareSample.map { timestamp - $0 >= slowInterval } ?? true
+        if readSlow { lastSlowHardwareSample = timestamp }
+        let generation = hardwareGeneration
+        hardwareQueue.async { [weak self, gpuReader, capacityReader, batteryReader] in
+            let usage = gpuReader.read()
+            let slow: (StorageCapacity?, BatterySnapshot?)? = readSlow ? (capacityReader.read(), batteryReader.read()) : nil
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.hardwareSampling = false
+                guard generation == self.hardwareGeneration, self.timer != nil else { return }
+                // Reject a completed callback that spent too long in the queue
+                // or crossed a suspended run loop, even if its generation matches.
+                guard ProcessInfo.processInfo.systemUptime - timestamp <= max(15, interval * 1.5) else {
+                    self.resetHardware()
+                    return
+                }
+                self.gpuUsage = usage
+                if let slow {
+                    // Nil from a scheduled read clears a previously valid value.
+                    self.storageCapacity = slow.0
+                    self.battery = slow.1
+                }
             }
         }
     }
@@ -227,6 +291,7 @@ final class SystemMonitor: ObservableObject {
 
     private func resetResourceBaselines() {
         resetTemperatures()
+        resetHardware()
         cpuAccumulator.resetBaseline()
         diskAccumulator.resetBaseline()
         var next = resources
