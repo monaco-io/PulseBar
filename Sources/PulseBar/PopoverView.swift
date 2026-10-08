@@ -72,6 +72,7 @@ struct PopoverView: View {
     private var monitorPanel: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
+            Divider()
             if route.hasDetails && presentation.usesInlineDetails {
                 detailPanel.frame(maxHeight: .infinity)
             } else {
@@ -85,8 +86,8 @@ struct PopoverView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 Image(systemName: "waveform.path.ecg")
-                    .font(.system(size: 17, weight: .semibold)).foregroundStyle(.tint)
-                Text(l10n(.appTitle)).font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 22, weight: .semibold)).foregroundStyle(.tint)
+                Text(l10n(.appTitle)).font(.system(size: 20, weight: .semibold))
                 Spacer(minLength: 4)
                 Circle().fill(monitor.networkError != nil || monitor.resources.hasError ? Color.orange : uploadColor)
                     .frame(width: 5, height: 5)
@@ -113,7 +114,7 @@ struct PopoverView: View {
                 .font(.system(size: 10)).foregroundStyle(resetFeedback ? uploadColor : Color.secondary)
                 .monospacedDigit().lineLimit(1)
         }
-        .padding(.horizontal, 20).padding(.top, 14).padding(.bottom, 14)
+        .padding(.horizontal, 24).padding(.top, 16).padding(.bottom, 14)
     }
 
     private var overviewContent: some View {
@@ -130,34 +131,78 @@ struct PopoverView: View {
 
     private var hardwareContent: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                hardwareColumns {
-                    VStack(alignment: .leading, spacing: 14) {
-                        cpuSection
-                        if !monitor.gpuUsage.isEmpty || temperature(.gpu) != nil {
-                            Divider()
-                            gpuSection
-                        }
-                    }
+            VStack(alignment: .leading, spacing: 16) {
+                hardwarePair {
+                    cpuSection
                 } right: {
-                    VStack(alignment: .leading, spacing: 14) {
-                        memorySection
-                        if let battery = displayableBattery {
-                            Divider()
-                            hardwareSection(.battery, symbol: "battery.100", color: uploadColor, component: .battery) {
-                                batteryContent(battery)
-                            }
-                        }
-                    }
+                    memorySection
+                } leftHistory: {
+                    usageChart(monitor.resources.cpuHistory, color: cpuColor, metric: .cpu)
+                } rightHistory: {
+                    usageChart(monitor.resources.memoryHistory, color: memoryColor, metric: .memory)
                 }
                 Divider()
-                hardwareColumns { storageSection } right: { networkSection }
+                hardwarePair {
+                    storageSection
+                } right: {
+                    networkSection
+                } leftHistory: {
+                    VStack(spacing: 12) {
+                        rateChart(monitor.resources.diskHistory, primaryColor: downloadColor, secondaryColor: memoryColor,
+                                  label: l10n(.diskChart, historyDuration))
+                        totalsRow(.sessionRead, .sessionWrite, first: monitor.resources.totalDiskRead,
+                                  second: monitor.resources.totalDiskWritten)
+                    }
+                } rightHistory: {
+                    VStack(spacing: 12) {
+                        rateChart(monitor.history, primaryColor: downloadColor, secondaryColor: uploadColor,
+                                  label: l10n(.networkChart, historyDuration), primaryTitle: .download, secondaryTitle: .upload)
+                        totalsRow(.sessionDownload, .sessionUpload, first: monitor.totalReceived, second: monitor.totalSent)
+                    }
+                }
+                if hasGPU || displayableBattery != nil {
+                    Divider()
+                    if hasGPU, let battery = displayableBattery {
+                        hardwareColumns { gpuSection } right: { batterySection(battery) }
+                    } else if hasGPU {
+                        gpuSection
+                    } else if let battery = displayableBattery {
+                        batterySection(battery)
+                    }
+                }
             }
-            .padding(14)
+            .padding(.horizontal, 24).padding(.top, 16).padding(.bottom, 18)
             .id("hardware-content")
-            .padding(.horizontal, 14).padding(.bottom, 12)
         }
         .scrollIndicators(.automatic)
+    }
+
+    /// Separate Grid rows let the taller module set the shared history baseline.
+    /// A narrow panel keeps each module and its history together in reading order.
+    @ViewBuilder private func hardwarePair<Left: View, Right: View, LeftHistory: View, RightHistory: View>(
+        @ViewBuilder left: () -> Left, @ViewBuilder right: () -> Right,
+        @ViewBuilder leftHistory: () -> LeftHistory, @ViewBuilder rightHistory: () -> RightHistory
+    ) -> some View {
+        if presentation.overviewWidth >= 500 {
+            Grid(alignment: .topLeading, horizontalSpacing: 28, verticalSpacing: 12) {
+                GridRow {
+                    left().frame(maxWidth: .infinity, alignment: .topLeading)
+                    right().frame(maxWidth: .infinity, alignment: .topLeading)
+                }
+                GridRow {
+                    leftHistory().frame(maxWidth: .infinity, alignment: .topLeading)
+                    rightHistory().frame(maxWidth: .infinity, alignment: .topLeading)
+                }
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 12) {
+                left()
+                leftHistory()
+                Divider().padding(.vertical, 4)
+                right()
+                rightHistory()
+            }
+        }
     }
 
     @ViewBuilder private func hardwareColumns<Left: View, Right: View>(
@@ -168,12 +213,8 @@ struct PopoverView: View {
                 left().frame(maxWidth: .infinity, alignment: .topLeading)
                 right().frame(maxWidth: .infinity, alignment: .topLeading)
             }
-            .overlay {
-                Rectangle().fill(Color.primary.opacity(0.09)).frame(width: 0.5)
-                    .allowsHitTesting(false)
-            }
         } else {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 16) {
                 left()
                 Divider()
                 right()
@@ -182,138 +223,105 @@ struct PopoverView: View {
     }
 
     private var cpuSection: some View {
-        hardwareSection(.cpu, symbol: "cpu", color: cpuColor, component: .cpu, destination: .cpuApps) {
-            HStack(alignment: .firstTextBaseline) {
-                Button { presentation.navigate(.cpuApps) } label: { usageValue(monitor.resources.cpu?.usedPercent) }
-                    .buttonStyle(.plain).help(l10n(.cpuHelp))
-                Spacer(minLength: 4)
-                Text(l10n(.logicalCores, ProcessInfo.processInfo.processorCount))
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
+        hardwareSection(.cpu, symbol: "cpu", component: .cpu, destination: .cpuApps) {
+            primaryMetric(l10n(.utilization), value: monitor.resources.cpu?.usedPercent, destination: .cpuApps)
+                .help(l10n(.cpuHelp))
+            metricRow(l10n(.logicalCoresLabel), value: String(ProcessInfo.processInfo.processorCount))
+            HStack(alignment: .top, spacing: 12) {
+                compositionValue(l10n(.cpuUser), value: SystemFormatter.percent(monitor.resources.cpu?.userPercent))
+                compositionValue(l10n(.cpuSystem), value: SystemFormatter.percent(monitor.resources.cpu?.systemPercent))
             }
-            Text(cpuDetail).font(.system(size: 11)).foregroundStyle(.secondary).monospacedDigit()
-                .fixedSize(horizontal: false, vertical: true)
-            usageChart(monitor.resources.cpuHistory, color: cpuColor, metric: .cpu)
             errorLabel(monitor.resources.cpuError)
         }
     }
 
     private var memorySection: some View {
-        hardwareSection(.memory, symbol: "memorychip", color: memoryColor, component: .memory, destination: .memoryApps) {
-            HStack(alignment: .firstTextBaseline) {
-                Button { presentation.navigate(.memoryApps) } label: { usageValue(monitor.resources.memory?.usedPercent) }
-                    .buttonStyle(.plain).help(memoryHelp)
-                Spacer(minLength: 4)
-                Text(memoryDetail).font(.system(size: 11)).monospacedDigit().help(memoryHelp)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+        hardwareSection(.memory, symbol: "memorychip", component: .memory, destination: .memoryApps) {
+            primaryMetric(l10n(.utilization), value: monitor.resources.memory?.usedPercent, destination: .memoryApps)
+                .help(memoryHelp)
+            metricRow(l10n(.usedTotal), value: memoryDetail).help(memoryHelp)
             if let memory = monitor.resources.memory {
-                HStack(alignment: .top, spacing: 8) {
-                    memoryAmount(.appMemory, memory.appBytes)
-                    memoryAmount(.wiredMemory, memory.wiredBytes)
-                    memoryAmount(.compressedMemory, memory.compressedBytes)
+                HStack(alignment: .top, spacing: 12) {
+                    compositionValue(l10n(.appMemory), value: TrafficFormatter.total(memory.appBytes))
+                    compositionValue(l10n(.wiredMemory), value: TrafficFormatter.total(memory.wiredBytes))
+                    compositionValue(l10n(.compressedMemory), value: TrafficFormatter.total(memory.compressedBytes))
                 }
             }
-            usageChart(monitor.resources.memoryHistory, color: memoryColor, metric: .memory)
             memoryHealthRow
             errorLabel(monitor.resources.memoryError)
         }
     }
 
+    private var hasGPU: Bool { !monitor.gpuUsage.isEmpty || temperature(.gpu) != nil }
+
     private var gpuSection: some View {
-        hardwareSection(.gpu, symbol: "square.3.layers.3d", color: Color(nsColor: .systemTeal), component: .gpu) {
+        hardwareSection(.gpu, symbol: "square.3.layers.3d", component: .gpu) {
             ForEach(monitor.gpuUsage) { gpu in
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(gpu.name).font(.system(size: 11)).lineLimit(2).help(gpu.name)
-                    Spacer(minLength: 4)
-                    Text(SystemFormatter.percent(gpu.utilizationPercent))
-                        .font(.system(size: 20, weight: .medium, design: .rounded)).monospacedDigit()
-                        .fixedSize()
-                }
-                .help(l10n(.gpuUsageHelp))
+                primaryMetric(gpu.name, value: gpu.utilizationPercent)
+                    .help(gpu.name + "\n" + l10n(.gpuUsageHelp))
             }
         }
     }
 
     private var storageSection: some View {
-        hardwareSection(.storage, symbol: "internaldrive", color: downloadColor, component: .storage) {
+        hardwareSection(.storage, symbol: "internaldrive", component: .storage) {
             if let capacity = monitor.storageCapacity {
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack {
-                        Text(l10n(.startupVolumeSpace)).foregroundStyle(.secondary)
-                        Spacer(minLength: 4)
-                        Text(SystemFormatter.percent(capacity.usedPercent)).monospacedDigit()
-                    }
-                    Text(l10n(.capacityRatio, TrafficFormatter.total(capacity.usedBytes), TrafficFormatter.total(capacity.totalBytes)))
-                        .font(.system(size: 14, weight: .medium)).monospacedDigit()
-                    Text(l10n(.availableSpace, TrafficFormatter.total(capacity.availableBytes)))
-                        .foregroundStyle(.secondary).monospacedDigit()
-                }
-                .font(.system(size: 11)).help(l10n(.storageCapacityHelp))
+                primaryMetric(l10n(.startupVolumeUsed), value: capacity.usedPercent)
+                metricRow(l10n(.usedTotal), value: capacityRatio(used: capacity.usedBytes, total: capacity.totalBytes))
+                metricRow(l10n(.availableSpaceLabel), value: TrafficFormatter.total(capacity.availableBytes))
+                    .help(l10n(.storageCapacityHelp))
             }
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(l10n(.physicalDiskIO)).foregroundStyle(.secondary)
-                Spacer(minLength: 4)
-                Text(monitor.resources.disks.joined(separator: l10n(.listSeparator)))
-                    .lineLimit(1).truncationMode(.middle)
-                    .help(monitor.resources.disks.joined(separator: l10n(.listSeparator)))
-            }
-            .font(.system(size: 11)).help(l10n(.diskHelp))
+            metricRow(l10n(.physicalDiskIO),
+                      value: monitor.resources.disks.isEmpty ? "—" : monitor.resources.disks.joined(separator: l10n(.listSeparator)))
+                .help(l10n(.diskHelp))
             HStack(alignment: .top, spacing: 12) {
                 speedColumn(.read, symbol: "arrow.down", speed: monitor.resources.diskRate?.read, color: downloadColor)
                 speedColumn(.write, symbol: "arrow.up", speed: monitor.resources.diskRate?.write, color: memoryColor)
             }
-            rateChart(monitor.resources.diskHistory, primaryColor: downloadColor, secondaryColor: memoryColor,
-                      label: l10n(.diskChart, historyDuration))
-            totalsRow(.sessionIO, first: monitor.resources.totalDiskRead, second: monitor.resources.totalDiskWritten,
-                      firstColor: downloadColor, secondColor: memoryColor)
             errorLabel(monitor.resources.diskError)
         }
     }
 
     private var networkSection: some View {
-        hardwareSection(.network, symbol: "network", color: uploadColor) {
+        hardwareSection(.network, symbol: "network") {
             HStack(alignment: .top, spacing: 12) {
                 speedColumn(.download, symbol: "arrow.down", speed: monitor.networkError == nil ? monitor.rate.download : nil,
                             color: downloadColor)
                 speedColumn(.upload, symbol: "arrow.up", speed: monitor.networkError == nil ? monitor.rate.upload : nil,
                             color: uploadColor)
             }
-            rateChart(monitor.history, primaryColor: downloadColor, secondaryColor: uploadColor,
-                      label: l10n(.networkChart, historyDuration), primaryTitle: .download, secondaryTitle: .upload)
-            totalsRow(.sessionTraffic, first: monitor.totalReceived, second: monitor.totalSent,
-                      firstColor: downloadColor, secondColor: uploadColor)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(l10n(.interfaces)).foregroundStyle(.secondary)
-                Text(monitor.interfaces.isEmpty ? l10n(.noInterfaces) : monitor.interfaceDescription(using: l10n))
-                    .lineLimit(2).help(monitor.interfaceDescription(using: l10n) + "\n" + l10n(.networkHelp))
-            }
-            .font(.system(size: 11))
+            metricRow(l10n(.interfaces), value: monitor.interfaces.isEmpty ? l10n(.noInterfaces) : monitor.interfaceDescription(using: l10n))
+                .help(monitor.interfaceDescription(using: l10n) + "\n" + l10n(.networkHelp))
             errorLabel(monitor.networkError)
         }
     }
 
-    private func hardwareSection<Content: View>(_ title: TextKey, symbol: String, color: Color,
+    private func hardwareSection<Content: View>(_ title: TextKey, symbol: String,
                                                 component: TemperatureComponent? = nil, destination: PanelRoute? = nil,
                                                 @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 if let destination {
                     Button { presentation.navigate(destination) } label: {
                         HStack(spacing: 6) {
-                            Label(l10n(title), systemImage: symbol)
-                            Image(systemName: "chevron.right").font(.system(size: 9))
+                            Image(systemName: symbol).foregroundStyle(.secondary)
+                            Text(l10n(title))
+                            Image(systemName: "chevron.right").font(.system(size: 9)).foregroundStyle(.secondary)
                         }
-                        .foregroundStyle(color).font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.primary).font(.system(size: 13, weight: .semibold))
                     }
                     .buttonStyle(.plain).help(l10n(title == .cpu ? .topCPU : .topMemory))
                 } else {
-                    Label(l10n(title), systemImage: symbol)
-                        .foregroundStyle(color).font(.system(size: 12, weight: .semibold))
+                    HStack(spacing: 6) {
+                        Image(systemName: symbol).foregroundStyle(.secondary)
+                        Text(l10n(title))
+                    }
+                    .font(.system(size: 13, weight: .semibold))
                 }
                 Spacer(minLength: 8)
                 if let component, let reading = temperature(component) {
                     Label(String(format: "%.1f °C", locale: Locale(identifier: "en_US_POSIX"), reading.celsius), systemImage: "thermometer.medium")
-                        .font(.system(size: 11)).monospacedDigit().foregroundStyle(.secondary)
+                        .font(.system(size: 11)).monospacedDigit().foregroundStyle(.secondary).fixedSize()
                         .help(l10n(.temperatureHelp) + "\n" + reading.sensorIDs.joined(separator: ", "))
                         .accessibilityLabel(l10n(.componentTemperature, l10n(title), reading.celsius))
                 }
@@ -329,29 +337,65 @@ struct PopoverView: View {
         monitor.temperatures.first { $0.component == component }
     }
 
+    private func primaryMetric(_ title: String, value: Double?, destination: PanelRoute? = nil) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text(title).font(.system(size: 12)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 4)
+            if let destination {
+                Button { presentation.navigate(destination) } label: { usageValue(value) }
+                    .buttonStyle(.plain)
+            } else {
+                usageValue(value)
+            }
+        }
+    }
+
     private func usageValue(_ value: Double?) -> some View {
-        Text(SystemFormatter.percent(value))
-            .font(.system(size: 22, weight: .medium, design: .rounded)).monospacedDigit()
-            .contentTransition(.identity)
+        let percent = SystemFormatter.percent(value)
+        return HStack(alignment: .firstTextBaseline, spacing: 4) {
+            Text(percent.hasSuffix("%") ? String(percent.dropLast()) : percent)
+                .font(.system(size: 28, weight: .medium)).monospacedDigit().contentTransition(.identity)
+            if percent.hasSuffix("%") {
+                Text("%").font(.system(size: 14)).foregroundStyle(.secondary)
+            }
+        }
+        .fixedSize()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(percent)
+    }
+
+    private func metricRow(_ title: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(title).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true).layoutPriority(1)
+            Spacer(minLength: 4)
+            Text(value).monospacedDigit().multilineTextAlignment(.trailing)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .font(.system(size: 11))
+    }
+
+    private func compositionValue(_ title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.system(size: 11)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(value).font(.system(size: 13)).monospacedDigit()
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func usageChart(_ points: [HistoryPoint], color: Color, metric: MonitorMetric) -> some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 5) {
+            chartAxis()
             HistoryChart(points: visible(points), maximum: 100, primaryColor: color,
                          durationSeconds: preferences.historySeconds, endingAt: chartEnd,
                          inspectedTime: inspectionTime, onInspect: inspect)
-                .frame(height: 24)
+                .frame(height: 28)
                 .accessibilityLabel(l10n(.usageChart, l10n(metric.titleKey), historyDuration))
             chartSummary(points, speed: false).help(l10n(.statisticsHelp))
         }
-    }
-
-    private func memoryAmount(_ title: TextKey, _ bytes: UInt64) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(l10n(title)).foregroundStyle(.secondary)
-            Text(TrafficFormatter.total(bytes)).monospacedDigit()
-        }
-        .font(.system(size: 11)).frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var displayableBattery: BatterySnapshot? {
@@ -361,30 +405,30 @@ struct PopoverView: View {
         return battery
     }
 
+    private func batterySection(_ battery: BatterySnapshot) -> some View {
+        hardwareSection(.battery, symbol: "battery.100", component: .battery) {
+            batteryContent(battery)
+        }
+    }
+
     private func batteryContent(_ battery: BatterySnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if battery.chargePercent != nil || battery.powerState != nil {
-                HStack(alignment: .firstTextBaseline) {
-                    if let charge = battery.chargePercent { usageValue(charge) }
-                    Spacer()
-                    if let state = battery.powerState {
-                        Text(batteryState(state)).font(.system(size: 11)).foregroundStyle(.secondary)
-                    }
-                }
+        VStack(alignment: .leading, spacing: 8) {
+            if let charge = battery.chargePercent {
+                primaryMetric(l10n(.batteryCharge), value: charge)
             }
-            if battery.healthPercent != nil || battery.cycleCount != nil {
-                HStack {
-                    if let health = battery.healthPercent {
-                        Text(l10n(.batteryHealth, SystemFormatter.percent(health))).help(l10n(.batteryHealthHelp))
-                    }
-                    Spacer()
-                    if let cycles = battery.cycleCount { Text(l10n(.batteryCycles, cycles)) }
-                }
-                .font(.system(size: 11)).monospacedDigit()
+            if let state = battery.powerState {
+                metricRow(l10n(.batteryPowerState), value: batteryState(state))
+            }
+            if let health = battery.healthPercent {
+                metricRow(l10n(.batteryHealthLabel), value: SystemFormatter.percent(health)).help(l10n(.batteryHealthHelp))
+            }
+            if let cycles = battery.cycleCount {
+                metricRow(l10n(.batteryCyclesLabel), value: String(cycles))
             }
             if let estimate = battery.timeEstimate {
-                Text(l10n(estimate.kind == .untilFull ? .batteryTimeUntilFull : .batteryTimeUntilEmpty, estimate.minutes))
-                    .font(.system(size: 11)).foregroundStyle(.secondary).help(l10n(.batteryTimeHelp))
+                metricRow(l10n(estimate.kind == .untilFull ? .batteryTimeUntilFullLabel : .batteryTimeUntilEmptyLabel),
+                          value: String(estimate.minutes) + " " + l10n(.minutesUnit))
+                    .help(l10n(.batteryTimeHelp))
             }
         }
     }
@@ -638,16 +682,15 @@ struct PopoverView: View {
         .accessibilityLabel(l10n(.showInMenuBar, l10n(metric.titleKey)))
     }
 
-    private var cpuDetail: String {
-        guard let cpu = monitor.resources.cpu else { return l10n(.waiting) }
-        return l10n(.userSystem, SystemFormatter.percent(cpu.userPercent), SystemFormatter.percent(cpu.systemPercent))
-    }
-
     private var memoryDetail: String {
         guard let memory = monitor.resources.memory else { return l10n(.waiting) }
-        let used = TrafficFormatter.amount(memory.usedBytes, unitFor: memory.totalBytes)
-        let total = TrafficFormatter.amount(memory.totalBytes)
-        return l10n(.memoryRatio, used.value, total.value, total.unit)
+        return capacityRatio(used: memory.usedBytes, total: memory.totalBytes)
+    }
+
+    private func capacityRatio(used: UInt64, total: UInt64) -> String {
+        let usedAmount = TrafficFormatter.amount(used, unitFor: total)
+        let totalAmount = TrafficFormatter.amount(total)
+        return l10n(.memoryRatio, usedAmount.value, totalAmount.value, totalAmount.unit)
     }
 
     private var memoryHelp: String {
@@ -658,71 +701,96 @@ struct PopoverView: View {
 
     private func speedColumn(_ title: TextKey, symbol: String, speed: Double?, color: Color) -> some View {
         let amount = speed.map { TrafficFormatter.speed($0) }
-        return VStack(alignment: .leading, spacing: 3) {
-            Label(l10n(title), systemImage: symbol).font(.system(size: 11, weight: .medium)).foregroundStyle(color)
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .firstTextBaseline, spacing: 3) {
-                    Text(amount?.value ?? "—").font(.system(size: 20, weight: .medium, design: .rounded))
-                        .monospacedDigit().contentTransition(.identity)
-                    Text(amount?.unit ?? "").font(.system(size: 11)).foregroundStyle(.secondary)
-                }
-                .fixedSize()
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(amount?.value ?? "—").font(.system(size: 20, weight: .medium, design: .rounded)).monospacedDigit()
-                    Text(amount?.unit ?? "").font(.system(size: 11)).foregroundStyle(.secondary)
-                }
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: symbol).foregroundStyle(color)
+                Text(l10n(title)).foregroundStyle(.secondary)
             }
+            .font(.system(size: 11))
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Spacer(minLength: 0)
+                Text(amount?.value ?? "—").font(.system(size: 24, weight: .medium))
+                    .monospacedDigit().contentTransition(.identity)
+                Text(amount?.unit ?? "").font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+            .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(l10n(.speedLabel, l10n(title), amount?.text ?? l10n(.waiting)))
     }
 
+    private func chartAxis(limit: String? = nil) -> some View {
+        HStack(spacing: 4) {
+            Text(l10n(.secondsAgo, historyDuration))
+            Spacer(minLength: 0)
+            if let limit {
+                Text(l10n(.chartLimit, limit)).monospacedDigit()
+                Spacer(minLength: 0)
+            }
+            Text(l10n(.now))
+        }
+        .font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1)
+    }
+
     private func rateChart(_ allPoints: [HistoryPoint], primaryColor: Color, secondaryColor: Color,
                            label: String, primaryTitle: TextKey = .read, secondaryTitle: TextKey = .write) -> some View {
         let points = visible(allPoints)
         let maximum = max(1_000, points.reduce(0.0) { max($0, max($1.primary, $1.secondary)) } * 1.15)
-        let summary = inspectionTime == nil ? HistorySummary(points: points) : nil
-        return VStack(spacing: 3) {
-            HStack {
-                Text(l10n(.secondsAgo, historyDuration))
-                Spacer(minLength: 4)
-                Text(l10n(.chartLimit, TrafficFormatter.speed(maximum).text))
-                Spacer(minLength: 4)
-                Text(l10n(.now))
-            }
-            .font(.system(size: 11)).foregroundStyle(.secondary).monospacedDigit()
+        let summary = HistorySummary(points: points)
+        return VStack(spacing: 5) {
+            chartAxis(limit: TrafficFormatter.speed(maximum).text)
             HistoryChart(points: points, maximum: maximum, primaryColor: primaryColor,
                          secondaryColor: secondaryColor, durationSeconds: preferences.historySeconds, endingAt: chartEnd,
                          inspectedTime: inspectionTime, onInspect: inspect)
                 .frame(height: 28).accessibilityLabel(label)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(l10n(primaryTitle)).foregroundStyle(primaryColor).fixedSize()
-                    chartSummary(allPoints, speed: true, summary: summary)
-                }
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(l10n(secondaryTitle)).foregroundStyle(secondaryColor).fixedSize()
-                    chartSummary(allPoints, speed: true, secondary: true, summary: summary)
+            Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 4) {
+                if let inspectionTime {
+                    GridRow {
+                        Text(l10n(.direction))
+                        Text(l10n(.inspecting, inspectionLabel(inspectionTime)))
+                            .gridCellColumns(2).frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+                    .foregroundStyle(.secondary)
+                    inspectionRateRow(primaryTitle, point: HistoryInspection.sample(allPoints, at: inspectionTime), secondary: false)
+                    inspectionRateRow(secondaryTitle, point: HistoryInspection.sample(allPoints, at: inspectionTime), secondary: true)
+                } else {
+                    GridRow {
+                        Text(l10n(.direction)).foregroundStyle(.secondary)
+                        Text(l10n(.average)).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .trailing)
+                        Text(l10n(.peak)).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+                    rateStatisticsRow(primaryTitle, average: summary.primaryAverage, peak: summary.primaryPeak)
+                    rateStatisticsRow(secondaryTitle, average: summary.secondaryAverage, peak: summary.secondaryPeak)
                 }
             }
-            .font(.system(size: 11)).help(l10n(.statisticsHelp))
+            .font(.system(size: 11)).monospacedDigit().help(l10n(.statisticsHelp))
         }
-        .padding(.top, 2)
     }
 
-    private func totalsRow(_ title: TextKey, first: UInt64, second: UInt64,
-                           firstColor: Color, secondColor: Color) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+    private func rateStatisticsRow(_ title: TextKey, average: Double?, peak: Double?) -> some View {
+        GridRow {
             Text(l10n(title)).foregroundStyle(.secondary)
-            HStack(spacing: 12) {
-                Label(TrafficFormatter.total(first), systemImage: "arrow.down").foregroundStyle(firstColor)
-                Spacer(minLength: 4)
-                Label(TrafficFormatter.total(second), systemImage: "arrow.up").foregroundStyle(secondColor)
-            }
-            .monospacedDigit()
+            Text(average.map { TrafficFormatter.speed($0).text } ?? "—")
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            Text(peak.map { TrafficFormatter.speed($0).text } ?? "—")
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .font(.system(size: 11))
+    }
+
+    private func inspectionRateRow(_ title: TextKey, point: HistoryPoint?, secondary: Bool) -> some View {
+        GridRow {
+            Text(l10n(title)).foregroundStyle(.secondary)
+            Text(point.map { TrafficFormatter.speed(secondary ? $0.secondary : $0.primary).text } ?? "—")
+                .gridCellColumns(2).frame(maxWidth: .infinity, alignment: .trailing)
+        }
+    }
+
+    private func totalsRow(_ firstTitle: TextKey, _ secondTitle: TextKey, first: UInt64, second: UInt64) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            compositionValue(l10n(firstTitle), value: TrafficFormatter.total(first))
+            compositionValue(l10n(secondTitle), value: TrafficFormatter.total(second))
+        }
     }
 
     private func visible(_ points: [HistoryPoint]) -> [HistoryPoint] {
@@ -744,39 +812,52 @@ struct PopoverView: View {
             if speed { return value.map { TrafficFormatter.speed($0).text } ?? "—" }
             return SystemFormatter.percent(value)
         }
-        let text: String
-        if let inspectionTime {
-            if let point = HistoryInspection.sample(points, at: inspectionTime) {
-                text = "● " + format(secondary ? point.secondary : point.primary)
-            } else { text = l10n(.noSample) }
-        } else {
-            let summary = summary ?? HistorySummary(points: visible(points))
-            text = l10n(.averagePeak, format(secondary ? summary.secondaryAverage : summary.primaryAverage),
-                        format(secondary ? summary.secondaryPeak : summary.primaryPeak))
+        return Group {
+            if let inspectionTime {
+                let point = HistoryInspection.sample(points, at: inspectionTime)
+                metricRow(l10n(.inspecting, inspectionLabel(inspectionTime)),
+                          value: point.map { format(secondary ? $0.secondary : $0.primary) } ?? "—")
+            } else {
+                let statistics = summary ?? HistorySummary(points: visible(points))
+                HStack(spacing: 12) {
+                    statisticCell(.average, value: format(secondary ? statistics.secondaryAverage : statistics.primaryAverage))
+                    statisticCell(.peak, value: format(secondary ? statistics.secondaryPeak : statistics.primaryPeak))
+                }
+            }
         }
-        return Text(text).font(.system(size: 11)).monospacedDigit().foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func statisticCell(_ title: TextKey, value: String) -> some View {
+        HStack(spacing: 4) {
+            Text(l10n(title))
+            Spacer(minLength: 0)
+            Text(value).monospacedDigit()
+        }
+        .font(.system(size: 11)).foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func inspectionLabel(_ timestamp: TimeInterval) -> String {
+        InsightStyle.time(Date().addingTimeInterval(timestamp - ProcessInfo.processInfo.systemUptime), localizer: l10n)
     }
 
     private var memoryHealthRow: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if monitor.resources.pressure != nil || monitor.resources.swap != nil {
-                HStack(spacing: 5) {
-                    if let pressure = monitor.resources.pressure {
-                        Text(l10n(.memoryPressure)).foregroundStyle(.secondary)
-                        Circle().fill(InsightStyle.pressureColor(pressure)).frame(width: 5, height: 5)
-                        Text(l10n(pressure.titleKey)).foregroundStyle(InsightStyle.pressureColor(pressure))
-                    }
-                    Spacer(minLength: 6)
-                    if let swap = monitor.resources.swap {
-                        Text("Swap " + TrafficFormatter.total(swap.usedBytes)).monospacedDigit()
-                    }
+        VStack(alignment: .leading, spacing: 5) {
+            if let pressure = monitor.resources.pressure {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(l10n(.memoryPressure)).foregroundStyle(.secondary)
+                    Spacer(minLength: 4)
+                    Circle().fill(InsightStyle.pressureColor(pressure)).frame(width: 5, height: 5)
+                    Text(l10n(pressure.titleKey)).foregroundStyle(InsightStyle.pressureColor(pressure))
                 }
                 .help(l10n(.pressureHelp))
             }
-            if monitor.resources.swap != nil, !visible(monitor.resources.swapHistory).isEmpty {
-                Text(l10n(.swapChange, InsightStyle.delta(visible(monitor.resources.swapHistory))))
-                    .foregroundStyle(.secondary).monospacedDigit().help(l10n(.swapHelp))
+            if let swap = monitor.resources.swap {
+                metricRow(l10n(.swapUsed), value: TrafficFormatter.total(swap.usedBytes)).help(l10n(.swapHelp))
+                if !visible(monitor.resources.swapHistory).isEmpty {
+                    metricRow(l10n(.swapChangeWindow, historyDuration), value: InsightStyle.delta(visible(monitor.resources.swapHistory)))
+                        .help(l10n(.swapHelp))
+                }
             }
             errorLabel(monitor.resources.pressureError)
             errorLabel(monitor.resources.swapError)

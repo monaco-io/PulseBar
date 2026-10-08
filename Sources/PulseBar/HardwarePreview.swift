@@ -22,13 +22,13 @@ enum HardwarePreview {
             exit(2)
         }
         let heightValue = value(for: "--preview-height") ?? "660"
-        guard let height = Int(heightValue), [520, 660, 820].contains(height) else {
-            fputs("--preview-height must be 520, 660 or 820\n", stderr)
+        guard let height = Int(heightValue), [520, 660, 820, 1040].contains(height) else {
+            fputs("--preview-height must be 520, 660, 820 or 1040\n", stderr)
             exit(2)
         }
-        let widthValue = value(for: "--preview-width") ?? "560"
-        guard let width = Int(widthValue), [400, 560].contains(width) else {
-            fputs("--preview-width must be 400 or 560\n", stderr)
+        let widthValue = value(for: "--preview-width") ?? String(Int(PanelLayout.overviewWidth))
+        guard let width = Int(widthValue), [400, 560, 620].contains(width) else {
+            fputs("--preview-width must be 400, 560 or 620\n", stderr)
             exit(2)
         }
         let scrollBottom = value(for: "--preview-scroll") == "bottom"
@@ -122,6 +122,8 @@ private final class HardwarePreviewSession: NSObject, NSApplicationDelegate, NSW
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        print("HARDWARE_PREVIEW_ISOLATION suite=\(suiteName) eventDirectory=\(eventDirectory.path)")
+        fflush(stdout)
         monitor.start(refreshSeconds: preferences.refreshSeconds)
         // RunLoop continues while the real reader and sampler collect data.
         // No production status item, notification callback, or updater is started.
@@ -131,7 +133,7 @@ private final class HardwarePreviewSession: NSObject, NSApplicationDelegate, NSW
     private func showWindow() {
         presentation.prepare(on: NSScreen.main)
         presentation.setPreviewHeight(height)
-        // A 560-point overview on the real screen must retain production
+        // The full-width overview on the real screen must retain production
         // sidebar behavior. Only the narrow fixture limits the screen width.
         if width < PanelLayout.overviewWidth { presentation.setPreviewWidth(width) }
         let notifications = EventNotifications()
@@ -226,19 +228,20 @@ private final class HardwarePreviewSession: NSObject, NSApplicationDelegate, NSW
 
     private var interactions: [Interaction] {
         let narrow = width < 500
-        let cpu = NSPoint(x: 70, y: 90)
-        let memory = NSPoint(x: narrow ? 90 : 350, y: narrow ? 308 : 90)
-        let memoryValue = NSPoint(x: narrow ? 90 : 340, y: narrow ? 344 : 119)
+        let cpu = NSPoint(x: 70, y: 102)
+        let cpuValue = NSPoint(x: narrow ? width - 75 : width * 0.5 - 60, y: 138)
+        let memory = NSPoint(x: narrow ? 70 : width * 0.5 + 40, y: narrow ? 341 : 102)
+        let memoryValue = NSPoint(x: width - 70, y: narrow ? 375 : 138)
         let overview = NSPoint(x: width * 0.125, y: height - 25)
         let apps = NSPoint(x: width * 0.375, y: height - 25)
         let events = NSPoint(x: width * 0.625, y: height - 25)
         let settings = NSPoint(x: width * 0.875, y: height - 25)
         let close = NSPoint(x: presentation.usesInlineDetails ? width - 25 : PanelLayout.expandedWidth - 25,
-                            y: presentation.usesInlineDetails ? 95 : 27)
+                            y: presentation.usesInlineDetails ? 105 : 27)
         return [
             Interaction(name: "CPU heading opens Apps", action: .click(cpu), route: .cpuApps, screenshot: "cpu-apps"),
             Interaction(name: "Detail close returns overview", action: .click(close), route: .overview),
-            Interaction(name: "CPU value opens Apps", action: .click(NSPoint(x: 70, y: 119)), route: .cpuApps),
+            Interaction(name: "CPU value opens Apps", action: .click(cpuValue), route: .cpuApps),
             Interaction(name: "Overview navigation returns", action: .click(overview), route: .overview),
             Interaction(name: "Memory heading opens Apps", action: .click(memory), route: .memoryApps, screenshot: "memory-apps"),
             Interaction(name: "Memory detail closes", action: .click(close), route: .overview),

@@ -145,9 +145,9 @@
 "storage" = "存储";
 "battery" = "电池";
 "logicalCores" = "%d 个逻辑核心";
-"appMemory" = "应用";
-"wiredMemory" = "联动";
-"compressedMemory" = "压缩";
+"appMemory" = "应用内存";
+"wiredMemory" = "联动内存";
+"compressedMemory" = "压缩内存";
 "componentTemperature" = "%@温度 %.1f 摄氏度";
 "gpuUsageHelp" = "该 GPU 驱动报告的设备利用率。多个 GPU 分别显示。温度为已识别 GPU 传感器中的最高有效值，不对应特定设备。";
 "startupVolumeSpace" = "启动卷空间";
@@ -165,3 +165,25 @@
 "batteryFull" = "已充满";
 "batteryOnBattery" = "电池供电";
 "batteryExternalPower" = "外部供电";
+
+// 统一对齐的硬件总览标签
+"utilization" = "使用率";
+"logicalCoresLabel" = "逻辑核心";
+"cpuUser" = "用户";
+"cpuSystem" = "系统";
+"usedTotal" = "已用 / 总量";
+"startupVolumeUsed" = "启动卷使用率";
+"availableSpaceLabel" = "可用空间";
+"swapUsed" = "Swap 已用";
+"swapChangeWindow" = "Swap 变化（%@）";
+"direction" = "方向";
+"sessionRead" = "本次读取";
+"sessionWrite" = "本次写入";
+"sessionDownload" = "本次下载";
+"sessionUpload" = "本次上传";
+"batteryCharge" = "电量";
+"batteryPowerState" = "供电状态";
+"batteryHealthLabel" = "最大容量";
+"batteryCyclesLabel" = "循环次数";
+"batteryTimeUntilFullLabel" = "预计充满";
+"batteryTimeUntilEmptyLabel" = "预计剩余";

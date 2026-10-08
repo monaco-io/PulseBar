@@ -25,6 +25,9 @@ public enum AppLanguage: String, CaseIterable {
 }
 
 public enum TextKey: String, CaseIterable {
+    case utilization, logicalCoresLabel, cpuUser, cpuSystem, usedTotal, startupVolumeUsed, availableSpaceLabel
+    case swapUsed, swapChangeWindow, direction, sessionRead, sessionWrite, sessionDownload, sessionUpload
+    case batteryCharge, batteryPowerState, batteryHealthLabel, batteryCyclesLabel, batteryTimeUntilFullLabel, batteryTimeUntilEmptyLabel
     case gpu, storage, battery, logicalCores, appMemory, wiredMemory, compressedMemory, componentTemperature
     case gpuUsageHelp, startupVolumeSpace, capacityRatio, availableSpace, storageCapacityHelp, physicalDiskIO
     case batteryHealth, batteryHealthHelp, batteryCycles, batteryTimeUntilFull, batteryTimeUntilEmpty, batteryTimeHelp

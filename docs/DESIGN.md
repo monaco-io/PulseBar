@@ -1,5 +1,19 @@
 # PulseBar interaction design
 
+## v1.12.0: consistent metric hierarchy and alignment
+
+Version 1.12.0 implements the approved layout proposal using the existing production readings. CPU and memory share the first row, storage and network the second; available GPU and internal-battery groups follow below. At available content widths below 500 pt, the same ordered groups become one scrolling column. Optional groups and individual unavailable readings leave no placeholders.
+
+Every group puts its name at the left and its valid component temperature at the right. Main labels align left and numeric readings align right. Primary percentages use 28 pt monospaced digits, paired I/O rates use 24 pt, supporting values use 13 pt, and labels and history statistics use 11 pt. Units remain next to their values at a quieter size. Counts and time estimates stay integers; percentages, temperatures, rates, and formatted decimal byte quantities retain their established precision. Longer translated labels may wrap instead of forcing smaller type or hiding readings.
+
+The hierarchy is heading, main reading, supporting facts, then history and statistics. CPU user/system and memory app/wired/compressed values use equal supporting columns; pressure and swap use labeled rows. Storage separates startup-volume capacity from physical disk I/O. Disk and network share direction, average, and peak columns, followed by paired session totals. CPU and memory histories share a baseline in the two-column layout, as do disk and network histories. GPU keeps one named utilization row per device, and battery keeps every available charge, power-state, capacity, cycle, and time field. A component temperature does not imply a particular GPU device.
+
+Keep the native SF system type, semantic system palette, established chart colors, and light internal dividers. There is no enclosing hardware-card background or border, no progress bar, and no chart area fill. The four charts retain linked inspection, actual sample values, time context, averages, and peaks.
+
+The overview is 620 pt wide with height `min(660, screen.visibleFrame.height - 24)`. Only the middle content scrolls; the header and bottom navigation remain fixed. Sensor availability does not resize an open panel. Details use a 320 pt side column when the screen accommodates the 941 pt expanded width, otherwise they replace the middle content.
+
+CPU and memory headings and primary values retain their Apps shortcuts. Sampling, sensor validity and absence rules, saved preferences, menu-bar options, local performance events, keyboard navigation, and English Events empty-state wrapping retain their existing behavior. UI and build validation belongs in [VALIDATION.md](VALIDATION.md).
+
 ## v1.11.0: hardware groups without the outer frame
 
 Version 1.11.0 refines the overview introduced in v1.10.0, keeping each hardware group readable within a wider, shorter panel.

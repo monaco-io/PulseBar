@@ -145,8 +145,8 @@
 "storage" = "Storage";
 "battery" = "Battery";
 "logicalCores" = "%d logical cores";
-"appMemory" = "Apps";
-"wiredMemory" = "Wired";
+"appMemory" = "App memory";
+"wiredMemory" = "Wired memory";
 "compressedMemory" = "Compressed";
 "componentTemperature" = "%@ temperature %.1f degrees Celsius";
 "gpuUsageHelp" = "Device utilization reported by this GPU driver. Different GPUs are shown separately. Temperature is the highest valid known GPU sensor and is not tied to a particular device.";
@@ -165,3 +165,25 @@
 "batteryFull" = "Fully charged";
 "batteryOnBattery" = "On battery";
 "batteryExternalPower" = "External power";
+
+// Aligned hardware overview labels
+"utilization" = "Utilization";
+"logicalCoresLabel" = "Logical cores";
+"cpuUser" = "User";
+"cpuSystem" = "System";
+"usedTotal" = "Used / Total";
+"startupVolumeUsed" = "Volume used";
+"availableSpaceLabel" = "Available space";
+"swapUsed" = "Swap used";
+"swapChangeWindow" = "Swap change (%@)";
+"direction" = "Direction";
+"sessionRead" = "Session read";
+"sessionWrite" = "Session write";
+"sessionDownload" = "Session download";
+"sessionUpload" = "Session upload";
+"batteryCharge" = "Charge";
+"batteryPowerState" = "Power state";
+"batteryHealthLabel" = "Maximum capacity";
+"batteryCyclesLabel" = "Cycle count";
+"batteryTimeUntilFullLabel" = "Until full";
+"batteryTimeUntilEmptyLabel" = "Time remaining";
