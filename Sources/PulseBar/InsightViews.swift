@@ -167,7 +167,8 @@ struct EventTimelineView: View {
                 Text(localizer(.eventStoreFailed, error.localizedDescription)).font(.system(size: 10)).foregroundStyle(.orange)
             }
             if monitor.events.isEmpty {
-                Text(localizer(.eventsEmpty)).font(.system(size: 12)).foregroundStyle(.secondary).padding(.vertical, 20)
+                Text(localizer(.eventsEmpty)).font(.system(size: 12)).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true).padding(.vertical, 20)
             }
             ForEach(monitor.events) { event in
                 VStack(alignment: .leading, spacing: 8) {

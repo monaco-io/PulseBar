@@ -30,15 +30,6 @@ struct HistoryChart: View {
                                 y: y(isPrimary ? point.primary : point.secondary, height: size.height))
                     }
                     var line = Path(); line.addLines(positions)
-                    if isPrimary, let first = positions.first, let last = positions.last {
-                        var fill = line
-                        fill.addLine(to: CGPoint(x: last.x, y: size.height))
-                        fill.addLine(to: CGPoint(x: first.x, y: size.height))
-                        fill.closeSubpath()
-                        context.fill(fill, with: .linearGradient(
-                            Gradient(colors: [color.opacity(0.22), color.opacity(0.01)]),
-                            startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height)))
-                    }
                     context.stroke(line, with: .color(color), style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
                 }
             }

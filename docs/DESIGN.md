@@ -1,6 +1,20 @@
 # PulseBar interaction design
 
-## v1.10: hardware modules
+## v1.11.0: hardware groups without the outer frame
+
+Version 1.11.0 refines the overview introduced in v1.10.0, keeping each hardware group readable within a wider, shorter panel.
+
+The overview retains internal CPU, memory, GPU, storage, network, and battery groups, hierarchy, and horizontal and vertical dividers. CPU and optional GPU occupy the upper left, memory and optional internal battery the upper right, with storage and network below. Only the `RoundedRectangle` background and `strokeBorder` surrounding all of `hardwareContent` are removed; its transparent `VStack` sits directly in the native panel. All existing usable readings remain available, with optional groups omitted without reserved slots. GPU utilization names each reported device, while component temperatures remain in their own hardware headings and do not imply a particular GPU device.
+
+There are no progress views, occupancy bars, or other filled gauges. Utilization, charge, and capacity appear as numbers with labels; pressure and power state appear as text. The four established CPU, memory, physical-disk, and network histories remain pure line charts without area fills. Preserve their linked inspection and time context.
+
+Use the native SF system type, monospaced digits, material, and semantic system palette. Retain the internal typography: 22 pt primary values, 20 pt rates, and 11 pt body labels and statistics. Compact layout must not depend on reducing that text. Retain the existing CPU orange, memory purple, GPU teal, incoming blue, and outgoing green accents.
+
+The overview is 560 pt wide, with height `min(660, screen.visibleFrame.height - 24)`. Available content widths below 500 pt use a single scrolling column. Aim to keep all readings readable in one panel on common screens, while retaining a scrolling middle-content fallback for short screens, longer translated labels, and extra available hardware. The header and bottom navigation stay fixed. Optional sensor availability does not resize an open panel. Details retain the 320 pt side column when the screen can accommodate the 881 pt expanded width; otherwise they replace the middle content.
+
+CPU and memory headings and usage values retain their Apps shortcuts. Sampling cadence, reader validity rules, absence behavior, saved settings, menu-bar options, linked history inspection, and local performance-event behavior remain unchanged. English Events empty-state text wrapping is preserved. Validation evidence and the limits of the hardware and UI checks are recorded in [VALIDATION.md](VALIDATION.md).
+
+## Released v1.10.0: hardware modules
 
 The overview groups readings by hardware while preserving the established app, event, and settings navigation.
 

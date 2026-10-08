@@ -25,7 +25,7 @@ public struct PanelNavigation: Equatable, Sendable {
 }
 
 public enum PanelLayout {
-    public static let overviewWidth: CGFloat = 400
+    public static let overviewWidth: CGFloat = 560
     public static let detailWidth: CGFloat = 320
     public static let expandedWidth: CGFloat = overviewWidth + 1 + detailWidth
 

@@ -17,24 +17,24 @@ struct PanelNavigationTests {
         for route in [PanelRoute.settings, .cpuApps, .memoryApps, .events, .settings] {
             navigation.show(route)
             #expect(navigation.route.hasDetails)
-            #expect(PanelLayout.width(for: navigation.route, availableWidth: 1280) == 721)
+            #expect(PanelLayout.width(for: navigation.route, availableWidth: 1280) == 881)
         }
         let returnedToOverview = navigation.back()
         #expect(returnedToOverview)
-        #expect(PanelLayout.width(for: navigation.route, availableWidth: 1280) == 400)
+        #expect(PanelLayout.width(for: navigation.route, availableWidth: 1280) == 560)
         let shouldDismiss = !navigation.back()
         #expect(shouldDismiss)
     }
 
     @Test func narrowScreensKeepNavigationInsideTheWindow() {
-        for available: CGFloat in [320, 400, 600, 720] {
+        for available: CGFloat in [320, 400, 560, 600, 720, 880] {
             #expect(PanelLayout.usesInlineDetails(availableWidth: available))
             for route in PanelRoute.allCases {
-                let expected: CGFloat = min(400, available)
+                let expected: CGFloat = min(560, available)
                 #expect(PanelLayout.width(for: route, availableWidth: available) == expected)
             }
         }
-        #expect(!PanelLayout.usesInlineDetails(availableWidth: 721))
+        #expect(!PanelLayout.usesInlineDetails(availableWidth: 881))
     }
 
     @Test func menuNavigationSelectsDetailsWithoutAnIntermediateOverview() {
