@@ -4,31 +4,30 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>PulseBar</title>
         <item>
-            <title>1.11.0</title>
-            <pubDate>Thu, 08 Oct 2026 07:34:48 +0000</pubDate>
+            <title>1.12.0</title>
+            <pubDate>Thu, 08 Oct 2026 09:01:51 +0000</pubDate>
             <link>https://github.com/monaco-io/PulseBar</link>
-            <sparkle:version>19</sparkle:version>
-            <sparkle:shortVersionString>1.11.0</sparkle:shortVersionString>
+            <sparkle:version>20</sparkle:version>
+            <sparkle:shortVersionString>1.12.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# PulseBar 1.11.0
+            <description sparkle:format="markdown"><![CDATA[# PulseBar 1.12.0
 
-- The overview uses a 560-point, two-column layout with a maximum height of 660 points. CPU, memory, GPU, storage, network, and available internal-battery readings retain their hardware headings and internal dividers, while the surrounding hardware-card background and border are removed.
-- Readings use numbers and text without progress bars. The four linked CPU, memory, physical-disk, and network histories use lines without filled areas, retaining their inspection, averages, and peaks.
-- Available content widths below 500 points use a single column; shorter windows retain scrolling. The header and navigation stay fixed. Apps, Events, and Settings use the existing side panel or inline details when space is limited.
-- English Events empty-state text wraps fully in narrow panels.
+- The overview follows the approved layout: CPU and memory first, storage and network next, with available GPU and internal-battery groups below. Names and labels align left; main values and percentages align right.
+- Each hardware group separates its main readings, supporting facts, and history. CPU user/system and memory app/wired/compressed values use consistent supporting columns. All existing available readings remain visible, including pressure, swap, physical disk identities, interfaces, and session totals.
+- CPU/memory and disk/network histories align within their rows. Averages and peaks use fixed columns, and disk/network directions and totals follow the same order. Linked history inspection is preserved.
+- The overview is 620 points wide and at most 660 points high. Content widths below 500 points use one column; the middle scrolls while the header and navigation stay fixed. Details retain a 320-point side column when the screen accommodates the 941-point expanded panel, otherwise they stay inside the panel.
+- Main percentages use 28-point digits and paired rates use 24-point digits, with quieter units and supporting text. Existing numeric precision follows each metric's meaning: counts and time estimates stay integers. Hardware groups retain light internal dividers without an outer card or progress bars; histories remain lines without filled areas.
 
-Available temperatures and other optional hardware readings keep the existing validity and absence rules. Sampling, saved preferences, menu-bar choices, and local event history are unchanged.
-
-The layout was checked in English and Simplified Chinese, light and dark appearances, and wide, narrow, and short windows on an Apple M4 iMac. Intel, macOS 13, physical MacBook battery, and multiple-GPU hardware have not been tested in this round.
+This release uses production readings, rather than the proposal's sample data. Unavailable or invalid temperatures and optional hardware fields retain their existing absence rules. Sampling, saved preferences, menu-bar choices, and local event history keep their established behavior. A present internal battery continues to show each usable field; desktops do not acquire a battery section.
 
 Requires macOS 13 or later, on Apple Silicon or Intel. Releases retain the existing ad-hoc signing and signed Sparkle update flow; they are not Apple notarized.
 
-[简体中文](https://github.com/monaco-io/PulseBar/blob/main/docs/releases/v1.11.0.zh-CN.md)
+[简体中文](https://github.com/monaco-io/PulseBar/blob/main/docs/releases/v1.12.0.zh-CN.md)
 ]]></description>
-            <enclosure url="https://github.com/monaco-io/PulseBar/releases/download/v1.11.0/PulseBar.dmg" length="2859474" type="application/octet-stream" sparkle:edSignature="fsRHXb+JMahQzcRosDQFUfL5Kj2dgd7ri5e8v2ZOMmnpmGyQiJAPePR0Tvr0WDOZXFsX5PfgJEn5KFjwpSMcCQ=="></enclosure>
+            <enclosure url="https://github.com/monaco-io/PulseBar/releases/download/v1.12.0/PulseBar.dmg" length="2898508" type="application/octet-stream" sparkle:edSignature="6y4UaSZgEMkHFR0G3G6e6tgfBjgIvwRFvCHCgRJklfddrlhCefQSxNjdj54l488/d47tFILaLU+P4YJUfuGMDg=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: A3rQe9TO2095TBetvVlBfQyvqKt6GAzR0qxqLJeusGys7bKg29sqQg0S6ywSJK9HS4OuR3SOayUEFcemiop8Dg==
-length: 2688
+edSignature: nEnVe4HLIzypg0qnHQfWkeszRj0JvAsQf2UiNyO+KqZOdRFELtndA9TvH+CuTd15iWRSy2/ChWeSKmUWidHVAA==
+length: 3234
 -->
