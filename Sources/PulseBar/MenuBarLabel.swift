@@ -5,66 +5,113 @@ import SpeedCore
 enum MenuBarLabel {
     static let ringsWidth: CGFloat = 22
 
-    static func image(diskRead: String, diskWrite: String,
-                      download: String, upload: String, selection: MenuBarSelection) -> NSImage {
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 9.5, weight: .medium),
-            .foregroundColor: NSColor.black
+    struct Layout {
+        let image: NSImage
+        let regions: [StatusItemHintTarget: NSRect]
+    }
+
+    private struct Group {
+        let target: StatusItemHintTarget
+        let width: CGFloat
+        let values: [CTLine]
+        let labels: [CTLine]
+    }
+
+    static func layout(diskRead: String, diskWrite: String,
+                       download: String, upload: String, selection: MenuBarSelection) -> Layout {
+        let numberFont = NSFont.monospacedDigitSystemFont(ofSize: 10.5, weight: .medium)
+        let numberAttributes: [NSAttributedString.Key: Any] = [.font: numberFont, .foregroundColor: NSColor.black]
+        let labelWidth: CGFloat = 10
+        let labelSpacing: CGFloat = 4
+        let groupSpacing: CGFloat = 14
+        let valueWidth: CGFloat = 36
+        let unitSpacing: CGFloat = 5
+        let unitWidth: CGFloat = 22
+        let rateGroupWidth = labelWidth + labelSpacing + valueWidth + unitSpacing + unitWidth + 2
+        let labelAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 9.5, weight: .medium),
+            .foregroundColor: NSColor.black.withAlphaComponent(0.65)
         ]
-        let unitLine = CTLineCreateWithAttributedString(NSAttributedString(string: "MB/s", attributes: attributes))
-        let unitInk = CTLineGetBoundsWithOptions(unitLine, .useGlyphPathBounds)
-        let unitSpacing: CGFloat = 4
-        func group(_ minimumWidth: CGFloat, _ rows: [String]) -> (width: CGFloat, rows: [String], showsUnit: Bool) {
-            let widest = rows.map { text in
-                let line = CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: attributes))
-                return CTLineGetBoundsWithOptions(line, .useGlyphPathBounds).width
-            }.max() ?? 0
-            return (max(minimumWidth, ceil(widest + unitSpacing + unitInk.width) + 4), rows, true)
+        let unitLine = CTLineCreateWithAttributedString(NSAttributedString(string: "MB/s", attributes: [
+            .font: NSFont.systemFont(ofSize: 8.5, weight: .medium),
+            .foregroundColor: NSColor.black.withAlphaComponent(0.65)
+        ]))
+
+        func group(_ target: StatusItemHintTarget, labels: [String], first: String, second: String) -> Group {
+            let values = [first, second].map {
+                CTLineCreateWithAttributedString(NSAttributedString(string: $0, attributes: numberAttributes))
+            }
+            let labelLines = labels.map {
+                CTLineCreateWithAttributedString(NSAttributedString(string: $0, attributes: labelAttributes))
+            }
+            return Group(target: target, width: rateGroupWidth, values: values, labels: labelLines)
         }
-        var groups: [(width: CGFloat, rows: [String], showsUnit: Bool)] = []
-        // Reserve space for the native gauges layered over the status button.
-        // Keep the remaining image templated so AppKit handles text contrast.
+
+        var groups: [Group] = []
+        // The colored native gauges occupy the first region of the template image.
         if selection.contains(.cpu) || selection.contains(.memory) {
-            groups.append((ringsWidth, [], false))
+            groups.append(Group(target: .rings, width: ringsWidth, values: [], labels: []))
         }
-        if selection.contains(.disk) { groups.append(group(86, ["R \(diskRead)", "W \(diskWrite)"])) }
-        if selection.contains(.network) { groups.append(group(86, ["↓ \(download)", "↑ \(upload)"])) }
-        let width = groups.reduce(CGFloat(0)) { $0 + $1.width } + CGFloat(max(0, groups.count - 1)) * 8
-        // A multiline NSButton title uses title-cell baseline positioning,
-        // which can push the first row against the top of a taller menu bar.
-        // Native status-item images are centered as one block instead.
+        if selection.contains(.disk) {
+            groups.append(group(.disk, labels: ["R", "W"], first: diskRead, second: diskWrite))
+        }
+        if selection.contains(.network) {
+            groups.append(group(.network, labels: ["↓", "↑"], first: download, second: upload))
+        }
+
+        var regions: [StatusItemHintTarget: NSRect] = [:]
+        var left: CGFloat = 0
+        for group in groups {
+            regions[group.target] = NSRect(x: left, y: 0, width: group.width, height: 22)
+            left += group.width + groupSpacing
+        }
+        let width = max(0, left - groupSpacing)
+        let numberLine = CTLineCreateWithAttributedString(NSAttributedString(string: "0.0", attributes: numberAttributes))
+        let numberInk = CTLineGetBoundsWithOptions(numberLine, .useGlyphPathBounds)
+        let unitInk = CTLineGetBoundsWithOptions(unitLine, .useGlyphPathBounds)
         let image = NSImage(size: NSSize(width: width, height: 22), flipped: false) { rect in
             guard let context = NSGraphicsContext.current?.cgContext else { return false }
-            var left: CGFloat = 0
-            var separators: [CGFloat] = []
-            for (groupIndex, group) in groups.enumerated() {
-                var rowRight = left + group.width - 2
-                if group.showsUnit {
-                    // Both rates share one unit, centered between the two rows.
-                    context.textPosition = CGPoint(x: rowRight - unitInk.maxX, y: rect.midY - unitInk.midY)
+            for (index, group) in groups.enumerated() {
+                guard let region = regions[group.target] else { continue }
+                if !group.values.isEmpty {
+                    let valuesLeft = region.minX + labelWidth + labelSpacing
+                    for (valueIndex, line) in group.values.enumerated() {
+                        // The first rate is the upper row in the unflipped image.
+                        let rowCenter = rect.midY + (valueIndex == 0 ? 5.5 : -5.5)
+                        let label = group.labels[valueIndex]
+                        let labelInk = CTLineGetBoundsWithOptions(label, .useGlyphPathBounds)
+                        context.textPosition = CGPoint(x: region.minX + labelWidth / 2 - labelInk.midX,
+                                                       y: rowCenter - labelInk.midY)
+                        CTLineDraw(label, context)
+                        let textWidth = CTLineGetTypographicBounds(line, nil, nil, nil)
+                        // Both rows share one fixed, right-aligned value column.
+                        // Long readings shrink in place without moving the unit
+                        // or hover anchors; the hint keeps full-size readings.
+                        let scale = min(1, valueWidth / max(1, textWidth))
+                        context.saveGState()
+                        context.translateBy(x: valuesLeft + valueWidth - textWidth * scale,
+                                            y: rowCenter - numberInk.midY * scale)
+                        context.scaleBy(x: scale, y: scale)
+                        context.textPosition = .zero
+                        CTLineDraw(line, context)
+                        context.restoreGState()
+                    }
+                    context.textPosition = CGPoint(x: valuesLeft + valueWidth + unitSpacing,
+                                                   y: rect.midY - unitInk.midY)
                     CTLineDraw(unitLine, context)
-                    rowRight -= unitInk.width + unitSpacing
                 }
-                for (index, text) in group.rows.enumerated() {
-                    let line = CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: attributes))
-                    let ink = CTLineGetBoundsWithOptions(line, .useGlyphPathBounds)
-                    let rowCenter = rect.maxY - (CGFloat(index) + 0.5) * rect.height / CGFloat(group.rows.count)
-                    context.textPosition = CGPoint(x: rowRight - ink.maxX, y: rowCenter - ink.midY)
-                    CTLineDraw(line, context)
+                if index + 1 < groups.count {
+                    context.setStrokeColor(NSColor.black.withAlphaComponent(0.2).cgColor)
+                    context.setLineWidth(0.5)
+                    let x = region.maxX + groupSpacing / 2
+                    context.move(to: CGPoint(x: x, y: 5))
+                    context.addLine(to: CGPoint(x: x, y: 17))
+                    context.strokePath()
                 }
-                left += group.width + 8
-                if groupIndex + 1 < groups.count { separators.append(left - 4) }
             }
-            context.setStrokeColor(NSColor.black.withAlphaComponent(0.25).cgColor)
-            context.setLineWidth(0.5)
-            for x in separators {
-                context.move(to: CGPoint(x: x, y: 4))
-                context.addLine(to: CGPoint(x: x, y: 18))
-            }
-            context.strokePath()
             return true
         }
         image.isTemplate = true
-        return image
+        return Layout(image: image, regions: regions)
     }
 }

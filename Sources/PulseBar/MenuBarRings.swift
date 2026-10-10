@@ -4,10 +4,7 @@ import SwiftUI
 
 /// Keep the status item's native button, tooltip, highlighting and click target.
 /// Only the gauges are colored; the disk/network image remains a template.
-final class MenuBarRingsHost: NSView {
-    var onHoverChange: ((Bool) -> Void)?
-    private var pointerTracking: NSTrackingArea?
-    private(set) var isPointerInside = false
+final class MenuBarRingsHost: StatusItemHoverRegion {
     private let hosting = NSHostingView(rootView: MenuBarRings(
         cpu: nil, memory: nil, pressure: nil, selection: MenuBarSelection()))
 
@@ -28,37 +25,8 @@ final class MenuBarRingsHost: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("Use init()") }
 
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        // inVisibleRect follows geometry itself. Replacing this area on every
-        // sample would repeatedly reset a stationary pointer's hover state.
-        guard pointerTracking == nil else { return }
-        let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
-                                  owner: self, userInfo: nil)
-        addTrackingArea(area)
-        pointerTracking = area
-    }
-
-    override func mouseEntered(with event: NSEvent) {
-        isPointerInside = true
-        onHoverChange?(true)
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        isPointerInside = false
-        onHoverChange?(false)
-    }
-
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        if window == nil { isPointerInside = false; onHoverChange?(false) }
-    }
-
     func update(cpu: Double?, memory: Double?, pressure: MemoryPressure?, selection: MenuBarSelection) {
         isHidden = !selection.contains(.cpu) && !selection.contains(.memory)
-        if isHidden { isPointerInside = false; onHoverChange?(false) }
         hosting.rootView = MenuBarRings(cpu: cpu, memory: memory, pressure: pressure, selection: selection)
     }
 }

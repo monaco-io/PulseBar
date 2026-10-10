@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let eventNotifications = EventNotifications()
     private var statusItem: NSStatusItem!
     private var statusRings: MenuBarRingsHost?
+    private var statusHoverRegions: [StatusItemHintTarget: StatusItemHoverRegion] = [:]
     private var statusHint: StatusItemHint?
     private var statusInteraction = StatusItemInteraction()
     private var panel: MonitorPanel?
@@ -49,12 +50,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ])
             statusRings = rings
             let hint = StatusItemHint(monitor: monitor, preferences: preferences)
-            hint.anchor = rings
             hint.canShow = { [weak self] in
                 guard let self else { return false }
                 return !self.statusInteraction.isPresented && self.menuTrackingDepth == 0
             }
-            rings.onHoverChange = { [weak hint] inside in hint?.hover(inside) }
+            statusHoverRegions[.rings] = rings
+            for target in [StatusItemHintTarget.disk, .network] {
+                let region = StatusItemHoverRegion(frame: .zero)
+                region.autoresizingMask = [.height]
+                region.setAccessibilityElement(false)
+                button.addSubview(region)
+                statusHoverRegions[target] = region
+            }
+            for (target, region) in statusHoverRegions {
+                region.onHoverChange = { [weak hint, weak region] inside in
+                    guard let region else { return }
+                    hint?.hover(target, anchor: region, inside: inside)
+                }
+            }
             statusHint = hint
         }
         presentation.onNavigate = { [weak self] in
@@ -324,10 +337,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                             pressure: resources.pressure, selection: selection)
         let imageKey = selection.orderedMetrics.map(\.rawValue) + [read, write, down, up].map { $0?.value ?? "—" }
         if imageKey != lastStatusImageKey {
-            let image = MenuBarLabel.image(diskRead: read?.value ?? "—", diskWrite: write?.value ?? "—",
-                                           download: down?.value ?? "—", upload: up?.value ?? "—", selection: selection)
-            if statusItem.length != image.size.width + 12 { statusItem.length = image.size.width + 12 }
-            button.image = image
+            let layout = MenuBarLabel.layout(diskRead: read?.value ?? "—", diskWrite: write?.value ?? "—",
+                                            download: down?.value ?? "—", upload: up?.value ?? "—", selection: selection)
+            if statusItem.length != layout.image.size.width + 12 { statusItem.length = layout.image.size.width + 12 }
+            button.image = layout.image
+            for target in [StatusItemHintTarget.disk, .network] {
+                guard let region = statusHoverRegions[target] else { continue }
+                if let frame = layout.regions[target] {
+                    region.frame = NSRect(x: frame.minX + 6, y: 0, width: frame.width, height: button.bounds.height)
+                    region.isHidden = false
+                } else { region.isHidden = true }
+            }
             lastStatusImageKey = imageKey
         }
         if panel?.isVisible == true, ProcessInfo.processInfo.environment["PULSEBAR_LAYOUT_LOG"] != nil {
