@@ -56,7 +56,7 @@ enum MenuBarLabel {
             groups.append(group(.disk, labels: ["R", "W"], first: diskRead, second: diskWrite))
         }
         if selection.contains(.network) {
-            groups.append(group(.network, labels: ["↓", "↑"], first: download, second: upload))
+            groups.append(group(.network, labels: ["↑", "↓"], first: upload, second: download))
         }
 
         var regions: [StatusItemHintTarget: NSRect] = [:]

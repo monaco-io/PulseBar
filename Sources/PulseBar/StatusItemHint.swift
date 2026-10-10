@@ -144,16 +144,16 @@ private struct StatusItemHintView: View {
                 rateRow(.read, value: monitor.resources.diskRate?.read)
                 rateRow(.write, value: monitor.resources.diskRate?.write)
             } else {
-                rateRow(.download, value: monitor.networkError == nil ? monitor.rate.download : nil)
                 rateRow(.upload, value: monitor.networkError == nil ? monitor.rate.upload : nil)
+                rateRow(.download, value: monitor.networkError == nil ? monitor.rate.download : nil)
             }
             Divider().padding(.vertical, 6)
             if target == .disk {
                 totalRow(.sessionRead, value: monitor.resources.totalDiskRead)
                 totalRow(.sessionWrite, value: monitor.resources.totalDiskWritten)
             } else {
-                totalRow(.sessionDownload, value: monitor.totalReceived)
                 totalRow(.sessionUpload, value: monitor.totalSent)
+                totalRow(.sessionDownload, value: monitor.totalReceived)
             }
         }
     }

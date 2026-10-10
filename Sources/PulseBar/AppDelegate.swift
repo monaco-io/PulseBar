@@ -371,8 +371,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                            localizer(.namedValue, localizer(.diskWrite), write?.text ?? "—")]
                 errors.append(resources.diskError)
             case .network:
-                values += [localizer(.namedValue, localizer(.download), down?.text ?? "—"),
-                           localizer(.namedValue, localizer(.upload), up?.text ?? "—")]
+                values += [localizer(.namedValue, localizer(.upload), up?.text ?? "—"),
+                           localizer(.namedValue, localizer(.download), down?.text ?? "—")]
                 errors.append(error)
             }
         }
