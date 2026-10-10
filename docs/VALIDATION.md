@@ -1,5 +1,13 @@
 # 本机验证记录
 
+## 2026-10-10：v1.13.2 正式发布与安装验证
+
+- [PulseBar 1.13.2](https://github.com/monaco-io/PulseBar/releases/tag/v1.13.2) 已发布为 Latest，构建号 23，标签源码为 `98c638711067504d28f55ffb0da2129c56543e12`。菜单栏网络上传在上、下载在下，悬停实时速率、会话累计量和辅助功能描述均为上传优先；保留固定宽度、共用单位和 CPU 在内存上方的详情顺序。
+- [最终 CI](https://github.com/monaco-io/PulseBar/actions/runs/38033742446) 与[正式发布流程](https://github.com/monaco-io/PulseBar/actions/runs/38033929548) 均成功，覆盖 102 项测试、arm64 / x86_64 构建及包内采样。唯一上传附件 `PulseBar.dmg` 为 3,057,013 字节；匿名下载 HTTP 200，SHA-256 `2cb657b426e03f5191a584b8f9f4531737af16f94788e756d48c1132b3dd6c6f` 与 GitHub 资产摘要一致。
+- 仅使用应用内公钥独立验证公开 DMG 和 appcast 的 Ed25519 签名；固定公开更新源已返回 1.13.2（23），与 `codex/updates` 内容一致。挂载核验应用、Applications 链接、Finder 布局、版本、资源、双架构及严格签名通过；GitHub 发行说明与英文源文件一致。证据位于 `artifacts/github-v1.13.2/`。
+- 已将公开 DMG 的原样应用安装到 `/Applications/PulseBar.app` 并启动，核验 PID 91392。官方包、安装副本及 dist 的可执行文件 SHA-256 均为 `f37d090b4674e1c0fd3920435ab3d0dff9e8ebf29b7221be24f1b4b84e069802`。偏好与原有 150 条事件逐条保留，验证后共 150 条；中英文本地化资源一致，3 次安装后只读采样无错误。
+- 备份位于 `/Users/xuzelu/Library/Application Support/PulseBar/Backups/2026-10-10-152020-release-1.13.2`，安装证据位于 `.build/release-v1.13.2/`。正式安装后原生界面读取仍超时，未补验桌面截图、物理指针悬停或应用内更新弹窗。发行继续沿用临时签名，未经过 Apple 公证。
+
 ## 2026-10-10：v1.13.2 发布前验证
 
 - 本次发布将菜单栏网络、悬停实时速率、会话累计量和辅助功能描述统一为上传优先；版本 1.13.2（23），已补齐英文与简体中文发行说明。
