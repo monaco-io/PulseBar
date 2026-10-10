@@ -50,6 +50,11 @@
 "refreshHelp" = "每 1–60 秒刷新一次，修改后立即生效并保存。";
 "menuAccessibility" = "脉动，点击查看 CPU、内存、磁盘 I/O 和网速";
 "menuHint" = "点击查看最近%@趋势";
+"menuInnerCPU" = "内圈 · CPU：%@";
+"menuOuterMemory" = "外圈 · 内存：%@";
+"menuOuterRing" = "外圈";
+"menuInnerRing" = "内圈";
+"menuRingHint" = "亮弧表示已用；内存随 macOS 压力显示绿、黄、红。CPU 低于 60% 为绿，60–80% 为黄，超过 80% 为红。";
 "namedValue" = "%@：%@";
 "diskRead" = "磁盘读取";
 "diskWrite" = "磁盘写入";
@@ -187,3 +192,14 @@
 "batteryCyclesLabel" = "循环次数";
 "batteryTimeUntilFullLabel" = "预计充满";
 "batteryTimeUntilEmptyLabel" = "预计剩余";
+"navigation" = "导航";
+"backToOverview" = "返回总览";
+"pinWindow" = "固定窗口";
+"unpinWindow" = "取消固定";
+"closeWindow" = "关闭窗口";
+"hardwareDetails" = "%@详情";
+"deviceConfiguration" = "%d 核 · %@";
+"availableShort" = "可用";
+"usedPercent" = "已用 %@";
+"pressureState" = "压力%@";
+"diskRateSummary" = "读 %@ · 写 %@";

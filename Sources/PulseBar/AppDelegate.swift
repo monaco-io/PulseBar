@@ -11,7 +11,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let presentation = PopoverPresentation()
     private let eventNotifications = EventNotifications()
     private var statusItem: NSStatusItem!
+    private var statusRings: MenuBarRingsHost?
+    private var statusHint: StatusItemHint?
+    private var statusInteraction = StatusItemInteraction()
     private var panel: MonitorPanel?
+    private var detailWindows: DetailWindowCoordinator?
     private var anchorFrame: NSRect?
     private var availableFrame: NSRect?
     private var globalClickMonitor: Any?
@@ -31,16 +35,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let button = statusItem.button {
             button.target = self
             button.action = #selector(togglePopover)
-            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            button.sendAction(on: [.leftMouseDown, .rightMouseDown])
             button.imagePosition = .imageOnly
             button.imageScaling = .scaleNone
+            let rings = MenuBarRingsHost()
+            rings.translatesAutoresizingMaskIntoConstraints = false
+            button.addSubview(rings)
+            NSLayoutConstraint.activate([
+                rings.leadingAnchor.constraint(equalTo: button.leadingAnchor, constant: 6),
+                rings.centerYAnchor.constraint(equalTo: button.centerYAnchor),
+                rings.widthAnchor.constraint(equalToConstant: MenuBarLabel.ringsWidth),
+                rings.heightAnchor.constraint(equalToConstant: 22)
+            ])
+            statusRings = rings
+            let hint = StatusItemHint(monitor: monitor, preferences: preferences)
+            hint.anchor = rings
+            hint.canShow = { [weak self] in
+                guard let self else { return false }
+                return !self.statusInteraction.isPresented && self.menuTrackingDepth == 0
+            }
+            rings.onHoverChange = { [weak hint] inside in hint?.hover(inside) }
+            statusHint = hint
         }
         presentation.onNavigate = { [weak self] in
             self?.panel?.makeFirstResponder(nil)
             self?.resizePanel()
         }
+        presentation.onResize = { [weak self] in self?.resizePanel() }
         NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)
-            .sink { [weak self] _ in self?.menuTrackingDepth += 1 }
+            .sink { [weak self] _ in self?.menuTrackingDepth += 1; self?.statusHint?.dismiss() }
             .store(in: &subscriptions)
         NotificationCenter.default.publisher(for: NSMenu.didEndTrackingNotification)
             .sink { [weak self] _ in
@@ -53,7 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .store(in: &subscriptions)
 
         NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
-            .sink { [weak self] _ in self?.closePanel() }
+            .sink { [weak self] _ in self?.closePanel(); self?.statusHint?.dismiss(); self?.detailWindows?.close() }
             .store(in: &subscriptions)
 
         // Read the completed state once after synchronous @Published writes.
@@ -71,7 +94,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         eventNotifications.onOpenEvent = { [weak self] in
             self?.showPopover()
-            self?.presentation.navigate(.events)
+            self?.detailWindows?.show(.events)
         }
         monitor.start(refreshSeconds: preferences.refreshSeconds)
 
@@ -93,24 +116,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         closePanel()
+        statusHint?.dismiss()
+        detailWindows?.close()
         monitor.stop()
         subscriptions.removeAll()
     }
 
     @objc private func togglePopover() {
+        statusHint?.dismiss()
         if let event = NSApp.currentEvent,
-           event.type == .rightMouseUp || event.modifierFlags.contains(.control) {
+           event.type == .rightMouseDown || event.type == .rightMouseUp || event.modifierFlags.contains(.control) {
             showStatusMenu()
             return
         }
-        if panel?.isVisible == true { closePanel() } else { showPopover() }
+        if statusInteraction.isPresented && panel?.isVisible == true && panel?.isOnActiveSpace == true { closePanel() }
+        else { showPopover() }
     }
 
     private func showPopover() {
         guard let button = statusItem?.button, let statusWindow = button.window,
               let screen = statusWindow.screen else { return }
+        statusHint?.dismiss()
+        if #available(macOS 14.0, *) { NSApp.activate() }
+        else { NSApp.activate(ignoringOtherApps: true) }
         loginItem.refresh()
-        if panel?.isVisible == true { panel?.makeKeyAndOrderFront(nil); return }
+        if statusInteraction.isPresented, panel?.isVisible == true, panel?.isOnActiveSpace == true {
+            panel?.makeKeyAndOrderFront(nil)
+            return
+        }
+        removePanelEventMonitors()
+        let session = statusInteraction.present()
         // Capture the menu-bar anchor once. Live status text can change its width.
         anchorFrame = statusWindow.convertToScreen(button.convert(button.bounds, to: nil))
         availableFrame = screen.visibleFrame
@@ -119,7 +154,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let window = MonitorPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
             window.title = "PulseBar"
             window.identifier = NSUserInterfaceItemIdentifier("PulseBar.monitor")
-            window.animationBehavior = .none
+            window.animationBehavior = .utilityWindow
             window.isReleasedWhenClosed = false
             window.level = .popUpMenu
             window.isMovable = false
@@ -129,34 +164,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             window.isOpaque = false
             window.backgroundColor = .clear
             window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
-            let controller = NSHostingController(rootView: PopoverView(
+            let details = DetailWindowCoordinator(monitor: monitor, preferences: preferences, loginItem: loginItem,
+                                                   notifications: eventNotifications, updater: softwareUpdater)
+            details.sourceWindow = window
+            detailWindows = details
+            let controller = NativeGlassHostingController(rootView: PopoverView(
                 monitor: monitor, preferences: preferences, loginItem: loginItem,
-                presentation: presentation, eventNotifications: eventNotifications, softwareUpdater: softwareUpdater
-            ).ignoresSafeArea().background(PanelMaterial().ignoresSafeArea()).clipShape(RoundedRectangle(cornerRadius: 14)))
-            controller.sizingOptions = []
+                presentation: presentation, eventNotifications: eventNotifications, softwareUpdater: softwareUpdater,
+                onOpenDetails: { [weak details] route in details?.show(route) },
+                onHoverModule: { [weak details] route, inside in details?.hover(route, inside: inside) },
+                onPreferredHeight: { [weak self] height in self?.presentation.fitContentHeight(height) }
+            ).ignoresSafeArea())
             window.contentViewController = controller
             panel = window
         }
         resizePanel(force: true)
         panel?.contentView?.layoutSubtreeIfNeeded()
-        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        panel?.alphaValue = reduceMotion ? 1 : 0
         panel?.makeKeyAndOrderFront(nil)
         panel?.makeFirstResponder(nil)
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = reduceMotion ? 0 : 0.12
-            panel?.animator().alphaValue = 1
-        }
         recordLayout("open")
         button.highlight(true)
         popoverClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { [weak self] event in
-            guard let self, let window = self.panel, window.isVisible else { return event }
+            guard let self, self.statusInteraction.isPresented,
+                  self.statusInteraction.generation == session, let window = self.panel else { return event }
             // Native menus have their own windows and handle Escape themselves.
             // They belong to this interaction and are not outside clicks.
             if self.menuTrackingDepth > 0 { return event }
             if event.type == .keyDown {
                 if event.keyCode == 53 {
-                    if self.presentation.route.hasDetails { self.presentation.navigate(.overview) }
+                    if self.detailWindows?.contains(event.window) == true { self.detailWindows?.close() }
                     else { self.closePanel() }
                     return nil
                 }
@@ -168,13 +204,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                    !field.bounds.contains(field.convert(event.locationInWindow, from: nil)) {
                     window.makeFirstResponder(nil)
                 }
-            } else if event.window !== self.statusItem.button?.window {
+            } else if self.detailWindows?.contains(event.window) != true,
+                      event.window !== self.statusItem.button?.window,
+                      !self.pointerIsInsideStatusItem {
                 self.closePanel()
             }
             return event
         }
         globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            guard let self, self.menuTrackingDepth == 0 else { return }
+            guard let self, self.statusInteraction.acceptsDismissal(from: session,
+                isInsideStatusItem: self.pointerIsInsideStatusItem, isTrackingMenu: self.menuTrackingDepth > 0) else { return }
             self.closePanel()
         }
     }
@@ -183,11 +222,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let panel, force || panel.isVisible,
               let anchorFrame, let availableFrame else { return }
         let frame = PanelPlacement.frame(size: presentation.contentSize, anchor: anchorFrame, visibleFrame: availableFrame)
-        // AppKit frame interpolation competes with NSHostingView layout and
-        // briefly offsets individual rows. Commit geometry atomically; SwiftUI
-        // animates only the detail reveal and controls inside the stable window.
         if panel.frame != frame {
-            panel.setFrame(frame, display: false, animate: false)
+            panel.setFrame(frame, display: true, animate: panel.isVisible && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
             panel.contentView?.layoutSubtreeIfNeeded()
             panel.displayIfNeeded()
         }
@@ -233,23 +269,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func navigateFromMenu(_ sender: NSMenuItem) {
         guard let value = sender.representedObject as? String, let route = PanelRoute(rawValue: value) else { return }
         showPopover()
-        presentation.navigate(route)
+        if route != .overview { detailWindows?.show(route) }
     }
     @objc private func checkForUpdates() { softwareUpdater.checkForUpdates() }
     @objc private func resetMonitoring() { monitor.reset() }
     @objc private func quit() { NSApp.terminate(nil) }
 
     private func closePanel() {
+        statusInteraction.dismiss()
+        removePanelEventMonitors()
+        statusHint?.dismiss()
+        detailWindows?.closeTransient()
         panel?.makeFirstResponder(nil)
         recordLayout("close")
         panel?.orderOut(nil)
-        panel?.alphaValue = 1
         presentation.navigate(.overview)
+        statusItem.button?.highlight(false)
+    }
+
+    private func removePanelEventMonitors() {
         if let popoverClickMonitor { NSEvent.removeMonitor(popoverClickMonitor) }
         if let globalClickMonitor { NSEvent.removeMonitor(globalClickMonitor) }
         popoverClickMonitor = nil
         globalClickMonitor = nil
-        statusItem.button?.highlight(false)
+    }
+
+    private var pointerIsInsideStatusItem: Bool {
+        guard let button = statusItem?.button, let window = button.window else { return false }
+        return window.convertToScreen(button.convert(button.bounds, to: nil)).contains(NSEvent.mouseLocation)
     }
 
     private func scheduleStatusUpdate() {
@@ -267,16 +314,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func updateStatus(_ rate: TrafficRate, error: Error?, resources: ResourceState,
                               selection: MenuBarSelection, localizer: Localizer, historySeconds: Int) {
         guard let button = statusItem?.button else { return }
-        let down = error == nil ? TrafficFormatter.speed(rate.download).text : "—"
-        let up = error == nil ? TrafficFormatter.speed(rate.upload).text : "—"
+        let down = error == nil ? TrafficFormatter.speed(rate.download) : nil
+        let up = error == nil ? TrafficFormatter.speed(rate.upload) : nil
         let cpu = SystemFormatter.percent(resources.cpu?.usedPercent)
         let memory = SystemFormatter.percent(resources.memory?.usedPercent)
-        let read = resources.diskRate.map { TrafficFormatter.speed($0.read).text } ?? "—"
-        let write = resources.diskRate.map { TrafficFormatter.speed($0.write).text } ?? "—"
-        let imageKey = selection.orderedMetrics.map(\.rawValue) + [cpu, memory, read, write, down, up]
+        let read = resources.diskRate.map { TrafficFormatter.speed($0.read) }
+        let write = resources.diskRate.map { TrafficFormatter.speed($0.write) }
+        statusRings?.update(cpu: resources.cpu?.usedPercent, memory: resources.memory?.usedPercent,
+                            pressure: resources.pressure, selection: selection)
+        let imageKey = selection.orderedMetrics.map(\.rawValue) + [read, write, down, up].map { $0?.value ?? "—" }
         if imageKey != lastStatusImageKey {
-            let image = MenuBarLabel.image(cpu: cpu, memory: memory, diskRead: read, diskWrite: write,
-                                           download: down, upload: up, selection: selection)
+            let image = MenuBarLabel.image(diskRead: read?.value ?? "—", diskWrite: write?.value ?? "—",
+                                           download: down?.value ?? "—", upload: up?.value ?? "—", selection: selection)
             if statusItem.length != image.size.width + 12 { statusItem.length = image.size.width + 12 }
             button.image = image
             lastStatusImageKey = imageKey
@@ -290,23 +339,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for metric in selection.orderedMetrics {
             switch metric {
             case .cpu:
-                values.append(localizer(.namedValue, localizer(.cpu), cpu))
+                values.append(localizer(.menuInnerCPU, cpu))
                 errors.append(resources.cpuError)
             case .memory:
-                values.append(localizer(.namedValue, localizer(.memory), memory))
-                errors.append(resources.memoryError)
+                values.append(localizer(.menuOuterMemory, memory))
+                let pressure = resources.pressure.map { localizer($0.titleKey) } ?? "—"
+                values.append(localizer(.namedValue, localizer(.memoryPressure), pressure))
+                errors += [resources.memoryError, resources.pressureError]
             case .disk:
-                values += [localizer(.namedValue, localizer(.diskRead), read), localizer(.namedValue, localizer(.diskWrite), write)]
+                values += [localizer(.namedValue, localizer(.diskRead), read?.text ?? "—"),
+                           localizer(.namedValue, localizer(.diskWrite), write?.text ?? "—")]
                 errors.append(resources.diskError)
             case .network:
-                values += [localizer(.namedValue, localizer(.download), down), localizer(.namedValue, localizer(.upload), up)]
+                values += [localizer(.namedValue, localizer(.download), down?.text ?? "—"),
+                           localizer(.namedValue, localizer(.upload), up?.text ?? "—")]
                 errors.append(error)
             }
         }
-        button.toolTip = (values + errors.compactMap { localizer.describe($0) }
-                         + [localizer(.menuHint, localizer.duration(historySeconds))]).joined(separator: "\n")
+        // Keep the fallback stable; live readings belong to the hover panel.
+        // Reassigning toolTip every sample cancels its pending display timer.
+        let toolTip = localizer(.menuHint, localizer.duration(historySeconds))
+        if button.toolTip != toolTip { button.toolTip = toolTip }
         button.setAccessibilityLabel(localizer(.menuAccessibility))
         button.setAccessibilityValue(values.joined(separator: localizer(.listSeparator)))
+        button.setAccessibilityHelp((errors.compactMap { localizer.describe($0) } + [toolTip]).joined(separator: "\n"))
     }
 }
 

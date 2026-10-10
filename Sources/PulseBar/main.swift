@@ -35,7 +35,9 @@ private func hardwareDiagnostics(gpus: [GPUUsage], capacity: StorageCapacity?, b
 }
 
 #if DEBUG
-if CommandLine.arguments.contains("--preview-hardware") { HardwarePreview.run() }
+if CommandLine.arguments.contains("--preview-hardware") || Bundle.main.object(forInfoDictionaryKey: "PulseBarHardwarePreview") as? Bool == true {
+    HardwarePreview.run()
+}
 
 // Exercise the real timer, background process sampler, and event store without
 // opening a window, touching user history, or requesting notification permission.

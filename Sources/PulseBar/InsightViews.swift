@@ -3,12 +3,20 @@ import SpeedCore
 import SwiftUI
 
 enum InsightStyle {
+    // CPU colors describe utilization bands; memory uses the kernel's pressure level.
+    static func cpuLoadColor(_ percent: Double?) -> Color {
+        guard let percent, percent.isFinite else { return Color(nsColor: .disabledControlTextColor) }
+        if percent > 80 { return Color(nsColor: .systemRed) }
+        if percent >= 60 { return Color(nsColor: .systemYellow) }
+        return Color(nsColor: .systemGreen)
+    }
+
     static func pressureColor(_ pressure: MemoryPressure?) -> Color {
         switch pressure {
-        case .normal: return .green
-        case .warning: return .orange
-        case .critical: return .red
-        case nil: return .secondary
+        case .normal: return Color(nsColor: .systemGreen)
+        case .warning: return Color(nsColor: .systemYellow)
+        case .critical: return Color(nsColor: .systemRed)
+        case nil: return Color(nsColor: .disabledControlTextColor)
         }
     }
 
@@ -75,16 +83,16 @@ struct AppRankingsView: View {
                 HStack(spacing: 9) {
                     AppUsageIcon(app: app)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(app.name).font(.system(size: 11, weight: .medium)).lineLimit(1).truncationMode(.middle)
+                        Text(app.name).font(.system(size: 12, weight: .medium)).lineLimit(1).truncationMode(.middle)
                             .help(app.name)
-                        Text(localizer(.processCount, app.processCount)).font(.system(size: 9)).foregroundStyle(.secondary)
+                        Text(localizer(.processCount, app.processCount)).font(.system(size: 11)).foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 8)
                     VStack(alignment: .trailing, spacing: 3) {
                         Text(metric == .cpu ? SystemFormatter.percent(app.cpuPercent) : TrafficFormatter.total(app.memoryBytes))
                             .font(.system(size: 12, weight: .medium)).monospacedDigit()
                         Text(metric == .cpu ? TrafficFormatter.total(app.memoryBytes) : "CPU " + SystemFormatter.percent(app.cpuPercent))
-                            .font(.system(size: 9)).monospacedDigit().foregroundStyle(.secondary)
+                            .font(.system(size: 11)).monospacedDigit().foregroundStyle(.secondary)
                     }
                 }
                 .padding(.vertical, 9)
@@ -98,12 +106,13 @@ struct RankingPane: View {
     @ObservedObject var monitor: SystemMonitor
     @ObservedObject var preferences: AppPreferences
     let metric: MonitorMetric
+    var showsMemorySummary = true
     @State private var activityMonitorFailed = false
     private var l10n: Localizer { preferences.localizer }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if metric == .memory {
+            if metric == .memory && showsMemorySummary {
                 HStack {
                     Text(l10n(.memoryPressure))
                     Spacer()
@@ -138,7 +147,7 @@ struct RankingPane: View {
                     .font(.system(size: 10)).foregroundStyle(.secondary)
             }
             Text(l10n(.rankingHelp)).font(.system(size: 10)).foregroundStyle(.secondary)
-            Button(l10n(.activityMonitor)) {
+            NativeGlassButton(title: l10n(.activityMonitor), symbol: "arrow.up.forward.app") {
                 guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.ActivityMonitor") else {
                     activityMonitorFailed = true; return
                 }
@@ -146,7 +155,7 @@ struct RankingPane: View {
                     DispatchQueue.main.async { activityMonitorFailed = error != nil }
                 }
             }
-            .buttonStyle(.link)
+            .fixedSize()
             if activityMonitorFailed { Text(l10n(.activityMonitorFailed)).foregroundStyle(.orange) }
         }
         .font(.system(size: 11))
@@ -158,7 +167,6 @@ struct EventTimelineView: View {
     let localizer: Localizer
     @State private var expandedID: UUID?
     @State private var confirmsClear = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -171,33 +179,11 @@ struct EventTimelineView: View {
                     .fixedSize(horizontal: false, vertical: true).padding(.vertical, 20)
             }
             ForEach(monitor.events) { event in
-                VStack(alignment: .leading, spacing: 8) {
-                    Button {
-                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) {
-                            expandedID = expandedID == event.id ? nil : event.id
-                        }
-                    } label: {
-                        HStack(alignment: .top, spacing: 8) {
-                            Image(systemName: event.kind == .highCPU ? "cpu" : "memorychip")
-                                .foregroundStyle(event.kind == .memoryCritical ? Color.red : .orange)
-                                .frame(width: 18).padding(.top, 2)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(localizer(event.kind.titleKey)).font(.system(size: 12, weight: .medium))
-                                Text(InsightStyle.time(event.date, localizer: localizer, includesDate: true))
-                                    .font(.system(size: 10)).foregroundStyle(.secondary).monospacedDigit()
-                                Text(localizer(.eventDuration, localizer.duration(Int(event.duration))))
-                                    .font(.system(size: 10)).foregroundStyle(.secondary)
-                            }
-                            Spacer(minLength: 2)
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 9)).foregroundStyle(.secondary)
-                                .rotationEffect(.degrees(expandedID == event.id ? 90 : 0))
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(PanelButtonStyle(selected: expandedID == event.id, padding: 7))
-                    .padding(-7)
-                    if expandedID == event.id {
+                DisclosureGroup(isExpanded: Binding(
+                    get: { expandedID == event.id },
+                    set: { expandedID = $0 ? event.id : nil }
+                )) {
+                    VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text("CPU " + SystemFormatter.percent(event.cpuPercent))
                             Spacer()
@@ -212,14 +198,29 @@ struct EventTimelineView: View {
                             Text(localizer(.topMemory)).font(.system(size: 10)).foregroundStyle(.secondary)
                             AppRankingsView(apps: event.topMemory, metric: .memory, localizer: localizer)
                         } else { Text(localizer(.rankingUnavailable)).font(.system(size: 10)).foregroundStyle(.secondary) }
-                        Text(localizer(.eventSnapshotHelp)).font(.system(size: 10)).foregroundStyle(.secondary)
+                        Text(localizer(.eventSnapshotHelp)).font(.caption).foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 8)
+                } label: {
+                    Label {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(localizer(event.kind.titleKey)).font(.headline)
+                            Text(InsightStyle.time(event.date, localizer: localizer, includesDate: true))
+                                .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                            Text(localizer(.eventDuration, localizer.duration(Int(event.duration))))
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: event.kind == .highCPU ? "cpu" : "memorychip")
+                            .foregroundStyle(event.kind == .memoryCritical ? Color.red : .orange)
                     }
                 }
                 Divider()
             }
             Text(localizer(.eventsHelp)).font(.system(size: 10)).foregroundStyle(.secondary)
             if !monitor.events.isEmpty {
-                Button(localizer(.clearEvents)) { confirmsClear = true }.buttonStyle(.link)
+                NativeGlassButton(title: localizer(.clearEvents), symbol: "trash") { confirmsClear = true }
+                    .fixedSize()
                     .confirmationDialog(localizer(.clearEvents), isPresented: $confirmsClear) {
                         Button(localizer(.clearEvents), role: .destructive, action: monitor.clearEvents)
                     }

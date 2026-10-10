@@ -25,6 +25,8 @@ public enum AppLanguage: String, CaseIterable {
 }
 
 public enum TextKey: String, CaseIterable {
+    case navigation, backToOverview, hardwareDetails, deviceConfiguration, availableShort, usedPercent, pressureState, diskRateSummary
+    case pinWindow, unpinWindow, closeWindow
     case utilization, logicalCoresLabel, cpuUser, cpuSystem, usedTotal, startupVolumeUsed, availableSpaceLabel
     case swapUsed, swapChangeWindow, direction, sessionRead, sessionWrite, sessionDownload, sessionUpload
     case batteryCharge, batteryPowerState, batteryHealthLabel, batteryCyclesLabel, batteryTimeUntilFullLabel, batteryTimeUntilEmptyLabel
@@ -46,6 +48,7 @@ public enum TextKey: String, CaseIterable {
     case launchAtLogin, launchAtLoginHelp, loginApprovalRequired, openLoginSettings, loginItemFailed
     case visibilityHint, showInMenuBar, atLeastOne, refresh, secondsUnit, hoursUnit, refreshHelp
     case menuAccessibility, menuHint, namedValue, diskRead, diskWrite, listSeparator
+    case menuInnerCPU, menuOuterMemory, menuOuterRing, menuInnerRing, menuRingHint
     case readFailed, networkReadFailed, memoryPageSize, diskCounters, diskIdentity, noDisks
     case appRanking, topCPU, topMemory, processCount, rankingHelp, rankingUnavailable, rankingCoverage
     case activityMonitor, activityMonitorFailed, closeDetail

@@ -76,13 +76,11 @@ struct SoftwareUpdateSettings: View {
     let localizer: Localizer
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(localizer(.softwareUpdate)).fontWeight(.semibold)
-                Spacer()
-                Text(updater.version).foregroundStyle(.secondary).monospacedDigit()
-            }
-            Button(localizer(.checkForUpdates), action: updater.checkForUpdates)
+        Group {
+            LabeledContent("PulseBar", value: updater.version)
+            NativeGlassButton(title: localizer(.checkForUpdates), symbol: "arrow.triangle.2.circlepath",
+                              action: updater.checkForUpdates)
+                .fixedSize()
                 .disabled(!updater.canPresentUpdate)
             if let version = updater.pendingVersion {
                 Text(localizer(.newVersionAvailable, version)).foregroundStyle(.blue)
@@ -91,9 +89,8 @@ struct SoftwareUpdateSettings: View {
                 get: { updater.automaticallyChecksForUpdates },
                 set: { updater.setAutomaticallyChecksForUpdates($0) }
             ))
-            .toggleStyle(.switch).controlSize(.mini)
             .disabled(updater.startError != nil)
-            Text(localizer(.updateHelp)).font(.system(size: 10)).foregroundStyle(.secondary)
+            Text(localizer(.updateHelp)).font(.caption).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Link(localizer(.downloadAndReleaseNotes), destination: updater.releasesURL)
             if let error = updater.startError {

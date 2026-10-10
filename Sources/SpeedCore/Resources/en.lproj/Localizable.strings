@@ -50,6 +50,11 @@
 "refreshHelp" = "Refresh every 1–60 seconds. Changes apply immediately and are saved.";
 "menuAccessibility" = "PulseBar; click to view CPU, memory, disk I/O and network speed";
 "menuHint" = "Click to view the last %@";
+"menuInnerCPU" = "Inner ring · CPU: %@";
+"menuOuterMemory" = "Outer ring · Memory: %@";
+"menuOuterRing" = "Outer ring";
+"menuInnerRing" = "Inner ring";
+"menuRingHint" = "Filled arc = used. Memory follows macOS pressure: green, yellow, or red. CPU: green below 60%, yellow at 60–80%, red above 80%.";
 "namedValue" = "%@: %@";
 "diskRead" = "Disk read";
 "diskWrite" = "Disk write";
@@ -187,3 +192,14 @@
 "batteryCyclesLabel" = "Cycle count";
 "batteryTimeUntilFullLabel" = "Until full";
 "batteryTimeUntilEmptyLabel" = "Time remaining";
+"navigation" = "Navigation";
+"backToOverview" = "Overview";
+"pinWindow" = "Keep window open";
+"unpinWindow" = "Unpin window";
+"closeWindow" = "Close window";
+"hardwareDetails" = "%@ details";
+"deviceConfiguration" = "%d cores · %@";
+"availableShort" = "free";
+"usedPercent" = "%@ used";
+"pressureState" = "Pressure %@";
+"diskRateSummary" = "R %@ · W %@";

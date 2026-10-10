@@ -3,9 +3,16 @@ import CoreGraphics
 
 public enum PanelRoute: String, CaseIterable, Sendable {
     case overview, cpuApps, memoryApps, events, settings
+    case cpuDetails, memoryDetails, networkDetails, storageDetails, gpuDetails, batteryDetails
 
     public var hasDetails: Bool { self != .overview }
     public var isApps: Bool { self == .cpuApps || self == .memoryApps }
+    public var isHardware: Bool {
+        switch self {
+        case .cpuDetails, .memoryDetails, .networkDetails, .storageDetails, .gpuDetails, .batteryDetails: return true
+        default: return false
+        }
+    }
 }
 
 /// Navigation is one atomic value: switching details never passes through a
@@ -25,17 +32,15 @@ public struct PanelNavigation: Equatable, Sendable {
 }
 
 public enum PanelLayout {
-    public static let overviewWidth: CGFloat = 620
-    public static let detailWidth: CGFloat = 320
-    public static let expandedWidth: CGFloat = overviewWidth + 1 + detailWidth
+    public static let overviewWidth: CGFloat = 452
+    public static let maximumHeightFraction: CGFloat = 0.8
 
-    public static func usesInlineDetails(availableWidth: CGFloat) -> Bool {
-        availableWidth < expandedWidth
+    public static func fittedHeight(contentHeight: CGFloat, availableHeight: CGFloat) -> CGFloat {
+        min(max(0, ceil(contentHeight)), max(0, floor(availableHeight * maximumHeightFraction)))
     }
 
     public static func width(for route: PanelRoute, availableWidth: CGFloat) -> CGFloat {
-        let desired = route.hasDetails && !usesInlineDetails(availableWidth: availableWidth)
-            ? expandedWidth : overviewWidth
-        return min(desired, max(0, availableWidth))
+        // Every route shares the same anchored panel, including hardware detail.
+        min(overviewWidth, max(0, availableWidth))
     }
 }

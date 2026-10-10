@@ -16,19 +16,20 @@ enum HardwarePreview {
             return arguments[index + 1]
         }
 
-        let languageValue = value(for: "--preview-language") ?? "en"
+        let languageValue = value(for: "--preview-language")
+            ?? Bundle.main.object(forInfoDictionaryKey: "PulseBarPreviewLanguage") as? String ?? "en"
         guard let language = AppLanguage(rawValue: languageValue), language != .system else {
             fputs("--preview-language must be en or zh-Hans\n", stderr)
             exit(2)
         }
-        let heightValue = value(for: "--preview-height") ?? "660"
-        guard let height = Int(heightValue), [520, 660, 820, 1040].contains(height) else {
-            fputs("--preview-height must be 520, 660, 820 or 1040\n", stderr)
+        let heightValue = value(for: "--preview-height") ?? "600"
+        guard let height = Int(heightValue), [520, 600, 660, 720, 820, 1040].contains(height) else {
+            fputs("--preview-height must be 520, 600, 660, 720, 820 or 1040\n", stderr)
             exit(2)
         }
         let widthValue = value(for: "--preview-width") ?? String(Int(PanelLayout.overviewWidth))
-        guard let width = Int(widthValue), [400, 560, 620].contains(width) else {
-            fputs("--preview-width must be 400, 560 or 620\n", stderr)
+        guard let width = Int(widthValue), [320, 400, 452].contains(width) else {
+            fputs("--preview-width must be 320, 400 or 452\n", stderr)
             exit(2)
         }
         let scrollBottom = value(for: "--preview-scroll") == "bottom"
@@ -39,9 +40,8 @@ enum HardwarePreview {
         }
         let appearance: NSAppearance? = appearanceValue == "system" ? nil
             : NSAppearance(named: appearanceValue == "dark" ? .darkAqua : .aqua)
-        let regressionPath = value(for: "--preview-interactions")
-        if let regressionPath, !regressionPath.hasPrefix("/") {
-            fputs("--preview-interactions must be an absolute directory path\n", stderr)
+        if arguments.contains("--preview-interactions") {
+            fputs("The coordinate-based interaction harness is retired. Open --preview-hardware and verify the native controls through accessibility.\n", stderr)
             exit(2)
         }
         let outputPath = value(for: "--preview-output")
@@ -52,7 +52,7 @@ enum HardwarePreview {
 
         let app = NSApplication.shared
         let session = HardwarePreviewSession(language: language, height: CGFloat(height), width: CGFloat(width),
-            appearance: appearance, regressionURL: regressionPath.map { URL(fileURLWithPath: $0, isDirectory: true) },
+            appearance: appearance,
             outputURL: outputPath.map { URL(fileURLWithPath: $0) }, scrollBottom: scrollBottom,
             exitAfterCapture: arguments.contains("--preview-exit"))
         app.setActivationPolicy(.regular)
@@ -77,7 +77,6 @@ private final class HardwarePreviewSession: NSObject, NSApplicationDelegate, NSW
     private let height: CGFloat
     private let width: CGFloat
     private let appearance: NSAppearance?
-    private let regressionURL: URL?
     private let outputURL: URL?
     private let scrollBottom: Bool
     private let exitAfterCapture: Bool
@@ -89,13 +88,11 @@ private final class HardwarePreviewSession: NSObject, NSApplicationDelegate, NSW
     private var eventNotifications: EventNotifications?
     private var softwareUpdater: SoftwareUpdater?
     private var window: NSWindow?
+    private var detailWindows: DetailWindowCoordinator?
     private var cleanedUp = false
-    private var interactionResults: [[String: Any]] = []
-    private var initialWindowOrigin: NSPoint?
-    private var initialWindowNumber: Int?
 
     init(language: AppLanguage, height: CGFloat, width: CGFloat, appearance: NSAppearance?,
-         regressionURL: URL?, outputURL: URL?, scrollBottom: Bool, exitAfterCapture: Bool) {
+         outputURL: URL?, scrollBottom: Bool, exitAfterCapture: Bool) {
         let suiteName = "PulseBar.HardwarePreview." + UUID().uuidString
         let eventDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("PulseBar-HardwarePreview-" + UUID().uuidString, isDirectory: true)
@@ -105,7 +102,6 @@ private final class HardwarePreviewSession: NSObject, NSApplicationDelegate, NSW
         self.height = height
         self.width = width
         self.appearance = appearance
-        self.regressionURL = regressionURL
         self.outputURL = outputURL
         self.scrollBottom = scrollBottom
         self.exitAfterCapture = exitAfterCapture
@@ -115,7 +111,15 @@ private final class HardwarePreviewSession: NSObject, NSApplicationDelegate, NSW
         preferences = AppPreferences(defaults: defaults)
         preferences.language = language
         preferences.setRefreshSeconds(1)
+        preferences.setHistorySeconds(60)
         preferences.notificationsEnabled = false
+        // An explicitly supplied local event fixture lets UI acceptance exercise
+        // expansion without inducing CPU load or modifying production history.
+        if let path = Bundle.main.object(forInfoDictionaryKey: "PulseBarPreviewEventsFile") as? String {
+            try? FileManager.default.createDirectory(at: eventDirectory, withIntermediateDirectories: true)
+            try? FileManager.default.copyItem(at: URL(fileURLWithPath: path),
+                                             to: eventDirectory.appendingPathComponent("events.json"))
+        }
         monitor = SystemMonitor(eventStore: PerformanceEventStore(
             url: eventDirectory.appendingPathComponent("events.json")))
         super.init()
@@ -127,49 +131,72 @@ private final class HardwarePreviewSession: NSObject, NSApplicationDelegate, NSW
         monitor.start(refreshSeconds: preferences.refreshSeconds)
         // RunLoop continues while the real reader and sampler collect data.
         // No production status item, notification callback, or updater is started.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 6) { [weak self] in self?.showWindow() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in self?.showWindow() }
     }
 
     private func showWindow() {
         presentation.prepare(on: NSScreen.main)
         presentation.setPreviewHeight(height)
-        // The full-width overview on the real screen must retain production
-        // sidebar behavior. Only the narrow fixture limits the screen width.
+        // The preview uses the same fixed-width navigation as the menu-bar panel.
         if width < PanelLayout.overviewWidth { presentation.setPreviewWidth(width) }
         let notifications = EventNotifications()
         let updater = SoftwareUpdater()
         eventNotifications = notifications
         softwareUpdater = updater
-        let content = PopoverView(monitor: monitor, preferences: preferences,
+        let details = DetailWindowCoordinator(monitor: monitor, preferences: preferences, loginItem: loginItem,
+                                               notifications: notifications, updater: updater)
+        detailWindows = details
+        let controller = NativeGlassHostingController(rootView: PopoverView(monitor: monitor, preferences: preferences,
             loginItem: loginItem, presentation: presentation,
-            eventNotifications: notifications, softwareUpdater: updater)
-            .background(PanelMaterial())
-            .background(Color(nsColor: .windowBackgroundColor))
-        let hosting = NSHostingView(rootView: content)
-        hosting.appearance = appearance
-        let window = NSWindow(contentRect: NSRect(origin: .zero, size: presentation.contentSize),
-            styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
+            eventNotifications: notifications, softwareUpdater: updater,
+            onOpenDetails: { [weak details] route in details?.show(route) },
+            onHoverModule: { [weak details] route, inside in details?.hover(route, inside: inside) },
+            onPreferredHeight: { [weak self] height in self?.presentation.fitContentHeight(height) }).ignoresSafeArea())
+        let window = HardwarePreviewWindow(contentRect: NSRect(origin: .zero, size: presentation.contentSize),
+            styleMask: [.borderless], backing: .buffered, defer: false)
         window.title = "PulseBar Hardware Preview"
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.appearance = appearance
-        window.contentView = hosting
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.hasShadow = true
+        window.animationBehavior = .utilityWindow
+        window.level = .floating
+        window.isMovableByWindowBackground = true
+        window.contentViewController = controller
+        window.setContentSize(presentation.contentSize)
         self.window = window
+        details.sourceWindow = window
         presentation.onNavigate = { [weak self] in
             guard let self else { return }
             self.window?.setContentSize(self.presentation.contentSize)
         }
+        presentation.onResize = { [weak self] in
+            guard let self, let window = self.window else { return }
+            var frame = window.frame
+            frame.origin.y = frame.maxY - self.presentation.height
+            frame.size = self.presentation.contentSize
+            window.setFrame(frame, display: true, animate: window.isVisible && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
+        }
         window.center()
         window.makeKeyAndOrderFront(nil)
-        initialWindowOrigin = window.frame.origin
-        initialWindowNumber = window.windowNumber
+        window.makeFirstResponder(nil)
         NSApplication.shared.activate(ignoringOtherApps: true)
         print("HARDWARE_PREVIEW_READY language=\(language.rawValue) size=\(Int(width))x\(Int(height))")
-        fflush(stdout)
-        if regressionURL != nil {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.runInteraction(at: 0) }
-            return
+        print("HARDWARE_PREVIEW_MATERIAL \((controller.view as? NativeGlassContainer)?.materialName ?? "unknown")")
+        if let logPath = Bundle.main.object(forInfoDictionaryKey: "PulseBarPreviewDiagnostics") as? String {
+            func nativeControls(_ view: NSView) -> [String] {
+                let own = (view as? NSButton).map {
+                    "control=\(type(of: $0)) bezel=\($0.bezelStyle.rawValue) bordered=\($0.isBordered) size=\($0.intrinsicContentSize)"
+                }
+                return (own.map { [$0] } ?? []) + view.subviews.flatMap(nativeControls)
+            }
+            let report = "material=\((controller.view as? NativeGlassContainer)?.materialName ?? "unknown") frame=\(window.frame) content=\(controller.view.frame) screenVisible=\(window.screen?.visibleFrame ?? .zero)\n"
+                + nativeControls(controller.view).joined(separator: "\n") + "\n"
+            try? report.write(toFile: logPath, atomically: true, encoding: .utf8)
         }
+        fflush(stdout)
         if outputURL != nil {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
                 guard let self else { return }
@@ -217,144 +244,23 @@ private final class HardwarePreviewSession: NSObject, NSApplicationDelegate, NSW
         }
     }
 
-    private enum InteractionAction { case click(NSPoint), closeWindow, reopenWindow }
-    private struct Interaction {
-        let name: String
-        let action: InteractionAction
-        let route: PanelRoute
-        var visible = true
-        var screenshot: String?
-    }
-
-    private var interactions: [Interaction] {
-        let narrow = width < 500
-        let cpu = NSPoint(x: 70, y: 102)
-        let cpuValue = NSPoint(x: narrow ? width - 75 : width * 0.5 - 60, y: 138)
-        let memory = NSPoint(x: narrow ? 70 : width * 0.5 + 40, y: narrow ? 341 : 102)
-        let memoryValue = NSPoint(x: width - 70, y: narrow ? 375 : 138)
-        let overview = NSPoint(x: width * 0.125, y: height - 25)
-        let apps = NSPoint(x: width * 0.375, y: height - 25)
-        let events = NSPoint(x: width * 0.625, y: height - 25)
-        let settings = NSPoint(x: width * 0.875, y: height - 25)
-        let close = NSPoint(x: presentation.usesInlineDetails ? width - 25 : PanelLayout.expandedWidth - 25,
-                            y: presentation.usesInlineDetails ? 105 : 27)
-        return [
-            Interaction(name: "CPU heading opens Apps", action: .click(cpu), route: .cpuApps, screenshot: "cpu-apps"),
-            Interaction(name: "Detail close returns overview", action: .click(close), route: .overview),
-            Interaction(name: "CPU value opens Apps", action: .click(cpuValue), route: .cpuApps),
-            Interaction(name: "Overview navigation returns", action: .click(overview), route: .overview),
-            Interaction(name: "Memory heading opens Apps", action: .click(memory), route: .memoryApps, screenshot: "memory-apps"),
-            Interaction(name: "Memory detail closes", action: .click(close), route: .overview),
-            Interaction(name: "Memory value opens Apps", action: .click(memoryValue), route: .memoryApps),
-            Interaction(name: "Overview returns from Memory", action: .click(overview), route: .overview),
-            Interaction(name: "Apps navigation opens", action: .click(apps), route: .cpuApps),
-            Interaction(name: "Repeated Apps stays open", action: .click(apps), route: .cpuApps),
-            Interaction(name: "Events navigation opens", action: .click(events), route: .events, screenshot: "events"),
-            Interaction(name: "Repeated Events stays open", action: .click(events), route: .events),
-            Interaction(name: "Settings navigation opens", action: .click(settings), route: .settings, screenshot: "settings"),
-            Interaction(name: "Repeated Settings stays open", action: .click(settings), route: .settings),
-            Interaction(name: "Settings detail closes", action: .click(close), route: .overview),
-            Interaction(name: "Window closes", action: .closeWindow, route: .overview, visible: false),
-            Interaction(name: "Same window reopens", action: .reopenWindow, route: .overview),
-            Interaction(name: "CPU opens after reopen", action: .click(cpu), route: .cpuApps),
-            Interaction(name: "Window closes with CPU detail active", action: .closeWindow, route: .cpuApps, visible: false),
-            Interaction(name: "Reopen resets CPU detail", action: .reopenWindow, route: .overview),
-            Interaction(name: "Memory opens after reopen", action: .click(memory), route: .memoryApps),
-            Interaction(name: "Window closes with Memory detail active", action: .closeWindow, route: .memoryApps, visible: false),
-            Interaction(name: "Reopen resets Memory detail", action: .reopenWindow, route: .overview),
-            Interaction(name: "Events opens after reopen", action: .click(events), route: .events),
-            Interaction(name: "Window closes with Events detail active", action: .closeWindow, route: .events, visible: false),
-            Interaction(name: "Reopen resets Events detail", action: .reopenWindow, route: .overview),
-            Interaction(name: "Settings opens after reopen", action: .click(settings), route: .settings),
-            Interaction(name: "Window closes with Settings detail active", action: .closeWindow, route: .settings, visible: false),
-            Interaction(name: "Reopen resets Settings detail", action: .reopenWindow, route: .overview, screenshot: "overview-final")
-        ]
-    }
-
-    private func runInteraction(at index: Int) {
-        guard let regressionURL, let window else { return }
-        if index == 0, !capturePNG(to: regressionURL.appendingPathComponent("overview.png")) {
-            finishRegression(error: "Initial screenshot failed")
-            return
-        }
-        guard index < interactions.count else { finishRegression(error: nil); return }
-        let step = interactions[index]
-        switch step.action {
-        case let .click(topPoint):
-            guard let view = window.contentView else { finishRegression(error: "No content view"); return }
-            let point = view.convert(NSPoint(x: topPoint.x, y: view.isFlipped ? topPoint.y : view.bounds.height - topPoint.y), to: nil)
-            let timestamp = ProcessInfo.processInfo.systemUptime
-            // Queue both events before AppKit enters button tracking. These
-            // activate the actual SwiftUI buttons; no route is assigned here.
-            for kind in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
-                guard let event = NSEvent.mouseEvent(with: kind, location: point, modifierFlags: [],
-                    timestamp: timestamp, windowNumber: window.windowNumber, context: nil,
-                    eventNumber: index, clickCount: 1, pressure: kind == .leftMouseDown ? 1 : 0) else {
-                    finishRegression(error: "Could not construct mouse event"); return
-                }
-                NSApplication.shared.postEvent(event, atStart: false)
-            }
-        case .closeWindow: window.performClose(nil)
-        case .reopenWindow:
-            presentation.prepare(on: NSScreen.main)
-            presentation.setPreviewHeight(height)
-            if width < PanelLayout.overviewWidth { presentation.setPreviewWidth(width) }
-            window.setContentSize(presentation.contentSize)
-            window.makeKeyAndOrderFront(nil)
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.verifyInteraction(step, index: index) }
-    }
-
-    private func verifyInteraction(_ step: Interaction, index: Int) {
-        guard let window, let view = window.contentView, let regressionURL else { return }
-        view.layoutSubtreeIfNeeded()
-        let expectedSize = presentation.contentSize
-        let passed = presentation.route == step.route && window.isVisible == step.visible
-            && abs(view.bounds.width - expectedSize.width) < 0.5 && abs(view.bounds.height - expectedSize.height) < 0.5
-            && window.frame.origin == initialWindowOrigin && window.windowNumber == initialWindowNumber
-        interactionResults.append(["step": step.name, "passed": passed, "route": presentation.route.rawValue,
-            "expectedRoute": step.route.rawValue, "visible": window.isVisible,
-            "contentWidth": view.bounds.width, "contentHeight": view.bounds.height,
-            "originX": window.frame.minX, "originY": window.frame.minY, "windowNumber": window.windowNumber])
-        print("HARDWARE_PREVIEW_INTERACTION \(index + 1) \(passed ? "PASS" : "FAIL") \(step.name) route=\(presentation.route.rawValue)")
-        fflush(stdout)
-        guard passed else { finishRegression(error: step.name + " did not produce the expected route/geometry"); return }
-        if let name = step.screenshot, !capturePNG(to: regressionURL.appendingPathComponent(name + ".png")) {
-            finishRegression(error: step.name + " screenshot failed"); return
-        }
-        runInteraction(at: index + 1)
-    }
-
-    private func finishRegression(error: String?) {
-        guard let regressionURL else { return }
-        let report: [String: Any] = ["passed": error == nil, "error": error as Any? ?? NSNull(),
-            "language": language.rawValue, "appearance": window?.effectiveAppearance.name.rawValue ?? "unknown",
-            "inlineDetails": presentation.usesInlineDetails, "steps": interactionResults,
-            "cpuSamples": monitor.resources.cpuHistory.count, "networkSamples": monitor.history.count,
-            "sameWindowReused": window?.windowNumber == initialWindowNumber,
-            "scope": "Actual process-local AppKit mouse events activate production SwiftUI buttons in an isolated preview window"]
-        do {
-            try FileManager.default.createDirectory(at: regressionURL, withIntermediateDirectories: true)
-            let data = try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
-            try data.write(to: regressionURL.appendingPathComponent("interactions.json"), options: .atomic)
-        } catch {
-            fputs("Regression report failed: \(error.localizedDescription)\n", stderr)
-            cleanup(); exit(1)
-        }
-        cleanup()
-        if let error { fputs("Hardware preview regression failed: \(error)\n", stderr); exit(1) }
-        NSApplication.shared.terminate(nil)
-    }
-
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { regressionURL == nil }
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
     func applicationWillTerminate(_ notification: Notification) { cleanup() }
 
     func cleanup() {
         guard !cleanedUp else { return }
         cleanedUp = true
+        detailWindows?.close()
         monitor.stop()
         defaults.removePersistentDomain(forName: suiteName)
         try? FileManager.default.removeItem(at: eventDirectory)
     }
+}
+
+// A preview is a regular app window; unlike the production accessory panel it
+// must become main so Stage Manager displays it at full size.
+private final class HardwarePreviewWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
 }
 #endif

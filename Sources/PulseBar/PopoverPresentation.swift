@@ -4,13 +4,15 @@ import SpeedCore
 
 final class PopoverPresentation: ObservableObject {
     @Published private(set) var navigation = PanelNavigation()
-    @Published private(set) var height: CGFloat = 660
+    @Published private(set) var height: CGFloat = 600
+    @Published var isPinned = false
     @Published private(set) var availableWidth: CGFloat = 1280
     private var availableHeight: CGFloat = 844
+    private var preferredContentHeight: CGFloat = 600
     var onNavigate: (() -> Void)?
+    var onResize: (() -> Void)?
 
     var route: PanelRoute { navigation.route }
-    var usesInlineDetails: Bool { PanelLayout.usesInlineDetails(availableWidth: availableWidth) }
     var overviewWidth: CGFloat { min(PanelLayout.overviewWidth, availableWidth) }
 
     var contentSize: NSSize {
@@ -25,9 +27,25 @@ final class PopoverPresentation: ObservableObject {
     }
 
     private func updateHeight() {
-        // Hardware sections scroll between the fixed header and navigation.
-        // Sensor availability must not resize the panel while it is open.
-        height = min(660, max(0, availableHeight - 24))
+        height = PanelLayout.fittedHeight(contentHeight: preferredContentHeight, availableHeight: availableHeight)
+    }
+
+    func prepareDetail(_ route: PanelRoute, on screen: NSScreen?) {
+        availableWidth = screen?.visibleFrame.width ?? 1280
+        availableHeight = screen?.visibleFrame.height ?? 684
+        // SwiftUI measures the complete content, including expanded events.
+        // This initial size is only used until that measurement is available.
+        height = PanelLayout.fittedHeight(contentHeight: height, availableHeight: availableHeight)
+        navigate(route)
+    }
+
+    func fitContentHeight(_ contentHeight: CGFloat, on screen: NSScreen? = nil) {
+        preferredContentHeight = contentHeight
+        if let screen { availableHeight = screen.visibleFrame.height }
+        let fitted = PanelLayout.fittedHeight(contentHeight: contentHeight, availableHeight: availableHeight)
+        guard fitted > 0, abs(height - fitted) >= 1 else { return }
+        height = fitted
+        onResize?()
     }
 
     #if DEBUG
