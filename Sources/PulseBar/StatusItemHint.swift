@@ -109,11 +109,11 @@ private struct StatusItemHintView: View {
 
     private var rings: some View {
         Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 0) {
-            if preferences.selection.contains(.memory) {
-                metricRow(ring: .menuOuterRing, metric: .memory, value: monitor.resources.memory?.usedPercent)
-            }
             if preferences.selection.contains(.cpu) {
                 metricRow(ring: .menuInnerRing, metric: .cpu, value: monitor.resources.cpu?.usedPercent)
+            }
+            if preferences.selection.contains(.memory) {
+                metricRow(ring: .menuOuterRing, metric: .memory, value: monitor.resources.memory?.usedPercent)
             }
             if preferences.selection.contains(.memory) {
                 GridRow {
