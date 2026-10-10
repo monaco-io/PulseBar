@@ -1,5 +1,13 @@
 # 本机验证记录
 
+## 2026-10-10：v1.13.0 正式发布与安装验证
+
+- [PulseBar 1.13.0](https://github.com/monaco-io/PulseBar/releases/tag/v1.13.0) 已发布为 Latest，构建号 21，标签源码为 `6d66ed70c98afb32b19c0086381869f399d22142`。[CI](https://github.com/monaco-io/PulseBar/actions/runs/38021523988) 与[正式发布流程](https://github.com/monaco-io/PulseBar/actions/runs/38021700736) 均成功，覆盖 102 项测试、arm64 / x86_64 构建及打包应用采样。
+- 唯一上传附件为 `PulseBar.dmg`（3,011,818 字节）；匿名下载返回 HTTP 200，SHA-256 `6bdac3574153942e47904d77e01eedc3bf54c00500473ceadf2b3ebd4d6480a5` 与 GitHub 资产摘要一致。仅用应用内公钥独立验证 DMG 与 appcast 的 Ed25519 签名；固定公开更新源已返回 1.13.0（21），与更新分支内容逐字节一致。
+- 挂载 DMG 核验仅有应用和 Applications 链接两项可见内容，Finder 布局模板、资源、Sparkle 框架、版本、系统要求、双架构和深度严格签名检查通过。发行说明与仓库英文源文件一致。证据为 `artifacts/github-v1.13.0/`。
+- 已将公开 DMG 中的原样应用安装至 `/Applications/PulseBar.app` 并启动，单个 GUI 进程 PID 16455。安装后二进制 SHA-256 为 `485517701744c070edff2f5f4c0a1e9c94713ffa28cf013d66c0a32c7c7ee3b8`，与正式 DMG 一致；原有偏好与 140 条事件全部保留，3 次只读采样退出成功且无错误。旧应用和数据备份在 `~/Library/Application Support/PulseBar/Backups/2026-10-10-114853-release-1.13.0/`，安装证据见 `.build/release-v1.13.0/`。
+- 正式安装后的原生界面读取超时，未补验应用内更新弹窗或包含桌面阴影的截图；Intel 实机和旧 macOS 界面仍未验收。公开包与更新源校验不代替这些界面验证。发布继续使用临时签名，未经过 Apple 公证。
+
 ## 2026-10-10：v1.13.0 发布前验证
 
 - 本次发布汇总当前紧凑原生玻璃界面、独立详情窗、菜单栏双环与交互、辅助进程归属，以及共用速率单位、外层圆角和首次详情高度修复；版本为 1.13.0（21），英文和简体中文发行说明已补齐。
