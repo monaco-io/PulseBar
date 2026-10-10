@@ -4,27 +4,25 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>PulseBar</title>
         <item>
-            <title>1.13.1</title>
-            <pubDate>Sat, 10 Oct 2026 06:49:19 +0000</pubDate>
+            <title>1.13.2</title>
+            <pubDate>Sat, 10 Oct 2026 07:19:18 +0000</pubDate>
             <link>https://github.com/monaco-io/PulseBar</link>
-            <sparkle:version>22</sparkle:version>
-            <sparkle:shortVersionString>1.13.1</sparkle:shortVersionString>
+            <sparkle:version>23</sparkle:version>
+            <sparkle:shortVersionString>1.13.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# PulseBar 1.13.1
+            <description sparkle:format="markdown"><![CDATA[# PulseBar 1.13.2
 
-- Disk and network readings use two compact rows: read above write, and download above upload. Each pair shares one centered MB/s label, with clear R/W and direction labels.
-- Fixed widths and right-aligned numbers prevent the menu bar from shifting as rates change. Very long readings fit within their own columns; hover details retain full-size values.
-- Hover over the disk or network readings to see labeled live rates and session totals, using the same native panel interaction as the CPU and memory rings. Moving away or clicking dismisses the panel, and switching between metrics keeps the correct details visible.
-- The rings' hover panel lists CPU first, then memory, with memory pressure underneath.
+- Network readings now show upload (↑) above download (↓) in the menu bar. Hover details list live rates and session totals in the same order, and accessibility descriptions follow that order too.
+- Keeps the fixed-width numeric columns and shared MB/s label, so changing rates do not shift neighboring menu bar items.
 
 Requires macOS 13 or later, on Apple Silicon or Intel. Preferences and local event history are preserved. Releases retain the existing ad-hoc signing and signed Sparkle update flow; they are not Apple notarized.
 
-[简体中文](https://github.com/monaco-io/PulseBar/blob/v1.13.1/docs/releases/v1.13.1.zh-CN.md)
+[简体中文](https://github.com/monaco-io/PulseBar/blob/v1.13.2/docs/releases/v1.13.2.zh-CN.md)
 ]]></description>
-            <enclosure url="https://github.com/monaco-io/PulseBar/releases/download/v1.13.1/PulseBar.dmg" length="3056958" type="application/octet-stream" sparkle:edSignature="ZxAdKr+LhWVwjcA95BhVbLvqrtViyFbQRTwB4huQwL6EB4VDhBbEP0eH8hx3Hs5oqb994tE4eE+UOzR3Y1UPDw=="></enclosure>
+            <enclosure url="https://github.com/monaco-io/PulseBar/releases/download/v1.13.2/PulseBar.dmg" length="3057013" type="application/octet-stream" sparkle:edSignature="d1UXtJ3SXi27CjNPN92eZj2Z4x+irbOUOy/mhQHa3ZCAj/WLOYpjguaSKMLFRPaqx0S+bLPjWPoU1QVAvzzIBQ=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: XGVny/4YCQ/GgtQTMTL0CZThfVKBCuzc1WsJsfmlxBz603VO0PygFo+DKnpYfY5uingJnv/YE7oVH9WWQYNEAg==
-length: 2222
+edSignature: ByuBc3yE3da5IXn6ro8/N5mrgObVMvakZnLpAf4uMRfuQNQxkY21appUUedEed+5KxAvsaiNP+frT9WrAmwPAw==
+length: 1835
 -->
