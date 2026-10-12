@@ -123,29 +123,21 @@ private struct StatusItemHintView: View {
                           tint: InsightStyle.utilizationColor(monitor.storageCapacity?.usedPercent))
             }
             if preferences.selection.contains(.memory) {
-                GridRow {
-                    Label {
-                        let pressure = monitor.resources.pressure.map { preferences.localizer($0.titleKey) } ?? "—"
-                        Text(preferences.localizer(.namedValue, preferences.localizer(.memoryPressure), pressure))
-                            .foregroundStyle(.secondary)
-                    } icon: {
-                        Image(systemName: "circle.fill")
-                            .font(.system(size: 6))
-                            .foregroundStyle(InsightStyle.pressureColor(monitor.resources.pressure))
-                    }
-                    .font(.system(size: 11))
-                    .frame(height: 24)
-                    .gridCellColumns(3)
-                }
+                let pressure = monitor.resources.pressure.map { preferences.localizer($0.titleKey) } ?? "—"
+                ringDetailRow(.memoryPressure, value: pressure)
             }
             if preferences.selection.contains(.disk) {
-                GridRow {
-                    let available = monitor.storageCapacity.map { TrafficFormatter.total($0.availableBytes) } ?? "—"
-                    Text(preferences.localizer(.namedValue, preferences.localizer(.availableSpaceLabel), available))
-                        .font(.system(size: 11)).foregroundStyle(.secondary)
-                        .frame(height: 24).gridCellColumns(3)
-                }
+                let available = monitor.storageCapacity.map { TrafficFormatter.total($0.availableBytes) } ?? "—"
+                ringDetailRow(.availableSpaceLabel, value: available)
             }
+        }
+    }
+
+    private func ringDetailRow(_ name: TextKey, value: String) -> some View {
+        GridRow {
+            Text(preferences.localizer(.namedValue, preferences.localizer(name), value))
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+                .frame(height: 24).gridCellColumns(3)
         }
     }
 
