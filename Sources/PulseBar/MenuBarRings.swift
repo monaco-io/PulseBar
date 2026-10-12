@@ -6,7 +6,7 @@ import SwiftUI
 /// Only the gauges are colored; the disk/network image remains a template.
 final class MenuBarRingsHost: StatusItemHoverRegion {
     private let hosting = NSHostingView(rootView: MenuBarRings(
-        cpu: nil, memory: nil, pressure: nil, selection: MenuBarSelection()))
+        cpu: nil, memory: nil, disk: nil, pressure: nil, selection: MenuBarSelection()))
 
     init() {
         super.init(frame: NSRect(x: 0, y: 0, width: MenuBarLabel.ringsWidth, height: 22))
@@ -25,24 +25,30 @@ final class MenuBarRingsHost: StatusItemHoverRegion {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("Use init()") }
 
-    func update(cpu: Double?, memory: Double?, pressure: MemoryPressure?, selection: MenuBarSelection) {
-        isHidden = !selection.contains(.cpu) && !selection.contains(.memory)
-        hosting.rootView = MenuBarRings(cpu: cpu, memory: memory, pressure: pressure, selection: selection)
+    func update(cpu: Double?, memory: Double?, disk: Double?, pressure: MemoryPressure?, selection: MenuBarSelection) {
+        isHidden = selection.ringMetrics.isEmpty
+        hosting.rootView = MenuBarRings(cpu: cpu, memory: memory, disk: disk, pressure: pressure, selection: selection)
     }
 }
 
 private struct MenuBarRings: View {
     let cpu: Double?
     let memory: Double?
+    let disk: Double?
     let pressure: MemoryPressure?
     let selection: MenuBarSelection
     var body: some View {
         ZStack {
+            // Fixed roles keep the rings recognizable when a metric is hidden.
+            // Equal 2.5 pt strokes leave a transparent 0.6 pt gap between rings.
+            if selection.contains(.disk) {
+                MenuBarRing(value: disk, diameter: 22, thickness: 2.5, tint: InsightStyle.utilizationColor(disk))
+            }
             if selection.contains(.memory) {
-                MenuBarRing(value: memory, diameter: 22, thickness: 3, tint: InsightStyle.pressureColor(pressure))
+                MenuBarRing(value: memory, diameter: 15.8, thickness: 2.5, tint: InsightStyle.pressureColor(pressure))
             }
             if selection.contains(.cpu) {
-                MenuBarRing(value: cpu, diameter: 12, thickness: 3, tint: InsightStyle.cpuLoadColor(cpu))
+                MenuBarRing(value: cpu, diameter: 9.6, thickness: 2.5, tint: InsightStyle.utilizationColor(cpu))
             }
         }
         .frame(width: MenuBarLabel.ringsWidth, height: 22)

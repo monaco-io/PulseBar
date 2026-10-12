@@ -334,7 +334,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let read = resources.diskRate.map { TrafficFormatter.speed($0.read) }
         let write = resources.diskRate.map { TrafficFormatter.speed($0.write) }
         statusRings?.update(cpu: resources.cpu?.usedPercent, memory: resources.memory?.usedPercent,
-                            pressure: resources.pressure, selection: selection)
+                            disk: monitor.storageCapacity?.usedPercent, pressure: resources.pressure, selection: selection)
         let imageKey = selection.orderedMetrics.map(\.rawValue) + [read, write, down, up].map { $0?.value ?? "—" }
         if imageKey != lastStatusImageKey {
             let layout = MenuBarLabel.layout(diskRead: read?.value ?? "—", diskWrite: write?.value ?? "—",
@@ -362,12 +362,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 values.append(localizer(.menuInnerCPU, cpu))
                 errors.append(resources.cpuError)
             case .memory:
-                values.append(localizer(.menuOuterMemory, memory))
+                values.append(localizer(.menuMiddleMemory, memory))
                 let pressure = resources.pressure.map { localizer($0.titleKey) } ?? "—"
                 values.append(localizer(.namedValue, localizer(.memoryPressure), pressure))
                 errors += [resources.memoryError, resources.pressureError]
             case .disk:
-                values += [localizer(.namedValue, localizer(.diskRead), read?.text ?? "—"),
+                values += [localizer(.menuOuterDisk, SystemFormatter.percent(monitor.storageCapacity?.usedPercent)),
+                           localizer(.namedValue, localizer(.diskRead), read?.text ?? "—"),
                            localizer(.namedValue, localizer(.diskWrite), write?.text ?? "—")]
                 errors.append(resources.diskError)
             case .network:

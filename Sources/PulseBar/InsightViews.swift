@@ -3,19 +3,23 @@ import SpeedCore
 import SwiftUI
 
 enum InsightStyle {
-    // CPU colors describe utilization bands; memory uses the kernel's pressure level.
-    static func cpuLoadColor(_ percent: Double?) -> Color {
-        guard let percent, percent.isFinite else { return Color(nsColor: .disabledControlTextColor) }
-        if percent > 80 { return Color(nsColor: .systemRed) }
-        if percent >= 60 { return Color(nsColor: .systemYellow) }
-        return Color(nsColor: .systemGreen)
+    static let dangerColor = Color(.sRGB, red: 1, green: 128.0 / 255, blue: 128.0 / 255, opacity: 1)
+
+    // CPU and storage share utilization bands; memory follows kernel pressure.
+    static func utilizationColor(_ percent: Double?) -> Color {
+        switch UtilizationBand(percent: percent) {
+        case .normal: return Color(nsColor: .systemGreen)
+        case .warning: return Color(nsColor: .systemYellow)
+        case .critical: return dangerColor
+        case nil: return Color(nsColor: .disabledControlTextColor)
+        }
     }
 
     static func pressureColor(_ pressure: MemoryPressure?) -> Color {
         switch pressure {
         case .normal: return Color(nsColor: .systemGreen)
         case .warning: return Color(nsColor: .systemYellow)
-        case .critical: return Color(nsColor: .systemRed)
+        case .critical: return dangerColor
         case nil: return Color(nsColor: .disabledControlTextColor)
         }
     }

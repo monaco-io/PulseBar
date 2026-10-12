@@ -17,6 +17,7 @@ public enum MonitorMetric: String, CaseIterable {
 public struct MenuBarSelection: Equatable {
     public private(set) var metrics: Set<MonitorMetric>
     public var orderedMetrics: [MonitorMetric] { MonitorMetric.allCases.filter(metrics.contains) }
+    public var ringMetrics: [MonitorMetric] { orderedMetrics.filter { $0 != .network } }
 
     public init(metrics: Set<MonitorMetric> = Set(MonitorMetric.allCases)) {
         self.metrics = metrics.isEmpty ? [.network] : metrics

@@ -48,13 +48,15 @@
 "secondsUnit" = "s";
 "hoursUnit" = "hour";
 "refreshHelp" = "Refresh every 1–60 seconds. Changes apply immediately and are saved.";
-"menuAccessibility" = "PulseBar; click to view CPU, memory, disk I/O and network speed";
+"menuAccessibility" = "PulseBar; click to view CPU, memory, storage, disk I/O and network speed";
 "menuHint" = "Click to view the last %@";
 "menuInnerCPU" = "Inner ring · CPU: %@";
-"menuOuterMemory" = "Outer ring · Memory: %@";
+"menuMiddleMemory" = "Middle ring · Memory: %@";
+"menuOuterDisk" = "Outer ring · Storage used: %@";
 "menuOuterRing" = "Outer ring";
+"menuMiddleRing" = "Middle ring";
 "menuInnerRing" = "Inner ring";
-"menuRingHint" = "Filled arc = used. Memory follows macOS pressure: green, yellow, or red. CPU: green below 60%, yellow at 60–80%, red above 80%.";
+"menuRingHint" = "Outer: storage. Middle: memory. Inner: CPU. Filled arc = used. Memory follows macOS pressure. CPU and storage: green below 60%, yellow at 60–80%, soft red (#FF8080) above 80%. Critical memory pressure uses the same soft red.";
 "namedValue" = "%@: %@";
 "diskRead" = "Disk read";
 "diskWrite" = "Disk write";

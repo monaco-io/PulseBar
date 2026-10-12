@@ -49,7 +49,7 @@ enum MenuBarLabel {
 
         var groups: [Group] = []
         // The colored native gauges occupy the first region of the template image.
-        if selection.contains(.cpu) || selection.contains(.memory) {
+        if !selection.ringMetrics.isEmpty {
             groups.append(Group(target: .rings, width: ringsWidth, values: [], labels: []))
         }
         if selection.contains(.disk) {

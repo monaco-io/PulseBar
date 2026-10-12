@@ -48,7 +48,7 @@ public enum TextKey: String, CaseIterable {
     case launchAtLogin, launchAtLoginHelp, loginApprovalRequired, openLoginSettings, loginItemFailed
     case visibilityHint, showInMenuBar, atLeastOne, refresh, secondsUnit, hoursUnit, refreshHelp
     case menuAccessibility, menuHint, namedValue, diskRead, diskWrite, listSeparator
-    case menuInnerCPU, menuOuterMemory, menuOuterRing, menuInnerRing, menuRingHint
+    case menuInnerCPU, menuMiddleMemory, menuOuterDisk, menuOuterRing, menuMiddleRing, menuInnerRing, menuRingHint
     case readFailed, networkReadFailed, memoryPageSize, diskCounters, diskIdentity, noDisks
     case appRanking, topCPU, topMemory, processCount, rankingHelp, rankingUnavailable, rankingCoverage
     case activityMonitor, activityMonitorFailed, closeDetail
