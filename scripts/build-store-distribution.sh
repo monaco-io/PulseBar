@@ -57,10 +57,17 @@ import pathlib, plistlib, sys
 app, helper = map(pathlib.Path, sys.argv[1:])
 base = plistlib.loads(pathlib.Path('Resources/Info.plist').read_bytes())
 base = {k:v for k,v in base.items() if not k.startswith('SU') and k != 'PulseBarReleasesURL'}
-base.update(CFBundleIdentifier='io.github.monaco-io.PulseBar', CFBundleVersion='25',
+base.update(CFBundleIdentifier='io.github.monaco-io.PulseBar', CFBundleVersion='26',
             CFBundleSupportedPlatforms=['MacOSX'], ITSAppUsesNonExemptEncryption=False,
             NSHumanReadableCopyright='Copyright © 2026 Xuze Lu')
 (app/'Contents/Info.plist').write_bytes(plistlib.dumps(base))
+# SwiftPM only supplies the development region for this resource-only bundle.
+# App Store validation still requires its own bundle identifier (ITMS-90276).
+resource_info = app/'Contents/Resources/PulseBar_SpeedCore.bundle/Info.plist'
+resource = plistlib.loads(resource_info.read_bytes())
+resource.update(CFBundleIdentifier=base['CFBundleIdentifier'] + '.SpeedCoreResources',
+                CFBundlePackageType='BNDL', CFBundleVersion='1', CFBundleShortVersionString='1.0')
+resource_info.write_bytes(plistlib.dumps(resource))
 base.update(CFBundleIdentifier='io.github.monaco-io.PulseBar.Helper', CFBundleName='PulseBar Helper',
             CFBundleDisplayName='PulseBar Helper', CFBundleExecutable='PulseBarHelper',
             CFBundleShortVersionString='1.0.0', CFBundleVersion='1', LSUIElement=False)

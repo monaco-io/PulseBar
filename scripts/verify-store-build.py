@@ -12,6 +12,12 @@ assert info['CFBundleIdentifier'] == 'io.github.monaco-io.PulseBar'
 assert not any(key.startswith('SU') for key in info), 'Sparkle metadata in store bundle'
 assert not (app / 'Contents/Frameworks/Sparkle.framework').exists()
 assert not list(app.rglob('*HelperService*')), 'Companion must not be embedded in store bundle'
+for nested_bundle in app.rglob('*.bundle'):
+    info_path = nested_bundle / 'Contents/Info.plist'
+    if not info_path.exists():
+        info_path = nested_bundle / 'Info.plist'
+    nested_info = plistlib.loads(info_path.read_bytes())
+    assert nested_info.get('CFBundleIdentifier'), f'Missing resource bundle identifier: {nested_bundle}'
 binary = app / 'Contents/MacOS/PulseBar'
 symbols = subprocess.check_output(['nm', '-u', str(binary)], text=True)
 strings = subprocess.check_output(['strings', str(binary)], text=True)
