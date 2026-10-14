@@ -205,3 +205,19 @@
 "usedPercent" = "%@ used";
 "pressureState" = "Pressure %@";
 "diskRateSummary" = "R %@ · W %@";
+
+// App Store companion
+"helperTitle" = "PulseBar Helper";
+"helperConsent" = "Enable the companion to provide app usage rankings and hardware temperatures to PulseBar. It runs only for your macOS user, samples only when PulseBar requests data, and does not send monitoring data over the network. It stays available after login until you disable it. Disable it here before removing this app.";
+"enableHelper" = "Enable Helper";
+"disableHelper" = "Disable Helper";
+"helperEnabled" = "Helper enabled. Open PulseBar to view the additional metrics.";
+"helperDisabled" = "Helper is disabled.";
+"helperUnavailable" = "PulseBar Helper is not connected. Basic monitoring remains available.";
+"helperTimeout" = "PulseBar Helper did not respond. Reconnecting…";
+"helperIncompatible" = "The helper needs an update or returned an invalid sample.";
+"helperConnected" = "Helper connected";
+"helperHelp" = "App rankings and hardware temperatures require the separate PulseBar Helper. Download it, move it to Applications, open it, and choose Enable Helper.";
+"getHelper" = "Get PulseBar Helper…";
+"openHelper" = "Open Helper…";
+"appStoreUpdates" = "Updates are delivered through the Mac App Store.";

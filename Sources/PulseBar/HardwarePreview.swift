@@ -90,6 +90,8 @@ private final class HardwarePreviewSession: NSObject, NSApplicationDelegate, NSW
     private var window: NSWindow?
     private var detailWindows: DetailWindowCoordinator?
     private var cleanedUp = false
+    private let storeCanvas = Bundle.main.object(forInfoDictionaryKey: "PulseBarAppStoreCanvas") as? Bool == true
+    private var storePanelView: NSView?
 
     init(language: AppLanguage, height: CGFloat, width: CGFloat, appearance: NSAppearance?,
          outputURL: URL?, scrollBottom: Bool, exitAfterCapture: Bool) {
@@ -158,22 +160,27 @@ private final class HardwarePreviewSession: NSObject, NSApplicationDelegate, NSW
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.appearance = appearance
-        window.isOpaque = false
-        window.backgroundColor = .clear
+        window.isOpaque = storeCanvas
+        window.backgroundColor = storeCanvas ? .white : .clear
         window.hasShadow = true
         window.animationBehavior = .utilityWindow
         window.level = .floating
         window.isMovableByWindowBackground = true
-        window.contentViewController = controller
-        window.setContentSize(presentation.contentSize)
+        window.contentViewController = storeCanvas ? makeStoreCanvas(containing: controller) : controller
+        window.setContentSize(storeCanvas ? NSSize(width: 1280, height: 800) : presentation.contentSize)
         self.window = window
         details.sourceWindow = window
         presentation.onNavigate = { [weak self] in
             guard let self else { return }
-            self.window?.setContentSize(self.presentation.contentSize)
+            if !self.storeCanvas { self.window?.setContentSize(self.presentation.contentSize) }
         }
         presentation.onResize = { [weak self] in
             guard let self, let window = self.window else { return }
+            if self.storeCanvas {
+                self.storePanelView?.frame = NSRect(x: 748, y: (800 - self.presentation.height) / 2,
+                    width: self.presentation.contentSize.width, height: self.presentation.height)
+                return
+            }
             var frame = window.frame
             frame.origin.y = frame.maxY - self.presentation.height
             frame.size = self.presentation.contentSize
@@ -204,6 +211,50 @@ private final class HardwarePreviewSession: NSObject, NSApplicationDelegate, NSW
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.savePNG() }
             }
         }
+    }
+
+    // A fixed-size display canvas for App Store captures. The panel remains the
+    // production SwiftUI view with live, sandboxed readings and native controls.
+    // Capture this window through the normal UI automation screenshot tool.
+    private func makeStoreCanvas(containing panel: NSViewController) -> NSViewController {
+        let canvas = NSViewController()
+        canvas.view = NSView(frame: NSRect(x: 0, y: 0, width: 1280, height: 800))
+        canvas.view.wantsLayer = true
+        let gradient = CAGradientLayer()
+        gradient.frame = canvas.view.bounds
+        gradient.colors = [NSColor(calibratedRed: 0.93, green: 0.96, blue: 1, alpha: 1).cgColor,
+                           NSColor(calibratedRed: 0.97, green: 0.94, blue: 1, alpha: 1).cgColor]
+        gradient.startPoint = CGPoint(x: 0, y: 1)
+        gradient.endPoint = CGPoint(x: 1, y: 0)
+        canvas.view.layer?.addSublayer(gradient)
+        let chinese = language == .simplifiedChinese
+        func label(_ text: String, size: CGFloat, weight: NSFont.Weight, y: CGFloat, height: CGFloat,
+                   color: NSColor = NSColor(calibratedRed: 0.10, green: 0.16, blue: 0.28, alpha: 1)) {
+            let field = NSTextField(wrappingLabelWithString: text)
+            field.font = .systemFont(ofSize: size, weight: weight)
+            field.textColor = color
+            field.frame = NSRect(x: 80, y: y, width: 575, height: height)
+            canvas.view.addSubview(field)
+        }
+        label("PulseBar", size: 27, weight: .semibold, y: 675, height: 45)
+        label(chinese ? "Mac 性能，\n一目了然。" : "Your Mac.\nAt a glance.",
+              size: 63, weight: .bold, y: 402, height: 190)
+        label(chinese ? "CPU、内存、磁盘与网络。\n从菜单栏掌握运行状态。"
+                      : "CPU, memory, disk and network.\nLive insights from your menu bar.",
+              size: 24, weight: .regular, y: 280, height: 92)
+        label(chinese ? "本地监控  ·  历史曲线  ·  性能事件"
+                      : "Local monitoring  ·  History  ·  Performance events",
+              size: 18, weight: .medium, y: 184, height: 55)
+        label(chinese ? "应用占用排行与硬件温度需另行安装可选的 PulseBar Helper。"
+                      : "App rankings and hardware temperatures require the optional, separately installed PulseBar Helper.",
+              size: 15, weight: .regular, y: 66, height: 70,
+              color: NSColor(calibratedRed: 0.35, green: 0.40, blue: 0.49, alpha: 1))
+        canvas.addChild(panel)
+        panel.view.frame = NSRect(x: 748, y: (800 - presentation.height) / 2,
+                                  width: presentation.contentSize.width, height: presentation.height)
+        canvas.view.addSubview(panel.view)
+        storePanelView = panel.view
+        return canvas
     }
 
     // Scroll the actual SwiftUI hardware viewport; fixed header and navigation

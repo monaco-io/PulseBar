@@ -4,6 +4,7 @@ import Foundation
 public struct POSIXReadError: LocalizedError {
     public let metric: TextKey
     public let code: Int32
+    public init(metric: TextKey, code: Int32) { self.metric = metric; self.code = code }
     public var errorDescription: String? { description(using: Localizer(language: .system)) }
     public func description(using localizer: Localizer) -> String {
         localizer(.readFailed, localizer(metric), String(cString: strerror(code)))

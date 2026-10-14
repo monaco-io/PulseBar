@@ -4,6 +4,8 @@
 
 硬件分区与统计范围详见[硬件模块设计](docs/HARDWARE-MODULES.md)。
 
+Mac App Store 构建通过单独安装的可选 [PulseBar 助手](docs/HELPER.md)提供应用排行和硬件温度。参见[商店分发指南](docs/APP-STORE.md)和[隐私说明](docs/PRIVACY.md)。下方下载链接为 GitHub 直装版。
+
 原生 macOS 菜单栏组件，实时显示 CPU、内存、磁盘 I/O 和下载 / 上传速度。支持应用资源排行、内存压力和 Swap、历史曲线查看、带应用快照的异常事件时间线，以及可读取的硬件温度。
 
 ## 下载安装

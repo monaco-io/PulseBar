@@ -6,6 +6,8 @@ A native macOS menu bar monitor organized around CPU, memory, GPU, storage, netw
 
 See [hardware modules and measurement scope](docs/HARDWARE-MODULES.md).
 
+The Mac App Store build uses a separate, optional [PulseBar Helper](docs/HELPER.md) for app rankings and hardware temperatures. See the [store distribution guide](docs/APP-STORE.md) and [privacy policy](docs/PRIVACY.md). The download below is the direct GitHub edition.
+
 ## Download and install
 
 **[Download PulseBar.dmg](https://github.com/monaco-io/PulseBar/releases/latest/download/PulseBar.dmg)** · [Release notes](https://github.com/monaco-io/PulseBar/releases/latest)

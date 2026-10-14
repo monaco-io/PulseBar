@@ -1,3 +1,4 @@
+import HardwareReaders
 import Darwin
 import Testing
 @testable import SpeedCore

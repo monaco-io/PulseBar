@@ -6,11 +6,13 @@ The template contains only relative item names and view settings.
 Format reference: https://ds-store.readthedocs.io/en/latest/
 """
 import pathlib
+import sys
 
 from ds_store import DSStore
 
 
-destination = pathlib.Path(__file__).resolve().parent.parent / "Resources/DMG/FinderLayout.dsstore"
+helper = "--helper" in sys.argv[1:]
+destination = pathlib.Path(__file__).resolve().parent.parent / "Resources/DMG" / ("HelperFinderLayout.dsstore" if helper else "FinderLayout.dsstore")
 destination.parent.mkdir(parents=True, exist_ok=True)
 with DSStore.open(str(destination), "w+") as store:
     store["."]["vSrn"] = ("long", 1)
@@ -44,5 +46,5 @@ with DSStore.open(str(destination), "w+") as store:
         "scrollPositionX": 0.0,
         "scrollPositionY": 0.0,
     }
-    store["PulseBar.app"]["Iloc"] = (200, 200)
+    store["PulseBar Helper.app" if helper else "PulseBar.app"]["Iloc"] = (200, 200)
     store["Applications"]["Iloc"] = (600, 200)

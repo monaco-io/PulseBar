@@ -1,6 +1,11 @@
 import AppKit
 import Foundation
 import SpeedCore
+#if APP_STORE
+import HelperIPC
+#else
+import HardwareReaders
+#endif
 
 private func hardwareDiagnostics(gpus: [GPUUsage], capacity: StorageCapacity?, battery: BatterySnapshot?) -> [String: Any] {
     var payload: [String: Any] = [
@@ -93,7 +98,11 @@ if let index = CommandLine.arguments.firstIndex(of: "--sample") {
     }
     let reader = InterfaceReader()
     let systemReader = SystemReader()
+    #if APP_STORE
+    let helperClient = HelperClient()
+    #else
     let temperatureReader = TemperatureReader()
+    #endif
     let gpuReader = GPUReader()
     let capacityReader = StorageCapacityReader()
     let batteryReader = BatteryReader()
@@ -109,7 +118,9 @@ if let index = CommandLine.arguments.firstIndex(of: "--sample") {
     var accumulator = TrafficAccumulator()
     var cpuAccumulator = CPUAccumulator()
     var diskAccumulator = DiskAccumulator()
+    #if !APP_STORE
     let processReader = ProcessReader()
+    #endif
     var processAccumulator = ProcessAccumulator()
     accumulator.setRefreshInterval(interval)
     cpuAccumulator.setRefreshInterval(interval)
@@ -122,7 +133,14 @@ if let index = CommandLine.arguments.firstIndex(of: "--sample") {
             var errors: [String: String] = [:]
             // Optional hardware sensors are absent on unsupported machines;
             // they must not turn an otherwise healthy diagnostic into an error.
-            row["temperatures"] = temperatureReader.read().map { reading in
+            #if APP_STORE
+            let helperResult = Result { try helperClient.read(refreshSeconds: interval) }
+            let readings = (try? helperResult.get().temperatures) ?? []
+            row["helperConnected"] = (try? helperResult.get()) != nil
+            #else
+            let readings = temperatureReader.read()
+            #endif
+            row["temperatures"] = readings.map { reading in
                 ["component": reading.component.rawValue, "celsius": reading.celsius,
                  "sensorIDs": reading.sensorIDs] as [String: Any]
             }
@@ -163,15 +181,25 @@ if let index = CommandLine.arguments.firstIndex(of: "--sample") {
                 row["swap"] = ["usedBytes": swap.usedBytes, "totalBytes": swap.totalBytes]
             } catch { errors["swap"] = error.localizedDescription }
             do {
+                #if APP_STORE
+                let snapshot = try helperResult.get()
+                let apps = snapshot.apps
+                let processCount = snapshot.processCount
+                let skippedCount = snapshot.skippedProcessCount
+                if snapshot.processError != nil { throw HelperError.unavailable }
+                #else
                 let snapshot = try processReader.read()
                 let apps = processAccumulator.consume(snapshot)
+                let processCount = snapshot.processes.count
+                let skippedCount = snapshot.skippedCount
+                #endif
                 let encodeApp: (AppUsage) -> [String: Any] = { app in
                     ["name": app.name, "cpuPercent": app.cpuPercent.map { $0 as Any } ?? NSNull(),
                      "memoryBytes": app.memoryBytes, "processCount": app.processCount]
                 }
                 row["apps"] = ["topCPU": AppRanking.cpu(apps).map(encodeApp),
                                "topMemory": AppRanking.memory(apps).map(encodeApp),
-                               "sampledProcesses": snapshot.processes.count, "skippedProcesses": snapshot.skippedCount]
+                               "sampledProcesses": processCount, "skippedProcesses": skippedCount]
             } catch { errors["apps"] = error.localizedDescription; processAccumulator.resetBaseline() }
             do {
                 let snapshot = try systemReader.readDisks()

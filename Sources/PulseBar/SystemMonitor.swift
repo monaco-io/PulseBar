@@ -2,6 +2,11 @@ import AppKit
 import Combine
 import SpeedCore
 import SystemConfiguration
+#if APP_STORE
+import HelperIPC
+#else
+import HardwareReaders
+#endif
 
 struct ResourceState {
     var cpu: CPUUsage?
@@ -25,6 +30,11 @@ struct ResourceState {
 }
 
 private final class ProcessSampler {
+    #if APP_STORE
+    private let client = HelperClient()
+    func read(interval: Int) throws -> HelperSnapshot { try client.read(refreshSeconds: interval) }
+    func reset() { client.reset() }
+    #else
     private let reader = ProcessReader()
     private var accumulator = ProcessAccumulator()
     func read(interval: Int) throws -> (ProcessSnapshot, [AppUsage]) {
@@ -35,6 +45,7 @@ private final class ProcessSampler {
         } catch { accumulator.resetBaseline(); throw error }
     }
     func reset() { accumulator.resetBaseline() }
+    #endif
 }
 
 final class SystemMonitor: ObservableObject {
@@ -56,6 +67,9 @@ final class SystemMonitor: ObservableObject {
     @Published private(set) var processCount = 0
     @Published private(set) var skippedProcessCount = 0
     @Published private(set) var rankingDate: Date?
+    #if APP_STORE
+    @Published private(set) var helperConnected = false
+    #endif
     @Published private(set) var events: [PerformanceEvent] = []
     @Published private(set) var eventStoreError: Error?
     var onEvent: ((PerformanceEvent) -> Void)?
@@ -67,7 +81,9 @@ final class SystemMonitor: ObservableObject {
     private var processSampling = false
     private var processGeneration = 0
     private let temperatureQueue = DispatchQueue(label: "PulseBar.temperature-sampling", qos: .utility, autoreleaseFrequency: .workItem)
+    #if !APP_STORE
     private let temperatureReader = TemperatureReader()
+    #endif
     private var temperatureSampling = false
     private var temperatureGeneration = 0
     private var lastTemperatureSample: TimeInterval?
@@ -197,6 +213,7 @@ final class SystemMonitor: ObservableObject {
     }
 
     private func sampleTemperatures(at timestamp: TimeInterval) {
+        #if !APP_STORE
         let interval = max(5, Double(refreshSeconds))
         if let last = lastTemperatureSample {
             // Never carry an old temperature across sleep or a stalled timer.
@@ -220,6 +237,7 @@ final class SystemMonitor: ObservableObject {
                 self.temperatures = readings
             }
         }
+        #endif
     }
 
     private func resetHardware() {
@@ -371,6 +389,10 @@ final class SystemMonitor: ObservableObject {
         processGeneration += 1
         eventDetector.resetContinuity()
         apps = []; rankingDate = nil; processError = nil
+        processCount = 0; skippedProcessCount = 0
+        #if APP_STORE
+        helperConnected = false
+        #endif
         processQueue.async { [processSampler] in processSampler.reset() }
     }
 
@@ -390,6 +412,22 @@ final class SystemMonitor: ObservableObject {
                 guard let self else { return }
                 self.processSampling = false
                 guard generation == self.processGeneration else { return }
+                #if APP_STORE
+                switch result {
+                case let .success(snapshot):
+                    self.helperConnected = true
+                    self.temperatures = snapshot.temperatures
+                    self.apps = snapshot.apps
+                    self.processCount = snapshot.processCount; self.skippedProcessCount = snapshot.skippedProcessCount
+                    self.processError = snapshot.processError == nil ? nil : HelperError.unavailable
+                    self.rankingDate = snapshot.processError == nil ? date : nil
+                case let .failure(error):
+                    self.helperConnected = false
+                    self.apps = []; self.temperatures = []
+                    self.processCount = 0; self.skippedProcessCount = 0
+                    self.processError = error; self.rankingDate = nil
+                }
+                #else
                 switch result {
                 case let .success((snapshot, apps)):
                     self.apps = apps; self.processError = nil
@@ -398,6 +436,7 @@ final class SystemMonitor: ObservableObject {
                 case let .failure(error):
                     self.apps = []; self.processError = error; self.rankingDate = nil
                 }
+                #endif
                 let newEvents = self.eventDetector.consume(timestamp: timestamp, date: date, cpu: cpu, pressure: pressure,
                     swapBytes: swap, apps: self.apps, maximumGap: gap, rankingAvailable: self.processError == nil)
                 let retained = PerformanceEventStore.retained(newEvents + self.events, now: date)
