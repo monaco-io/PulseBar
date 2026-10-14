@@ -116,6 +116,12 @@ struct RankingPane: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            #if APP_STORE
+            if !monitor.helperConnected {
+                HelperSettingsView(monitor: monitor, localizer: l10n)
+                Divider()
+            }
+            #endif
             if metric == .memory && showsMemorySummary {
                 HStack {
                     Text(l10n(.memoryPressure))

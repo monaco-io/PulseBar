@@ -1,5 +1,6 @@
 import Foundation
 import TemperatureSMC
+import SpeedCore
 
 /// Best-effort, read-only hardware temperatures. Call from one background queue.
 /// Sampling cadence is controlled by SystemMonitor; this reader never substitutes

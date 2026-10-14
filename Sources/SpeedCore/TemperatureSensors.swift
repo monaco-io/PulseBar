@@ -17,7 +17,7 @@ public enum TemperaturePlatform: Equatable {
         return .unknownAppleSilicon
     }
 
-    static var current: TemperaturePlatform {
+    public static var current: TemperaturePlatform {
         var size = 0
         var brand = ""
         if sysctlbyname("machdep.cpu.brand_string", nil, &size, nil, 0) == 0 && size > 0 && size < 4096 {

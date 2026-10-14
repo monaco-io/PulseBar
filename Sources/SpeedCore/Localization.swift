@@ -25,6 +25,8 @@ public enum AppLanguage: String, CaseIterable {
 }
 
 public enum TextKey: String, CaseIterable {
+    case helperTitle, helperConsent, enableHelper, disableHelper, helperEnabled, helperDisabled
+    case helperUnavailable, helperTimeout, helperIncompatible, helperConnected, helperHelp, getHelper, openHelper, appStoreUpdates
     case navigation, backToOverview, hardwareDetails, deviceConfiguration, availableShort, usedPercent, pressureState, diskRateSummary
     case pinWindow, unpinWindow, closeWindow
     case utilization, logicalCoresLabel, cpuUser, cpuSystem, usedTotal, startupVolumeUsed, availableSpaceLabel

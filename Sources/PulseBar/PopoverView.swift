@@ -110,10 +110,7 @@ struct PopoverView: View {
             }
             NativeGlassMenu(title: l10n(.moreActions), items: [
                 .init(title: l10n(.events), symbol: "clock.arrow.circlepath") { onOpenDetails?(.events) },
-                nil,
-                .init(title: l10n(.checkForUpdates), symbol: "arrow.triangle.2.circlepath", enabled: softwareUpdater.canPresentUpdate,
-                      action: softwareUpdater.checkForUpdates),
-                .init(title: l10n(.downloadAndReleaseNotes), symbol: "arrow.down.circle") { NSWorkspace.shared.open(softwareUpdater.releasesURL) },
+            ] + updateMenuItems + [
                 nil,
                 .init(title: l10n(.reset), symbol: "arrow.counterclockwise", action: monitor.reset),
                 nil,
@@ -349,6 +346,12 @@ struct PopoverView: View {
                     }
                 }.padding(8).frame(maxWidth: .infinity, alignment: .leading)
             }
+            #if APP_STORE
+            GroupBox(l10n(.helperTitle)) {
+                HelperSettingsView(monitor: monitor, localizer: l10n)
+                    .padding(8).frame(maxWidth: .infinity, alignment: .leading)
+            }
+            #endif
             GroupBox(l10n(.softwareUpdate)) {
                 VStack(alignment: .leading, spacing: 10) {
                     SoftwareUpdateSettings(updater: softwareUpdater, localizer: l10n)
@@ -356,6 +359,18 @@ struct PopoverView: View {
             }
         }
         .toggleStyle(.switch)
+    }
+
+    private var updateMenuItems: [NativeGlassMenu.Item?] {
+        #if APP_STORE
+        return []
+        #else
+        return [nil,
+            .init(title: l10n(.checkForUpdates), symbol: "arrow.triangle.2.circlepath", enabled: softwareUpdater.canPresentUpdate,
+                  action: softwareUpdater.checkForUpdates),
+            .init(title: l10n(.downloadAndReleaseNotes), symbol: "arrow.down.circle") { NSWorkspace.shared.open(softwareUpdater.releasesURL) }
+        ]
+        #endif
     }
 
     private func settingsMetric(_ metric: MonitorMetric) -> some View {

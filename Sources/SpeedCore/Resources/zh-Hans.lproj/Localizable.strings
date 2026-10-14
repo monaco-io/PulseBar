@@ -205,3 +205,19 @@
 "usedPercent" = "已用 %@";
 "pressureState" = "压力%@";
 "diskRateSummary" = "读 %@ · 写 %@";
+
+// App Store companion
+"helperTitle" = "PulseBar 助手";
+"helperConsent" = "启用助手后，可向 PulseBar 提供应用占用排行和硬件温度。助手仅在当前 macOS 用户下运行，收到 PulseBar 请求时才采样，监控数据不会通过网络发送。启用后会在登录时保持可用，直到你在此停用。移除本应用前请先停用助手。";
+"enableHelper" = "启用助手";
+"disableHelper" = "停用助手";
+"helperEnabled" = "助手已启用。打开 PulseBar 即可查看额外指标。";
+"helperDisabled" = "助手已停用。";
+"helperUnavailable" = "PulseBar 助手未连接，基础监控仍然可用。";
+"helperTimeout" = "PulseBar 助手暂未响应，正在重新连接…";
+"helperIncompatible" = "助手需要更新，或返回了无效的采样数据。";
+"helperConnected" = "助手已连接";
+"helperHelp" = "应用排行和硬件温度需要另行安装 PulseBar 助手。请下载后移入“应用程序”，打开助手并选择“启用助手”。";
+"getHelper" = "获取 PulseBar 助手…";
+"openHelper" = "打开助手…";
+"appStoreUpdates" = "此版本通过 Mac App Store 更新。";

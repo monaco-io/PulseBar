@@ -1,8 +1,31 @@
 import AppKit
 import Combine
-import Sparkle
 import SpeedCore
 import SwiftUI
+
+#if APP_STORE
+final class SoftwareUpdater: NSObject, ObservableObject {
+    let pendingVersion: String? = nil
+    let canPresentUpdate = false
+    var beforeUserInitiatedCheck: (() -> Void)?
+    var version: String {
+        let info = Bundle.main.infoDictionary ?? [:]
+        return "\(info["CFBundleShortVersionString"] as? String ?? "—") (\(info["CFBundleVersion"] as? String ?? "—"))"
+    }
+    func start() {}
+    func checkForUpdates() {}
+}
+
+struct SoftwareUpdateSettings: View {
+    @ObservedObject var updater: SoftwareUpdater
+    let localizer: Localizer
+    var body: some View {
+        LabeledContent("PulseBar", value: updater.version)
+        Text(localizer(.appStoreUpdates)).font(.caption).foregroundStyle(.secondary)
+    }
+}
+#else
+import Sparkle
 
 /// Sparkle owns update scheduling, signature verification and atomic installation.
 final class SoftwareUpdater: NSObject, ObservableObject, SPUStandardUserDriverDelegate {
@@ -100,3 +123,5 @@ struct SoftwareUpdateSettings: View {
         }
     }
 }
+
+#endif

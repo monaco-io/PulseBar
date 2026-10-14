@@ -2,7 +2,7 @@ import AppKit
 import SpeedCore
 
 final class AppInstance {
-    static let bundleIdentifier = "local.apple-widget.NetSpeed"
+    static let bundleIdentifier = Bundle.main.bundleIdentifier ?? "local.apple-widget.NetSpeed"
     static let reopenNotification = Notification.Name(bundleIdentifier + ".reopen")
     static let notificationObject = "user:\(getuid())"
     private var observer: NSObjectProtocol?

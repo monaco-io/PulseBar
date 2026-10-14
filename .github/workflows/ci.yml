@@ -26,3 +26,15 @@ jobs:
           path: dist/PulseBar.zip
           if-no-files-found: error
           retention-days: 14
+
+  app-store:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Test store configuration
+        run: PULSEBAR_DISTRIBUTION=app-store ./scripts/swift-local.sh test --disable-xctest --jobs 4 --scratch-path .build/store-debug
+      - name: Verify universal store and helper bundles
+        run: ./scripts/build-store-distribution.sh --local
+      - name: Verify helper disk image
+        run: ./scripts/package-helper-release.sh --local

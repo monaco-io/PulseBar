@@ -1,6 +1,6 @@
 import Foundation
 
-public enum TemperatureComponent: String, CaseIterable, Identifiable {
+public enum TemperatureComponent: String, Codable, CaseIterable, Identifiable {
     case cpu, gpu, memory, storage, battery
     public var id: String { rawValue }
 }
@@ -20,7 +20,7 @@ public struct TemperatureSensorSample: Equatable {
 /// The highest currently valid reading among the mapped sensors for a component.
 /// The IDs describe which physical sensors contributed, rather than claiming a
 /// package, core, proximity, or DIMM sensor represents an entire component.
-public struct TemperatureReading: Equatable, Identifiable {
+public struct TemperatureReading: Codable, Equatable, Identifiable {
     public let component: TemperatureComponent
     public let celsius: Double
     public let sensorIDs: [String]

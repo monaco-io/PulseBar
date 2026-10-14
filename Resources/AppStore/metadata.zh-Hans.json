@@ -1,0 +1,11 @@
+{
+  "name": "PulseBar System Monitor",
+  "subtitle": "菜单栏中的 Mac 性能监控",
+  "promotionalText": "从菜单栏查看 Mac 性能，浏览历史曲线与本地性能事件。另行安装 PulseBar 助手后，可查看应用占用排行和可用的硬件温度。",
+  "description": "PulseBar 将 Mac 的性能状态放到菜单栏，提供紧凑的概览和独立详情窗口。\n\n• 查看 CPU、内存占用、内存压力、交换空间、存储容量、磁盘读写与网络上传下载速率。\n• 在设备支持时显示 GPU 利用率和 Mac 内置电池信息。\n• 浏览历史曲线，将刷新间隔设为 1 至 60 秒。\n• 查看持续高 CPU 占用或内存压力升高时记录的本地性能事件。可选通知默认关闭。\n• 自定义菜单栏指标，支持简体中文和英文。\n\n可选助手\n应用占用排行和硬件温度需要单独下载 PulseBar 助手。在项目官方 GitHub 发布页下载后，将助手移入“应用程序”，打开并选择“启用助手”。主程序内提供下载链接和安装说明。未安装助手时，基础监控、历史曲线和性能事件仍可使用。温度传感器随 Mac 型号和 macOS 版本而异，仅显示支持且有效的读数。\n\n数据保留在本机\n无需账号，无广告，不收集监控数据。读数和保存的性能事件保留在你的 Mac 上。网络监控仅读取系统流量计数，不检查流量内容。助手仅在当前 macOS 用户下工作，无需管理员权限。\n\n需要 macOS 13 或更新版本，支持 Apple Silicon 和 Intel。主程序通过 App Store 更新，助手单独分发。",
+  "keywords": "CPU,内存,网速,磁盘,系统监控,菜单栏,性能,温度,GPU,电池",
+  "supportURL": "https://github.com/monaco-io/PulseBar/issues",
+  "marketingURL": "https://github.com/monaco-io/PulseBar",
+  "privacyPolicyURL": "https://github.com/monaco-io/PulseBar/blob/main/docs/PRIVACY.md",
+  "version": "1.14.0"
+}

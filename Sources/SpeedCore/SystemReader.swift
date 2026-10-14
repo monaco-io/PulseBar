@@ -5,6 +5,7 @@ import IOKit
 public struct SystemReadError: LocalizedError {
     public let metric: TextKey
     public let code: kern_return_t
+    public init(metric: TextKey, code: kern_return_t) { self.metric = metric; self.code = code }
     public var errorDescription: String? {
         description(using: Localizer(language: .system))
     }

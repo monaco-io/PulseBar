@@ -266,10 +266,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             menu.addItem(item)
         }
         menu.addItem(.separator())
+        #if !APP_STORE
         let update = NSMenuItem(title: l10n(.checkForUpdates), action: #selector(checkForUpdates), keyEquivalent: "")
         update.target = self
         update.isEnabled = softwareUpdater.canPresentUpdate
         menu.addItem(update)
+        #endif
         let reset = NSMenuItem(title: l10n(.reset), action: #selector(resetMonitoring), keyEquivalent: "")
         reset.target = self; menu.addItem(reset)
         menu.addItem(.separator())
