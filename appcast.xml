@@ -4,27 +4,28 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>PulseBar</title>
         <item>
-            <title>1.14.0</title>
-            <pubDate>Mon, 12 Oct 2026 08:33:11 +0000</pubDate>
+            <title>1.15.0</title>
+            <pubDate>Wed, 21 Oct 2026 08:53:08 +0000</pubDate>
             <link>https://github.com/monaco-io/PulseBar</link>
-            <sparkle:version>24</sparkle:version>
-            <sparkle:shortVersionString>1.14.0</sparkle:shortVersionString>
+            <sparkle:version>27</sparkle:version>
+            <sparkle:shortVersionString>1.15.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# PulseBar 1.14.0
+            <description sparkle:format="markdown"><![CDATA[# PulseBar 1.15.0
 
-- The menu bar now has three concentric rings: startup-volume storage on the outside, memory in the middle, and CPU on the inside. Equal 2.5 pt strokes, narrow transparent gaps, and a hollow center keep the layers distinct at menu-bar size.
-- CPU and storage use green below 60%, yellow at 60–80%, and the new soft red `#FF8080` above 80%. Memory still follows macOS memory pressure and uses the same soft red for critical pressure. The danger color is identical in light and dark appearances.
-- Hover details keep CPU first and now include the middle/outer ring labels, storage usage, and available space. Accessibility descriptions follow the same mapping. The disk toggle controls both its capacity ring and its read/write readings.
-- Keeps fixed-width read/write and upload/download columns, with upload above download and a shared MB/s label for each pair.
+- Configure three menu bar rings independently. The default order is storage, memory, and CPU; each ring can also show supported GPU or battery readings. Thicker 3 pt strokes keep the three layers readable.
+- Show or hide rings and numeric readings separately. Choose CPU, memory, disk read, disk write, upload, and download numbers independently. Existing display choices are migrated automatically.
+- CPU and storage are green below 80%, yellow from 80% through 90%, and soft red above 90%. Memory continues to follow macOS memory pressure. Normal status colors use green throughout the interface.
+- Remove click-to-pin behavior and improve immediate click feedback. Controls use native glass effects where supported, with compatible materials on older macOS versions and reduced-motion support.
+- Keep hover details and VoiceOver descriptions aligned with the selected rings and rate directions.
 
-Requires macOS 13 or later, on Apple Silicon or Intel. Preferences and local event history are preserved. Releases retain the existing ad-hoc signing and signed Sparkle update flow; they are not Apple notarized.
+Requires macOS 13 or later, on Apple Silicon or Intel. Preferences and local event history are preserved. The GitHub download uses the existing ad-hoc signing and signed Sparkle update flow; it is not Apple notarized. The App Store build is distributed separately and requires Apple's approval.
 
-[简体中文](https://github.com/monaco-io/PulseBar/blob/v1.14.0/docs/releases/v1.14.0.zh-CN.md)
+[简体中文](https://github.com/monaco-io/PulseBar/blob/v1.15.0/docs/releases/v1.15.0.zh-CN.md)
 ]]></description>
-            <enclosure url="https://github.com/monaco-io/PulseBar/releases/download/v1.14.0/PulseBar.dmg" length="3070918" type="application/octet-stream" sparkle:edSignature="wQkm1Ud0wkQsmQhm9bpgi3EBuwXyNUrnYMClv0dKCuIz9VhesLX/GlSVgKoDFLi1qhupNIV6lLjeu5Y2eGMqDQ=="></enclosure>
+            <enclosure url="https://github.com/monaco-io/PulseBar/releases/download/v1.15.0/PulseBar.dmg" length="3176391" type="application/octet-stream" sparkle:edSignature="mmQHIBWp19ENRodScvO8yFE3Fgxdc/WlT1vD8hPg9qyrA1YQHpfSp4vbQW8OvxaYttbnpSNF/QqZRzm69mqiBA=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: hmAcnzIZYZa/ZSRhXOterJ6XDAlDySG+RDz3iQynxvtoBMiQn4HDowSVgarr+KMlo9rC0a0Mzsq/2A4lOIX9Dw==
-length: 2376
+edSignature: DeXXoZrW9MgJ5Ui073sfkXFPMP8+/ebbRAxj6yOMmBXn49BtfW6VHqhZMVX2cYliiJbO7vLydtFmKu2b7lj6DQ==
+length: 2494
 -->
