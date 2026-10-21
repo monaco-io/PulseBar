@@ -13,11 +13,13 @@ enum MenuBarLabel {
     private struct Group {
         let target: StatusItemHintTarget
         let width: CGFloat
+        let labelWidth: CGFloat
         let values: [CTLine]
         let labels: [CTLine]
+        let unit: CTLine?
     }
 
-    static func layout(diskRead: String, diskWrite: String,
+    static func layout(cpu: String = "—", memory: String = "—", diskRead: String, diskWrite: String,
                        download: String, upload: String, selection: MenuBarSelection) -> Layout {
         let numberFont = NSFont.monospacedDigitSystemFont(ofSize: 10.5, weight: .medium)
         let numberAttributes: [NSAttributedString.Key: Any] = [.font: numberFont, .foregroundColor: NSColor.black]
@@ -37,26 +39,33 @@ enum MenuBarLabel {
             .foregroundColor: NSColor.black.withAlphaComponent(0.65)
         ]))
 
-        func group(_ target: StatusItemHintTarget, labels: [String], first: String, second: String) -> Group {
-            let values = [first, second].map {
+        func group(_ target: StatusItemHintTarget, labels: [String], readings: [String], percentages: Bool = false) -> Group {
+            let values = readings.map {
                 CTLineCreateWithAttributedString(NSAttributedString(string: $0, attributes: numberAttributes))
             }
             let labelLines = labels.map {
                 CTLineCreateWithAttributedString(NSAttributedString(string: $0, attributes: labelAttributes))
             }
-            return Group(target: target, width: rateGroupWidth, values: values, labels: labelLines)
+            let unit = percentages ? CTLineCreateWithAttributedString(NSAttributedString(string: "%", attributes: labelAttributes)) : unitLine
+            return Group(target: target, width: percentages ? 80 : rateGroupWidth,
+                         labelWidth: percentages ? 24 : labelWidth, values: values, labels: labelLines, unit: unit)
         }
 
         var groups: [Group] = []
         // The colored native gauges occupy the first region of the template image.
-        if !selection.ringMetrics.isEmpty {
-            groups.append(Group(target: .rings, width: ringsWidth, values: [], labels: []))
+        if selection.showsRings {
+            groups.append(Group(target: .rings, width: ringsWidth, labelWidth: 0, values: [], labels: [], unit: nil))
         }
-        if selection.contains(.disk) {
-            groups.append(group(.disk, labels: ["R", "W"], first: diskRead, second: diskWrite))
+        let usage = [(MonitorMetric.cpu, "CPU", cpu), (.memory, "MEM", memory)]
+            .filter { selection.showsNumber($0.0) }
+        if !usage.isEmpty {
+            groups.append(group(.usage, labels: usage.map { $0.1 }, readings: usage.map { $0.2 }, percentages: true))
         }
-        if selection.contains(.network) {
-            groups.append(group(.network, labels: ["↑", "↓"], first: upload, second: download))
+        if selection.showsNumber(.disk) {
+            groups.append(group(.disk, labels: ["R", "W"], readings: [diskRead, diskWrite]))
+        }
+        if selection.showsNumber(.network) {
+            groups.append(group(.network, labels: ["↑", "↓"], readings: [upload, download]))
         }
 
         var regions: [StatusItemHintTarget: NSRect] = [:]
@@ -68,19 +77,18 @@ enum MenuBarLabel {
         let width = max(0, left - groupSpacing)
         let numberLine = CTLineCreateWithAttributedString(NSAttributedString(string: "0.0", attributes: numberAttributes))
         let numberInk = CTLineGetBoundsWithOptions(numberLine, .useGlyphPathBounds)
-        let unitInk = CTLineGetBoundsWithOptions(unitLine, .useGlyphPathBounds)
         let image = NSImage(size: NSSize(width: width, height: 22), flipped: false) { rect in
             guard let context = NSGraphicsContext.current?.cgContext else { return false }
             for (index, group) in groups.enumerated() {
                 guard let region = regions[group.target] else { continue }
                 if !group.values.isEmpty {
-                    let valuesLeft = region.minX + labelWidth + labelSpacing
+                    let valuesLeft = region.minX + group.labelWidth + labelSpacing
                     for (valueIndex, line) in group.values.enumerated() {
                         // The first rate is the upper row in the unflipped image.
-                        let rowCenter = rect.midY + (valueIndex == 0 ? 5.5 : -5.5)
+                        let rowCenter = rect.midY + (group.values.count == 1 ? 0 : valueIndex == 0 ? 5.5 : -5.5)
                         let label = group.labels[valueIndex]
                         let labelInk = CTLineGetBoundsWithOptions(label, .useGlyphPathBounds)
-                        context.textPosition = CGPoint(x: region.minX + labelWidth / 2 - labelInk.midX,
+                        context.textPosition = CGPoint(x: region.minX + group.labelWidth / 2 - labelInk.midX,
                                                        y: rowCenter - labelInk.midY)
                         CTLineDraw(label, context)
                         let textWidth = CTLineGetTypographicBounds(line, nil, nil, nil)
@@ -96,9 +104,12 @@ enum MenuBarLabel {
                         CTLineDraw(line, context)
                         context.restoreGState()
                     }
-                    context.textPosition = CGPoint(x: valuesLeft + valueWidth + unitSpacing,
-                                                   y: rect.midY - unitInk.midY)
-                    CTLineDraw(unitLine, context)
+                    if let unit = group.unit {
+                        let unitInk = CTLineGetBoundsWithOptions(unit, .useGlyphPathBounds)
+                        context.textPosition = CGPoint(x: valuesLeft + valueWidth + unitSpacing,
+                                                       y: rect.midY - unitInk.midY)
+                        CTLineDraw(unit, context)
+                    }
                 }
                 if index + 1 < groups.count {
                     context.setStrokeColor(NSColor.black.withAlphaComponent(0.2).cgColor)

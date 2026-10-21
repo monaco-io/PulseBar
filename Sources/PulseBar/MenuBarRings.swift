@@ -2,13 +2,65 @@ import AppKit
 import SpeedCore
 import SwiftUI
 
+struct MenuBarRingReadings: Equatable {
+    var cpu: Double?
+    var memory: Double?
+    var storage: Double?
+    var gpu: Double?
+    var battery: Double?
+    var pressure: MemoryPressure?
+
+    init(cpu: Double? = nil, memory: Double? = nil, storage: Double? = nil,
+         gpu: Double? = nil, battery: Double? = nil, pressure: MemoryPressure? = nil) {
+        self.cpu = cpu; self.memory = memory; self.storage = storage
+        self.gpu = gpu; self.battery = battery; self.pressure = pressure
+    }
+
+    init(monitor: SystemMonitor) {
+        self.init(cpu: monitor.resources.cpu?.usedPercent, memory: monitor.resources.memory?.usedPercent,
+                  storage: monitor.storageCapacity?.usedPercent,
+                  gpu: monitor.gpuUsage.map(\.utilizationPercent).max(),
+                  battery: monitor.battery?.chargePercent, pressure: monitor.resources.pressure)
+    }
+
+    func value(for metric: MenuBarRingMetric) -> Double? {
+        let reading: Double?
+        switch metric {
+        case .cpu: reading = cpu
+        case .memory: reading = memory
+        case .storage: reading = storage
+        case .gpu: reading = gpu
+        case .battery: reading = battery
+        }
+        return reading.flatMap { $0.isFinite ? min(100, max(0, $0)) : nil }
+    }
+
+    func tint(for metric: MenuBarRingMetric) -> Color {
+        guard let value = value(for: metric) else { return Color(nsColor: .disabledControlTextColor) }
+        if metric == .memory { return InsightStyle.pressureColor(pressure) }
+        if metric == .battery {
+            return value <= 10 ? InsightStyle.dangerColor : value <= 20
+                ? Color(nsColor: .systemYellow) : Color(nsColor: .systemGreen)
+        }
+        return InsightStyle.utilizationColor(value)
+    }
+}
+
+private final class MenuBarRingsState: ObservableObject {
+    @Published var readings = MenuBarRingReadings()
+    @Published var selection = MenuBarSelection()
+}
+
 /// Keep the status item's native button, tooltip, highlighting and click target.
 /// Only the gauges are colored; the disk/network image remains a template.
 final class MenuBarRingsHost: StatusItemHoverRegion {
-    private let hosting = NSHostingView(rootView: MenuBarRings(
-        cpu: nil, memory: nil, disk: nil, pressure: nil, selection: MenuBarSelection()))
+    private let state: MenuBarRingsState
+    private let hosting: NSHostingView<MenuBarRingsContent>
 
     init() {
+        let state = MenuBarRingsState()
+        self.state = state
+        hosting = NSHostingView(rootView: MenuBarRingsContent(state: state))
         super.init(frame: NSRect(x: 0, y: 0, width: MenuBarLabel.ringsWidth, height: 22))
         hosting.sizingOptions = []
         hosting.translatesAutoresizingMaskIntoConstraints = false
@@ -25,30 +77,33 @@ final class MenuBarRingsHost: StatusItemHoverRegion {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("Use init()") }
 
-    func update(cpu: Double?, memory: Double?, disk: Double?, pressure: MemoryPressure?, selection: MenuBarSelection) {
-        isHidden = selection.ringMetrics.isEmpty
-        hosting.rootView = MenuBarRings(cpu: cpu, memory: memory, disk: disk, pressure: pressure, selection: selection)
+    func update(readings: MenuBarRingReadings, selection: MenuBarSelection) {
+        isHidden = !selection.showsRings
+        // Keep the hosted view alive so sampling interpolates existing arcs.
+        if state.readings != readings { state.readings = readings }
+        if state.selection != selection { state.selection = selection }
     }
 }
 
-private struct MenuBarRings: View {
-    let cpu: Double?
-    let memory: Double?
-    let disk: Double?
-    let pressure: MemoryPressure?
+private struct MenuBarRingsContent: View {
+    @ObservedObject var state: MenuBarRingsState
+
+    var body: some View { MenuBarRings(readings: state.readings, selection: state.selection) }
+}
+
+struct MenuBarRings: View {
+    let readings: MenuBarRingReadings
     let selection: MenuBarSelection
     var body: some View {
         ZStack {
-            // Fixed roles keep the rings recognizable when a metric is hidden.
-            // Equal 2.5 pt strokes leave a transparent 0.6 pt gap between rings.
-            if selection.contains(.disk) {
-                MenuBarRing(value: disk, diameter: 22, thickness: 2.5, tint: InsightStyle.utilizationColor(disk))
-            }
-            if selection.contains(.memory) {
-                MenuBarRing(value: memory, diameter: 15.8, thickness: 2.5, tint: InsightStyle.pressureColor(pressure))
-            }
-            if selection.contains(.cpu) {
-                MenuBarRing(value: cpu, diameter: 9.6, thickness: 2.5, tint: InsightStyle.utilizationColor(cpu))
+            // 22 / 13 pt, equal 3.5 pt strokes: a 1 pt clear gap and 6 pt
+            // hollow center remain legible at the actual menu-bar size.
+            if selection.showsRings {
+                ForEach(MenuBarRingPosition.allCases, id: \.self) { position in
+                    let metric = selection.ringMetric(at: position)
+                    MenuBarRing(value: readings.value(for: metric), diameter: position == .outer ? 22 : 13,
+                                thickness: 3.5, tint: readings.tint(for: metric))
+                }
             }
         }
         .frame(width: MenuBarLabel.ringsWidth, height: 22)
@@ -72,8 +127,8 @@ private struct MenuBarRing: View {
             .tint(normalized == nil ? Color(nsColor: .disabledControlTextColor) : tint)
             .labelsHidden()
             .frame(width: diameter, height: diameter)
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: normalized)
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: tint)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: normalized)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: tint)
     }
 }
 

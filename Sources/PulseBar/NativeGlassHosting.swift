@@ -5,10 +5,12 @@ import SwiftUI
 /// behind a sibling hosting view does not provide the same compositing behavior.
 final class NativeGlassHostingController<Content: View>: NSViewController {
     private let hosting: NSHostingView<Content>
+    private let interactive: Bool
 
-    init(rootView: Content) {
+    init(rootView: Content, interactive: Bool = true) {
         hosting = NSHostingView(rootView: rootView)
         hosting.sizingOptions = []
+        self.interactive = interactive
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -16,7 +18,7 @@ final class NativeGlassHostingController<Content: View>: NSViewController {
     required init?(coder: NSCoder) { fatalError("Use init(rootView:)") }
 
     override func loadView() {
-        view = NativeGlassContainer(content: hosting)
+        view = NativeGlassContainer(content: hosting, interactive: interactive)
     }
 }
 
@@ -24,12 +26,14 @@ final class NativeGlassContainer: NSView {
     private let content: NSView
     private var surface: NSView?
     private let cornerRadius: CGFloat
+    private let interactive: Bool
     private var shadowBounds: NSRect?
     private(set) var materialName = ""
 
-    init(content: NSView, cornerRadius: CGFloat = 20) {
+    init(content: NSView, cornerRadius: CGFloat = 20, interactive: Bool = true) {
         self.content = content
         self.cornerRadius = cornerRadius
+        self.interactive = interactive
         super.init(frame: .zero)
         // The window's composited surface must follow the same outline as its
         // glass; rounding only the child leaves a rectangular window shadow.
@@ -59,6 +63,14 @@ final class NativeGlassContainer: NSView {
         // The system material itself responds to Reduce Transparency and
         // contrast settings. Do not replace it with a hand-drawn surface.
         if let glass = makeGlass() {
+            // Public macOS 27 API: let the system render its pointer/press
+            // response, including accessibility accommodations. The runtime
+            // selector also supports builds made with the macOS 15 SDK.
+            // developer.apple.com/documentation/appkit/nsglasseffectview/effectisinteractive
+            if #available(macOS 27.0, *), interactive,
+               glass.responds(to: NSSelectorFromString("setEffectIsInteractive:")) {
+                glass.setValue(true, forKey: "effectIsInteractive")
+            }
             next = glass
             materialName = "NSGlassEffectView"
         } else {

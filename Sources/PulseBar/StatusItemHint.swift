@@ -38,7 +38,7 @@ final class StatusItemHint {
             self.show(target)
         }
         pendingShow = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: work)
     }
 
     func dismiss() {
@@ -55,8 +55,9 @@ final class StatusItemHint {
         let count = preferences.selection.ringMetrics.count
         switch target {
         case .rings: guard count > 0 else { return }
-        case .disk: guard preferences.selection.contains(.disk) else { return }
-        case .network: guard preferences.selection.contains(.network) else { return }
+        case .usage: guard preferences.selection.showsNumber(.cpu) || preferences.selection.showsNumber(.memory) else { return }
+        case .disk: guard preferences.selection.showsNumber(.disk) else { return }
+        case .network: guard preferences.selection.showsNumber(.network) else { return }
         }
         if panel == nil {
             let window = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel],
@@ -76,14 +77,19 @@ final class StatusItemHint {
         }
         if displayedTarget != target {
             panel?.contentViewController = NativeGlassHostingController(rootView: StatusItemHintView(
-                monitor: monitor, preferences: preferences, target: target))
+                monitor: monitor, preferences: preferences, target: target), interactive: false)
             displayedTarget = target
         }
         let anchorFrame = source.convertToScreen(anchor.convert(anchor.bounds, to: nil))
-        let rows = count + (preferences.selection.contains(.memory) ? 1 : 0)
-            + (preferences.selection.contains(.disk) ? 1 : 0)
-        let size = target == .rings ? NSSize(width: 240, height: CGFloat(24 + 24 * rows))
-            : NSSize(width: 280, height: 156)
+        let rows = count + (preferences.selection.ringMetrics.contains(.memory) ? 1 : 0)
+            + (preferences.selection.ringMetrics.contains(.storage) ? 1 : 0)
+        let numberRows = preferences.selection.visibleNumberMetrics.filter { $0 == .cpu || $0 == .memory }.count
+        let size: NSSize
+        switch target {
+        case .rings: size = NSSize(width: 240, height: CGFloat(24 + 24 * rows))
+        case .usage: size = NSSize(width: 240, height: CGFloat(24 + 24 * numberRows))
+        case .disk, .network: size = NSSize(width: 280, height: 156)
+        }
         let frame = PanelPlacement.frame(size: size, anchor: anchorFrame, visibleFrame: screen.visibleFrame)
         panel?.setFrame(frame, display: false)
         panel?.contentView?.layoutSubtreeIfNeeded()
@@ -100,6 +106,7 @@ private struct StatusItemHintView: View {
         Group {
             switch target {
             case .rings: rings
+            case .usage: percentages
             case .disk, .network: rates
             }
         }
@@ -110,25 +117,34 @@ private struct StatusItemHintView: View {
 
     private var rings: some View {
         Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 0) {
-            if preferences.selection.contains(.cpu) {
-                metricRow(ring: .menuInnerRing, metric: .cpu, value: monitor.resources.cpu?.usedPercent,
-                          tint: InsightStyle.utilizationColor(monitor.resources.cpu?.usedPercent))
+            ForEach(MenuBarRingPosition.allCases, id: \.self) { position in
+                let metric = preferences.selection.ringMetric(at: position)
+                let readings = MenuBarRingReadings(monitor: monitor)
+                metricRow(ring: position.titleKey, metric: metric.titleKey, value: readings.value(for: metric),
+                          tint: readings.tint(for: metric))
             }
-            if preferences.selection.contains(.memory) {
-                metricRow(ring: .menuMiddleRing, metric: .memory, value: monitor.resources.memory?.usedPercent,
-                          tint: InsightStyle.pressureColor(monitor.resources.pressure))
-            }
-            if preferences.selection.contains(.disk) {
-                metricRow(ring: .menuOuterRing, metric: .storage, value: monitor.storageCapacity?.usedPercent,
-                          tint: InsightStyle.utilizationColor(monitor.storageCapacity?.usedPercent))
-            }
-            if preferences.selection.contains(.memory) {
+            if preferences.selection.ringMetrics.contains(.memory) {
                 let pressure = monitor.resources.pressure.map { preferences.localizer($0.titleKey) } ?? "—"
                 ringDetailRow(.memoryPressure, value: pressure)
             }
-            if preferences.selection.contains(.disk) {
+            if preferences.selection.ringMetrics.contains(.storage) {
                 let available = monitor.storageCapacity.map { TrafficFormatter.total($0.availableBytes) } ?? "—"
                 ringDetailRow(.availableSpaceLabel, value: available)
+            }
+        }
+    }
+
+    private var percentages: some View {
+        VStack(spacing: 0) {
+            ForEach(preferences.selection.visibleNumberMetrics.filter { $0 == .cpu || $0 == .memory }, id: \.self) { metric in
+                HStack {
+                    Text(preferences.localizer(metric.titleKey)).foregroundStyle(.secondary)
+                    Spacer(minLength: 12)
+                    Text(SystemFormatter.percent(metric == .cpu ? monitor.resources.cpu?.usedPercent : monitor.resources.memory?.usedPercent))
+                        .monospacedDigit()
+                }
+                .frame(height: 24)
+                .accessibilityElement(children: .combine)
             }
         }
     }

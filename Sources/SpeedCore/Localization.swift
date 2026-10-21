@@ -28,7 +28,7 @@ public enum TextKey: String, CaseIterable {
     case helperTitle, helperConsent, enableHelper, disableHelper, helperEnabled, helperDisabled
     case helperUnavailable, helperTimeout, helperIncompatible, helperConnected, helperHelp, getHelper, openHelper, appStoreUpdates
     case navigation, backToOverview, hardwareDetails, deviceConfiguration, availableShort, usedPercent, pressureState, diskRateSummary
-    case pinWindow, unpinWindow, closeWindow
+    case closeWindow
     case utilization, logicalCoresLabel, cpuUser, cpuSystem, usedTotal, startupVolumeUsed, availableSpaceLabel
     case swapUsed, swapChangeWindow, direction, sessionRead, sessionWrite, sessionDownload, sessionUpload
     case batteryCharge, batteryPowerState, batteryHealthLabel, batteryCyclesLabel, batteryTimeUntilFullLabel, batteryTimeUntilEmptyLabel
@@ -47,6 +47,7 @@ public enum TextKey: String, CaseIterable {
     case historyHint, historyWindow, historyHelp, durationSeconds, durationMinutes, durationHours
     case reset, resetHelp, quit, language, followSystem
     case settings, settingsExpanded, settingsCollapsed, menuBarItems
+    case showMenuRings, showMenuNumbers, ringMetricHelp, menuDisplayRequired, menuPercentages
     case launchAtLogin, launchAtLoginHelp, loginApprovalRequired, openLoginSettings, loginItemFailed
     case visibilityHint, showInMenuBar, atLeastOne, refresh, secondsUnit, hoursUnit, refreshHelp
     case menuAccessibility, menuHint, namedValue, diskRead, diskWrite, listSeparator

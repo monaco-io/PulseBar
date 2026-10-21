@@ -6,9 +6,9 @@ import SwiftUI
 struct NativeGlassButton: NSViewRepresentable {
     let title: String
     let symbol: String
-    var isSelected = false
-    var isToggle = false
     var iconOnly = false
+    var fillsBounds = false
+    var hoverOnly = false
     var action: () -> Void
     @Environment(\.isEnabled) private var isEnabled
 
@@ -20,16 +20,16 @@ struct NativeGlassButton: NSViewRepresentable {
         button.action = #selector(Coordinator.activate)
         button.bezelStyle = NativeControlStyle.glass
         button.controlSize = .regular
+        button.setButtonType(.momentaryPushIn)
         return button
     }
 
     func updateNSView(_ button: NSButton, context: Context) {
         context.coordinator.action = action
-        button.setButtonType(isToggle ? .pushOnPushOff : .momentaryPushIn)
         button.title = iconOnly ? "" : title
-        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        button.image = symbol.isEmpty ? nil : NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
         button.imagePosition = iconOnly ? .imageOnly : .imageLeading
-        button.state = isSelected ? .on : .off
+        button.showsBorderOnlyWhileMouseInside = hoverOnly
         button.isEnabled = isEnabled
         button.toolTip = title
         button.setAccessibilityLabel(title)
@@ -39,6 +39,9 @@ struct NativeGlassButton: NSViewRepresentable {
         // Older SDKs report only the symbol bounds for the newer glass bezel.
         // Reserve its hit area; AppKit still draws and animates the entire control.
         let size = nsView.intrinsicContentSize
+        if fillsBounds {
+            return CGSize(width: proposal.width ?? max(32, size.width), height: proposal.height ?? max(32, size.height))
+        }
         return CGSize(width: max(32, size.width), height: max(32, size.height))
     }
 

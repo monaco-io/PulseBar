@@ -5,7 +5,6 @@ import SpeedCore
 final class PopoverPresentation: ObservableObject {
     @Published private(set) var navigation = PanelNavigation()
     @Published private(set) var height: CGFloat = 600
-    @Published var isPinned = false
     @Published private(set) var availableWidth: CGFloat = 1280
     private var availableHeight: CGFloat = 844
     private var preferredContentHeight: CGFloat = 600

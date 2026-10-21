@@ -13,7 +13,6 @@ struct PopoverView: View {
     var onOpenDetails: ((PanelRoute) -> Void)?
     var onHoverModule: ((PanelRoute, Bool) -> Void)?
     var onHoverWindow: ((Bool) -> Void)?
-    var onTogglePin: (() -> Void)?
     var onClose: (() -> Void)?
     var onPreferredHeight: ((CGFloat) -> Void)?
     @State private var inspectionTime: TimeInterval?
@@ -132,12 +131,6 @@ struct PopoverView: View {
         HStack(spacing: 8) {
             Text(l10n(detailTitle)).font(.system(size: 16, weight: .semibold))
             Spacer()
-            if route.isHardware {
-                NativeGlassButton(title: l10n(presentation.isPinned ? .unpinWindow : .pinWindow),
-                                  symbol: presentation.isPinned ? "pin.fill" : "pin",
-                                  isSelected: presentation.isPinned, isToggle: true, iconOnly: true) { onTogglePin?() }
-                    .fixedSize()
-            }
             NativeGlassButton(title: l10n(.closeWindow), symbol: "xmark", iconOnly: true) { onClose?() }
                 .fixedSize()
         }
@@ -248,17 +241,46 @@ struct PopoverView: View {
         VStack(alignment: .leading, spacing: 16) {
             GroupBox(l10n(.menuBarItems)) {
                 VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        settingsMetric(.cpu)
-                        settingsMetric(.memory)
+                    Toggle(l10n(.showMenuRings), isOn: Binding(
+                        get: { preferences.selection.showsRings }, set: { preferences.setRingsVisible($0) }
+                    ))
+                    .disabled(preferences.selection.showsRings && !preferences.selection.canHideRings)
+                    .help(l10n(.menuDisplayRequired))
+                    VStack(spacing: 10) {
+                        ForEach(MenuBarRingPosition.allCases, id: \.self) { position in
+                            LabeledContent(l10n(position.titleKey)) {
+                                Picker(l10n(position.titleKey), selection: Binding(
+                                    get: { preferences.selection.ringMetric(at: position) },
+                                    set: { preferences.setRingMetric($0, at: position) }
+                                )) {
+                                    ForEach(MenuBarRingMetric.allCases, id: \.self) { metric in
+                                        Text(l10n(metric.titleKey)).tag(metric)
+                                    }
+                                }.labelsHidden().fixedSize()
+                            }
+                        }
                     }
-                    HStack {
-                        settingsMetric(.disk)
-                        settingsMetric(.network)
+                    .disabled(!preferences.selection.showsRings)
+                    Text(l10n(.ringMetricHelp)).font(.caption).foregroundStyle(.secondary)
+                    Divider()
+                    Toggle(l10n(.showMenuNumbers), isOn: Binding(
+                        get: { preferences.selection.showsNumbers }, set: { preferences.setNumbersVisible($0) }
+                    ))
+                    .disabled(preferences.selection.showsNumbers && !preferences.selection.canHideNumbers)
+                    .help(l10n(.menuDisplayRequired))
+                    VStack(spacing: 10) {
+                        HStack {
+                            settingsMetric(.cpu)
+                            settingsMetric(.memory)
+                        }
+                        HStack {
+                            settingsMetric(.disk)
+                            settingsMetric(.network)
+                        }
                     }
-                    if preferences.selection.metrics.count == 1 {
-                        Text(l10n(.atLeastOne)).font(.caption).foregroundStyle(.secondary)
-                    }
+                    .disabled(!preferences.selection.showsNumbers)
+                    Text(l10n(.menuDisplayRequired)).font(.caption).foregroundStyle(.secondary)
+                    Divider()
                     LabeledContent(l10n(.language)) {
                         Picker(l10n(.language), selection: $preferences.language) {
                             ForEach(AppLanguage.allCases, id: \.self) { language in

@@ -2,7 +2,7 @@ import AppKit
 import SpeedCore
 import SwiftUI
 
-/// A single reusable inspector: hover previews, click/pin keeps it open.
+/// A single reusable inspector. Hardware previews never become pinned by a click.
 /// The overview never changes size or replaces its content to show a detail.
 final class DetailWindowCoordinator: NSObject, NSWindowDelegate {
     weak var sourceWindow: NSWindow?
@@ -17,6 +17,8 @@ final class DetailWindowCoordinator: NSObject, NSWindowDelegate {
     private var pendingHide: DispatchWorkItem?
     private var hoveredRoute: PanelRoute?
     private var isHoveringDetail = false
+    private var isNavigationPresented = false
+    private var requestGeneration: UInt64 = 0
     private var measuredHeight: CGFloat = 0
 
     init(monitor: SystemMonitor, preferences: AppPreferences, loginItem: LoginItemController,
@@ -34,28 +36,48 @@ final class DetailWindowCoordinator: NSObject, NSWindowDelegate {
         if inside {
             hoveredRoute = route
             pendingHide?.cancel()
-            guard !presentation.isPinned else { return }
+            guard !isNavigationPresented else { return }
             pendingShow?.cancel()
+            requestGeneration &+= 1
+            // Switching an already visible inspector should not wait through
+            // another dwell period or rebuild a same-route hosting hierarchy.
+            if panel?.isVisible == true {
+                present(route, takesFocus: false)
+                return
+            }
+            let generation = requestGeneration
             let work = DispatchWorkItem { [weak self] in
-                guard let self, self.hoveredRoute == route, !self.presentation.isPinned else { return }
-                self.show(route, pinned: false)
+                guard let self, self.requestGeneration == generation,
+                      self.hoveredRoute == route, !self.isNavigationPresented else { return }
+                self.present(route, takesFocus: false)
             }
             pendingShow = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: work)
         } else if hoveredRoute == route {
             hoveredRoute = nil
             pendingShow?.cancel()
+            requestGeneration &+= 1
             scheduleHide()
         }
     }
 
-    func show(_ route: PanelRoute, pinned: Bool = true) {
+    func show(_ route: PanelRoute) { present(route, takesFocus: true) }
+
+    private func present(_ route: PanelRoute, takesFocus: Bool) {
         guard route != .overview, let sourceWindow, sourceWindow.isVisible else { return }
         pendingShow?.cancel()
         pendingHide?.cancel()
-        let keepPosition = panel?.isVisible == true && presentation.isPinned
-        let screen = (keepPosition ? panel?.screen : sourceWindow.screen) ?? NSScreen.main
-        presentation.isPinned = pinned
+        pendingShow = nil
+        pendingHide = nil
+        requestGeneration &+= 1
+        // Settings, events and rankings use ordinary click navigation. Merely
+        // crossing a hardware row must not interrupt editing those destinations.
+        isNavigationPresented = !route.isHardware
+        if panel?.isVisible == true, presentation.route == route {
+            if takesFocus { panel?.makeKeyAndOrderFront(nil) }
+            return
+        }
+        let screen = sourceWindow.screen ?? NSScreen.main
         presentation.prepareDetail(route, on: screen)
         if panel == nil { makePanel() }
         guard let panel else { return }
@@ -63,36 +85,30 @@ final class DetailWindowCoordinator: NSObject, NSWindowDelegate {
         panel.appearance = sourceWindow.appearance
         panel.level = sourceWindow.level
         let visible = screen?.visibleFrame ?? sourceWindow.frame
-        var frame = PanelPlacement.detailFrame(size: presentation.contentSize, beside: sourceWindow.frame, visibleFrame: visible)
-        if keepPosition {
-            frame.origin.x = max(visible.minX, min(panel.frame.minX, visible.maxX - frame.width))
-            frame.origin.y = max(visible.minY, min(panel.frame.maxY, visible.maxY) - frame.height)
-        }
-        panel.setFrame(frame, display: false)
+        let frame = PanelPlacement.detailFrame(size: presentation.contentSize, beside: sourceWindow.frame, visibleFrame: visible)
+        if panel.frame != frame { panel.setFrame(frame, display: false) }
         panel.contentView?.layoutSubtreeIfNeeded()
         // The first layout can measure a different content height while the
         // panel is still hidden. Apply it before revealing the window.
         resizeToFitContent(animated: false)
-        if pinned { panel.makeKeyAndOrderFront(nil); panel.makeFirstResponder(nil) }
+        if takesFocus { panel.makeKeyAndOrderFront(nil); panel.makeFirstResponder(nil) }
         else { panel.orderFront(nil) }
         recordPreview("show")
     }
 
     func contains(_ window: NSWindow?) -> Bool { window != nil && window === panel }
 
-    func closeTransient() {
-        pendingShow?.cancel()
-        hoveredRoute = nil
-        if !presentation.isPinned { close() }
-    }
-
     func close() {
+        requestGeneration &+= 1
         pendingShow?.cancel()
         pendingHide?.cancel()
+        pendingShow = nil
+        pendingHide = nil
+        hoveredRoute = nil
         panel?.makeFirstResponder(nil)
         panel?.orderOut(nil)
         recordPreview("close")
-        presentation.isPinned = false
+        isNavigationPresented = false
         isHoveringDetail = false
     }
 
@@ -108,7 +124,7 @@ final class DetailWindowCoordinator: NSObject, NSWindowDelegate {
         panel.animationBehavior = .utilityWindow
         panel.hidesOnDeactivate = false
         panel.acceptsMouseMovedEvents = true
-        panel.isMovableByWindowBackground = true
+        panel.isMovableByWindowBackground = false
         panel.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         panel.onClose = { [weak self] in self?.close() }
         panel.contentViewController = NativeGlassHostingController(rootView: PopoverView(
@@ -119,12 +135,6 @@ final class DetailWindowCoordinator: NSObject, NSWindowDelegate {
                 guard let self else { return }
                 self.isHoveringDetail = inside
                 if inside { self.pendingHide?.cancel() } else { self.scheduleHide() }
-            },
-            onTogglePin: { [weak self] in
-                guard let self else { return }
-                self.presentation.isPinned.toggle()
-                if self.presentation.isPinned { self.panel?.makeKeyAndOrderFront(nil) }
-                else { self.scheduleHide() }
             },
             onClose: { [weak self] in self?.close() },
             onPreferredHeight: { [weak self] height in
@@ -139,14 +149,9 @@ final class DetailWindowCoordinator: NSObject, NSWindowDelegate {
     private func resizeToFitContent(animated: Bool = true) {
         guard let panel, let sourceWindow else { return }
         let visible = (panel.screen ?? sourceWindow.screen ?? NSScreen.main)?.visibleFrame ?? sourceWindow.frame
-        var frame = PanelPlacement.detailFrame(size: presentation.contentSize, beside: sourceWindow.frame, visibleFrame: visible)
-        if presentation.isPinned {
-            frame.origin.x = max(visible.minX, min(panel.frame.minX, visible.maxX - frame.width))
-            frame.origin.y = max(visible.minY, min(panel.frame.maxY, visible.maxY) - frame.height)
-        }
+        let frame = PanelPlacement.detailFrame(size: presentation.contentSize, beside: sourceWindow.frame, visibleFrame: visible)
         guard panel.frame != frame else { return }
-        panel.setFrame(frame, display: true,
-                       animate: animated && panel.isVisible && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
+        NativePanelMotion.resize(panel, to: frame, animated: animated)
         recordPreview("resize")
     }
 
@@ -157,16 +162,18 @@ final class DetailWindowCoordinator: NSObject, NSWindowDelegate {
 
     private func scheduleHide() {
         pendingHide?.cancel()
-        guard !presentation.isPinned else { return }
+        guard !isNavigationPresented else { return }
+        let generation = requestGeneration
         let work = DispatchWorkItem { [weak self] in
-            guard let self, !self.presentation.isPinned, !self.isHoveringDetail,
+            guard let self, self.requestGeneration == generation,
+                  !self.isNavigationPresented, !self.isHoveringDetail,
                   self.hoveredRoute == nil else { return }
             // Give the pointer room to cross the small gap between the windows.
             if self.panel?.frame.contains(NSEvent.mouseLocation) == true { return }
             self.close()
         }
         pendingHide = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22, execute: work)
     }
 
     private func title(for route: PanelRoute) -> TextKey {
@@ -187,7 +194,7 @@ final class DetailWindowCoordinator: NSObject, NSWindowDelegate {
         #if DEBUG
         guard let path = Bundle.main.object(forInfoDictionaryKey: "PulseBarPreviewDiagnostics") as? String,
               let panel else { return }
-        let line = "detail=\(event) route=\(presentation.route.rawValue) pinned=\(presentation.isPinned) visible=\(panel.isVisible) frame=\(panel.frame) source=\(sourceWindow?.frame ?? .zero) screenVisible=\(panel.screen?.visibleFrame ?? .zero)\n"
+        let line = "detail=\(event) route=\(presentation.route.rawValue) navigation=\(isNavigationPresented) visible=\(panel.isVisible) frame=\(panel.frame) source=\(sourceWindow?.frame ?? .zero) screenVisible=\(panel.screen?.visibleFrame ?? .zero)\n"
         if let data = line.data(using: .utf8), let handle = FileHandle(forWritingAtPath: path) {
             handle.seekToEndOfFile()
             handle.write(data)

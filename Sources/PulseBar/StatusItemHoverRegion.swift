@@ -1,7 +1,7 @@
 import AppKit
 
 enum StatusItemHintTarget {
-    case rings, disk, network
+    case rings, usage, disk, network
 }
 
 /// A stable tracking area that leaves the native status button's clicks intact.

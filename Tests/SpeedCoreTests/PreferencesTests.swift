@@ -25,7 +25,8 @@ struct PreferencesTests {
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
         let first = AppPreferences(defaults: defaults)
-        #expect(first.selection.metrics.count == 4)
+        #expect(first.selection.metrics == [.disk, .network])
+        #expect(first.selection.ringMetrics == [.cpu, .memory])
         #expect(first.language == .system)
         #expect(first.refreshSeconds == 2)
         #expect(first.historySeconds == 3600)
@@ -39,7 +40,7 @@ struct PreferencesTests {
         first.setHistorySeconds(300)
         let restored = AppPreferences(defaults: defaults)
         #expect(restored.selection.metrics == [.network])
-        #expect(defaults.stringArray(forKey: "menuBarMetrics") == ["network"])
+        #expect(defaults.stringArray(forKey: "menuBarNumberMetrics") == ["network"])
         #expect(restored.language == .english)
         #expect(restored.refreshSeconds == 17)
         #expect(restored.historySeconds == 300)
@@ -52,6 +53,71 @@ struct PreferencesTests {
         #expect(restored.refreshSeconds == 1)
         restored.setRefreshSeconds(120)
         #expect(AppPreferences(defaults: defaults).refreshSeconds == 60)
+    }
+
+    @Test func ringsAndNumbersPersistIndependentlyWithoutLosingChoices() throws {
+        let suite = "PulseBar.Display.Tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let first = AppPreferences(defaults: defaults)
+        first.setRingMetric(.storage, at: .outer)
+        first.setRingMetric(.gpu, at: .inner)
+        first.setVisible(.cpu, true)
+        first.setNumbersVisible(false)
+        let restored = AppPreferences(defaults: defaults)
+        #expect(restored.selection.ringMetrics == [.storage, .gpu])
+        #expect(restored.selection.visibleNumberMetrics.isEmpty)
+        #expect(restored.selection.metrics == [.cpu, .disk, .network])
+        restored.setRingsVisible(false)
+        #expect(restored.selection.showsRings) // Never remove the final way to open the app.
+        restored.setNumbersVisible(true)
+        restored.setRingsVisible(false)
+        let numbersOnly = AppPreferences(defaults: defaults)
+        #expect(numbersOnly.selection.ringMetrics.isEmpty)
+        #expect(numbersOnly.selection.visibleNumberMetrics == [.cpu, .disk, .network])
+        numbersOnly.setNumbersVisible(false)
+        #expect(numbersOnly.selection.showsNumbers)
+        numbersOnly.setRingsVisible(true)
+        #expect(numbersOnly.selection.ringMetrics == [.storage, .gpu])
+        numbersOnly.setRingMetric(.battery, at: .outer)
+        numbersOnly.setRingMetric(.battery, at: .inner)
+        #expect(AppPreferences(defaults: defaults).selection.ringMetrics == [.battery, .battery])
+    }
+
+    @Test func legacyCombinedVisibilityMigratesWithoutInventingNumericCPUOrMemory() throws {
+        let metrics = MonitorMetric.allCases
+        for mask in 0..<16 {
+            let suite = "PulseBar.Migration.Tests.\(UUID().uuidString)"
+            let defaults = try #require(UserDefaults(suiteName: suite))
+            defer { defaults.removePersistentDomain(forName: suite) }
+            var old = Set(metrics.enumerated().compactMap { mask & (1 << $0.offset) != 0 ? $0.element : nil })
+            defaults.set(old.map(\.rawValue), forKey: "menuBarMetrics")
+            if old.isEmpty { old = [.network] }
+            let restored = AppPreferences(defaults: defaults)
+            #expect(restored.selection.showsRings == !old.subtracting([.network]).isEmpty)
+            #expect(Set(restored.selection.visibleNumberMetrics) == old.intersection([.disk, .network]))
+            #expect(restored.selection.outerRing == .cpu)
+            #expect(restored.selection.innerRing == .memory)
+            #expect(restored.selection == AppPreferences(defaults: defaults).selection)
+        }
+    }
+
+    @Test func corruptNewPreferencesCannotHideBothSections() throws {
+        let suite = "PulseBar.CorruptDisplay.Tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(2, forKey: "menuBarDisplayVersion")
+        defaults.set(false, forKey: "menuBarShowsRings")
+        defaults.set(false, forKey: "menuBarShowsNumbers")
+        defaults.set(["removed"], forKey: "menuBarNumberMetrics")
+        defaults.set("network", forKey: "menuBarOuterRingMetric")
+        defaults.set("unknown", forKey: "menuBarInnerRingMetric")
+        let restored = AppPreferences(defaults: defaults)
+        #expect(restored.selection.showsRings)
+        #expect(!restored.selection.showsNumbers)
+        #expect(restored.selection.ringMetrics == [.cpu, .memory])
+        restored.setNumbersVisible(true)
+        #expect(restored.selection.visibleNumberMetrics == [.network])
     }
 
     @Test func invalidStoredPreferencesCannotHideTheAppOrStopSampling() throws {

@@ -196,8 +196,11 @@
 "batteryTimeUntilEmptyLabel" = "Time remaining";
 "navigation" = "Navigation";
 "backToOverview" = "Overview";
-"pinWindow" = "Keep window open";
-"unpinWindow" = "Unpin window";
+"showMenuRings" = "Show rings";
+"showMenuNumbers" = "Show numbers";
+"ringMetricHelp" = "Choose a percentage for each ring. GPU uses the busiest reported device. Unavailable readings have a neutral track and show — in the hint.";
+"menuDisplayRequired" = "Keep rings or numbers visible so PulseBar remains accessible.";
+"menuPercentages" = "CPU and memory";
 "closeWindow" = "Close window";
 "hardwareDetails" = "%@ details";
 "deviceConfiguration" = "%d cores · %@";

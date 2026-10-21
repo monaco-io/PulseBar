@@ -20,15 +20,16 @@ struct UtilizationBandTests {
         }
     }
 
-    @Test func storageKeepsARingEvenWithoutCPUAndMemory() {
-        #expect(MenuBarSelection(metrics: [.disk]).ringMetrics == [.disk])
-        #expect(MenuBarSelection(metrics: [.disk, .network]).ringMetrics == [.disk])
-        #expect(MenuBarSelection(metrics: [.network]).ringMetrics.isEmpty)
-        #expect(MenuBarSelection().ringMetrics == [.cpu, .memory, .disk])
+    @Test func numericalChoicesNeverChangeTheTwoConfiguredRings() {
+        #expect(MenuBarSelection(metrics: [.disk]).ringMetrics == [.cpu, .memory])
+        #expect(MenuBarSelection(metrics: [.network]).ringMetrics == [.cpu, .memory])
         var selection = MenuBarSelection(metrics: [.disk, .network])
         selection.set(.disk, visible: false)
-        #expect(selection.ringMetrics.isEmpty)
+        #expect(selection.ringMetrics == [.cpu, .memory])
         selection.set(.memory, visible: true)
-        #expect(selection.ringMetrics == [.memory])
+        #expect(selection.ringMetrics == [.cpu, .memory])
+        selection.setRingMetric(.storage, at: .inner)
+        #expect(selection.ringMetrics == [.cpu, .storage])
+        #expect(selection.visibleNumberMetrics == [.memory, .network])
     }
 }

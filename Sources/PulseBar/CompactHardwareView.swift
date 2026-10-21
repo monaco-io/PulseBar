@@ -93,17 +93,23 @@ struct CompactHardwareView: View {
 
     private func module<Content: View>(_ title: TextKey, route: PanelRoute, verticalPadding: CGFloat = 10,
                                       @ViewBuilder content: () -> Content) -> some View {
-        Button { onOpen(route) } label: {
+        ZStack {
+            // AppKit owns hover, highlight and Liquid Glass press animations.
+            // The transparent SwiftUI label never intercepts the native button.
+            NativeGlassButton(title: l10n(.hardwareDetails, l10n(title)), symbol: "", iconOnly: true,
+                              fillsBounds: true, hoverOnly: true) { onOpen(route) }
+                .accessibilityHidden(true)
             content().frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 14).padding(.vertical, verticalPadding)
-                .contentShape(Rectangle())
+                .allowsHitTesting(false)
         }
-        .buttonStyle(.borderless)
+        .fixedSize(horizontal: false, vertical: true)
         .foregroundStyle(.primary)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(l10n(.hardwareDetails, l10n(title)))
         .accessibilityValue(accessibilityValue(for: route))
         .accessibilityAddTraits(.isButton)
+        .accessibilityAction { onOpen(route) }
         .background(NativeHoverRegion { onHoverModule?(route, $0) })
     }
 

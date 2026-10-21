@@ -196,8 +196,11 @@
 "batteryTimeUntilEmptyLabel" = "预计剩余";
 "navigation" = "导航";
 "backToOverview" = "返回总览";
-"pinWindow" = "固定窗口";
-"unpinWindow" = "取消固定";
+"showMenuRings" = "显示圆环";
+"showMenuNumbers" = "显示数值";
+"ringMetricHelp" = "每个圆环可选择一个百分比指标。GPU 显示已报告设备中的最高使用率；无可用数据时显示灰色底环，悬停提示为 —。";
+"menuDisplayRequired" = "圆环和数值至少保留一项，便于打开 PulseBar。";
+"menuPercentages" = "CPU 与内存";
 "closeWindow" = "关闭窗口";
 "hardwareDetails" = "%@详情";
 "deviceConfiguration" = "%d 核 · %@";

@@ -26,11 +26,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var pendingReopen = false
     private var statusUpdateScheduled = false
     private var lastStatusImageKey: [String] = []
+    private var isUIReview: Bool {
+        #if DEBUG
+        return Bundle.main.object(forInfoDictionaryKey: "PulseBarUIReview") as? Bool == true
+        #else
+        return false
+        #endif
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApplication.shared.setActivationPolicy(.accessory)
         softwareUpdater.beforeUserInitiatedCheck = { [weak self] in self?.closePanel() }
-        softwareUpdater.start()
+        if !isUIReview { softwareUpdater.start() }
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.autosaveName = "NetSpeedStatusItem"
         if let button = statusItem.button {
@@ -55,7 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return !self.statusInteraction.isPresented && self.menuTrackingDepth == 0
             }
             statusHoverRegions[.rings] = rings
-            for target in [StatusItemHintTarget.disk, .network] {
+            for target in [StatusItemHintTarget.usage, .disk, .network] {
                 let region = StatusItemHoverRegion(frame: .zero)
                 region.autoresizingMask = [.height]
                 region.setAccessibilityElement(false)
@@ -111,7 +118,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         monitor.start(refreshSeconds: preferences.refreshSeconds)
 
-        if pendingReopen || CommandLine.arguments.contains("--show") {
+        if pendingReopen || CommandLine.arguments.contains("--show") || isUIReview {
             pendingReopen = false
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.showPopover() }
         }
@@ -236,9 +243,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
               let anchorFrame, let availableFrame else { return }
         let frame = PanelPlacement.frame(size: presentation.contentSize, anchor: anchorFrame, visibleFrame: availableFrame)
         if panel.frame != frame {
-            panel.setFrame(frame, display: true, animate: panel.isVisible && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
-            panel.contentView?.layoutSubtreeIfNeeded()
-            panel.displayIfNeeded()
+            NativePanelMotion.resize(panel, to: frame, animated: !force)
         }
         recordLayout("navigate", target: frame)
     }
@@ -294,7 +299,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusInteraction.dismiss()
         removePanelEventMonitors()
         statusHint?.dismiss()
-        detailWindows?.closeTransient()
+        detailWindows?.close()
         panel?.makeFirstResponder(nil)
         recordLayout("close")
         panel?.orderOut(nil)
@@ -335,15 +340,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let memory = SystemFormatter.percent(resources.memory?.usedPercent)
         let read = resources.diskRate.map { TrafficFormatter.speed($0.read) }
         let write = resources.diskRate.map { TrafficFormatter.speed($0.write) }
-        statusRings?.update(cpu: resources.cpu?.usedPercent, memory: resources.memory?.usedPercent,
-                            disk: monitor.storageCapacity?.usedPercent, pressure: resources.pressure, selection: selection)
-        let imageKey = selection.orderedMetrics.map(\.rawValue) + [read, write, down, up].map { $0?.value ?? "—" }
+        let ringReadings = MenuBarRingReadings(monitor: monitor)
+        statusRings?.update(readings: ringReadings, selection: selection)
+        var imageKey = ["rings:\(selection.showsRings)"]
+        for metric in selection.visibleNumberMetrics {
+            imageKey.append(metric.rawValue)
+            switch metric {
+            case .cpu: imageKey.append(cpu)
+            case .memory: imageKey.append(memory)
+            case .disk: imageKey += [read?.value ?? "—", write?.value ?? "—"]
+            case .network: imageKey += [up?.value ?? "—", down?.value ?? "—"]
+            }
+        }
         if imageKey != lastStatusImageKey {
-            let layout = MenuBarLabel.layout(diskRead: read?.value ?? "—", diskWrite: write?.value ?? "—",
+            let layout = MenuBarLabel.layout(cpu: cpu.replacingOccurrences(of: "%", with: ""),
+                                            memory: memory.replacingOccurrences(of: "%", with: ""),
+                                            diskRead: read?.value ?? "—", diskWrite: write?.value ?? "—",
                                             download: down?.value ?? "—", upload: up?.value ?? "—", selection: selection)
             if statusItem.length != layout.image.size.width + 12 { statusItem.length = layout.image.size.width + 12 }
             button.image = layout.image
-            for target in [StatusItemHintTarget.disk, .network] {
+            for target in [StatusItemHintTarget.usage, .disk, .network] {
                 guard let region = statusHoverRegions[target] else { continue }
                 if let frame = layout.regions[target] {
                     region.frame = NSRect(x: frame.minX + 6, y: 0, width: frame.width, height: button.bounds.height)
@@ -358,19 +374,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         var values: [String] = []
         var errors: [Error?] = []
-        for metric in selection.orderedMetrics {
+        for position in MenuBarRingPosition.allCases where selection.showsRings {
+            let metric = selection.ringMetric(at: position)
+            values.append(localizer(position.titleKey) + ": " + localizer(metric.titleKey) + " "
+                          + SystemFormatter.percent(ringReadings.value(for: metric)))
+        }
+        for metric in selection.visibleNumberMetrics {
             switch metric {
             case .cpu:
-                values.append(localizer(.menuInnerCPU, cpu))
+                values.append(localizer(.namedValue, localizer(.cpu), cpu))
                 errors.append(resources.cpuError)
             case .memory:
-                values.append(localizer(.menuMiddleMemory, memory))
+                values.append(localizer(.namedValue, localizer(.memory), memory))
                 let pressure = resources.pressure.map { localizer($0.titleKey) } ?? "—"
                 values.append(localizer(.namedValue, localizer(.memoryPressure), pressure))
                 errors += [resources.memoryError, resources.pressureError]
             case .disk:
-                values += [localizer(.menuOuterDisk, SystemFormatter.percent(monitor.storageCapacity?.usedPercent)),
-                           localizer(.namedValue, localizer(.diskRead), read?.text ?? "—"),
+                values += [localizer(.namedValue, localizer(.diskRead), read?.text ?? "—"),
                            localizer(.namedValue, localizer(.diskWrite), write?.text ?? "—")]
                 errors.append(resources.diskError)
             case .network:
