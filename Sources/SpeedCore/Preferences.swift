@@ -14,6 +14,31 @@ public enum MonitorMetric: String, CaseIterable {
     }
 }
 
+/// Menu-bar numbers can select either direction without changing a monitor's sampling.
+public enum MenuBarNumberMetric: String, CaseIterable {
+    case cpu, memory, diskRead, diskWrite, upload, download
+
+    public var titleKey: TextKey {
+        switch self {
+        case .cpu: return .cpu
+        case .memory: return .memory
+        case .diskRead: return .diskRead
+        case .diskWrite: return .diskWrite
+        case .upload: return .upload
+        case .download: return .download
+        }
+    }
+
+    public var monitorMetric: MonitorMetric {
+        switch self {
+        case .cpu: return .cpu
+        case .memory: return .memory
+        case .diskRead, .diskWrite: return .disk
+        case .upload, .download: return .network
+        }
+    }
+}
+
 /// Rings describe percentages, never an arbitrarily scaled transfer rate.
 public enum MenuBarRingMetric: String, CaseIterable {
     case cpu, memory, storage, gpu, battery
@@ -30,44 +55,60 @@ public enum MenuBarRingMetric: String, CaseIterable {
 }
 
 public enum MenuBarRingPosition: String, CaseIterable {
-    case outer, inner
+    case outer, middle, inner
 
-    public var titleKey: TextKey { self == .outer ? .menuOuterRing : .menuInnerRing }
+    public var titleKey: TextKey {
+        switch self {
+        case .outer: return .menuOuterRing
+        case .middle: return .menuMiddleRing
+        case .inner: return .menuInnerRing
+        }
+    }
 }
 
 public struct MenuBarSelection: Equatable {
     /// Numeric choices are retained when the whole numeric section is hidden.
-    public private(set) var metrics: Set<MonitorMetric>
+    public private(set) var metrics: Set<MenuBarNumberMetric>
     public private(set) var showsRings: Bool
     public private(set) var showsNumbers: Bool
     public private(set) var outerRing: MenuBarRingMetric
+    public private(set) var middleRing: MenuBarRingMetric
     public private(set) var innerRing: MenuBarRingMetric
-    public var orderedMetrics: [MonitorMetric] { MonitorMetric.allCases.filter(metrics.contains) }
-    public var visibleNumberMetrics: [MonitorMetric] { showsNumbers ? orderedMetrics : [] }
-    public var ringMetrics: [MenuBarRingMetric] { showsRings ? [outerRing, innerRing] : [] }
+    public var orderedMetrics: [MenuBarNumberMetric] { MenuBarNumberMetric.allCases.filter(metrics.contains) }
+    public var visibleNumberMetrics: [MenuBarNumberMetric] { showsNumbers ? orderedMetrics : [] }
+    public var ringMetrics: [MenuBarRingMetric] { showsRings ? [outerRing, middleRing, innerRing] : [] }
 
-    public init(metrics: Set<MonitorMetric> = [.disk, .network], showsRings: Bool = true,
-                showsNumbers: Bool = true, outerRing: MenuBarRingMetric = .cpu,
-                innerRing: MenuBarRingMetric = .memory) {
-        self.metrics = metrics.isEmpty ? [.network] : metrics
+    public init(metrics: Set<MenuBarNumberMetric> = [.diskRead, .diskWrite, .upload, .download], showsRings: Bool = true,
+                showsNumbers: Bool = true, outerRing: MenuBarRingMetric = .storage,
+                middleRing: MenuBarRingMetric = .memory, innerRing: MenuBarRingMetric = .cpu) {
+        self.metrics = metrics.isEmpty ? [.upload, .download] : metrics
         self.showsRings = showsRings || !showsNumbers
         self.showsNumbers = showsNumbers
         self.outerRing = outerRing
+        self.middleRing = middleRing
         self.innerRing = innerRing
     }
 
-    public func contains(_ metric: MonitorMetric) -> Bool { metrics.contains(metric) }
-    public func showsNumber(_ metric: MonitorMetric) -> Bool { showsNumbers && contains(metric) }
-    public func canToggle(_ metric: MonitorMetric) -> Bool { !contains(metric) || metrics.count > 1 }
+    public func contains(_ metric: MenuBarNumberMetric) -> Bool { metrics.contains(metric) }
+    public func showsNumber(_ metric: MenuBarNumberMetric) -> Bool { showsNumbers && contains(metric) }
+    public func canToggle(_ metric: MenuBarNumberMetric) -> Bool { !contains(metric) || metrics.count > 1 }
     public var canHideRings: Bool { showsNumbers }
     public var canHideNumbers: Bool { showsRings }
 
     public func ringMetric(at position: MenuBarRingPosition) -> MenuBarRingMetric {
-        position == .outer ? outerRing : innerRing
+        switch position {
+        case .outer: return outerRing
+        case .middle: return middleRing
+        case .inner: return innerRing
+        }
     }
 
     public mutating func setRingMetric(_ metric: MenuBarRingMetric, at position: MenuBarRingPosition) {
-        if position == .outer { outerRing = metric } else { innerRing = metric }
+        switch position {
+        case .outer: outerRing = metric
+        case .middle: middleRing = metric
+        case .inner: innerRing = metric
+        }
     }
 
     public mutating func setRingsVisible(_ visible: Bool) {
@@ -78,7 +119,7 @@ public struct MenuBarSelection: Equatable {
         if visible || canHideNumbers { showsNumbers = visible }
     }
 
-    public mutating func set(_ metric: MonitorMetric, visible: Bool) {
+    public mutating func set(_ metric: MenuBarNumberMetric, visible: Bool) {
         if visible { metrics.insert(metric) }
         else if metrics.count > 1 { metrics.remove(metric) }
     }
@@ -124,19 +165,33 @@ public final class AppPreferences: ObservableObject {
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        if defaults.integer(forKey: "menuBarDisplayVersion") >= 2 {
-            let metrics = defaults.stringArray(forKey: "menuBarNumberMetrics")
-                .map { Set($0.compactMap(MonitorMetric.init(rawValue:))) } ?? [.disk, .network]
+        let displayVersion = defaults.integer(forKey: "menuBarDisplayVersion")
+        if displayVersion >= 2 {
+            let metrics = Self.numberMetrics(from: defaults.stringArray(forKey: "menuBarNumberMetrics"))
+            var outer = defaults.string(forKey: "menuBarOuterRingMetric").flatMap(MenuBarRingMetric.init(rawValue:))
+                ?? (displayVersion >= 3 ? .storage : .cpu)
+            var inner = defaults.string(forKey: "menuBarInnerRingMetric").flatMap(MenuBarRingMetric.init(rawValue:))
+                ?? (displayVersion >= 3 ? .cpu : .memory)
+            let middle: MenuBarRingMetric
+            if displayVersion >= 3 {
+                middle = defaults.string(forKey: "menuBarMiddleRingMetric").flatMap(MenuBarRingMetric.init(rawValue:)) ?? .memory
+            } else if inner == .memory && (outer == .cpu || outer == .storage) {
+                // Both the default CPU/MEM pair and the storage/MEM pair restore the classic layout.
+                outer = .storage; middle = .memory; inner = .cpu
+            } else {
+                // Keep explicitly customized outer/inner rings; add a distinct middle metric.
+                middle = [.memory, .storage, .cpu].first { $0 != outer && $0 != inner } ?? .memory
+            }
             selection = MenuBarSelection(metrics: metrics,
                 showsRings: defaults.object(forKey: "menuBarShowsRings") as? Bool ?? true,
                 showsNumbers: defaults.object(forKey: "menuBarShowsNumbers") as? Bool ?? true,
-                outerRing: defaults.string(forKey: "menuBarOuterRingMetric").flatMap(MenuBarRingMetric.init(rawValue:)) ?? .cpu,
-                innerRing: defaults.string(forKey: "menuBarInnerRingMetric").flatMap(MenuBarRingMetric.init(rawValue:)) ?? .memory)
+                outerRing: outer, middleRing: middle, innerRing: inner)
         } else if let stored = defaults.stringArray(forKey: "menuBarMetrics") {
             var legacy = Set(stored.compactMap(MonitorMetric.init(rawValue:)))
             if legacy.isEmpty { legacy = [.network] }
             let numbers = legacy.intersection([.disk, .network])
-            selection = MenuBarSelection(metrics: numbers.isEmpty ? [.disk, .network] : numbers,
+            let numberKeys = numbers.isEmpty ? ["disk", "network"] : numbers.map(\.rawValue)
+            selection = MenuBarSelection(metrics: Self.numberMetrics(from: numberKeys),
                 showsRings: !legacy.subtracting([.network]).isEmpty, showsNumbers: !numbers.isEmpty)
         } else { selection = MenuBarSelection() }
         language = AppLanguage(rawValue: defaults.string(forKey: "appLanguage") ?? "") ?? .system
@@ -151,7 +206,7 @@ public final class AppPreferences: ObservableObject {
         persistSelection()
     }
 
-    public func setVisible(_ metric: MonitorMetric, _ visible: Bool) {
+    public func setVisible(_ metric: MenuBarNumberMetric, _ visible: Bool) {
         var updated = selection
         updated.set(metric, visible: visible)
         guard updated != selection else { return }
@@ -188,8 +243,20 @@ public final class AppPreferences: ObservableObject {
         defaults.set(selection.showsRings, forKey: "menuBarShowsRings")
         defaults.set(selection.showsNumbers, forKey: "menuBarShowsNumbers")
         defaults.set(selection.outerRing.rawValue, forKey: "menuBarOuterRingMetric")
+        defaults.set(selection.middleRing.rawValue, forKey: "menuBarMiddleRingMetric")
         defaults.set(selection.innerRing.rawValue, forKey: "menuBarInnerRingMetric")
-        defaults.set(2, forKey: "menuBarDisplayVersion")
+        defaults.set(3, forKey: "menuBarDisplayVersion")
+    }
+
+    private static func numberMetrics(from stored: [String]?) -> Set<MenuBarNumberMetric> {
+        guard let stored else { return [.diskRead, .diskWrite, .upload, .download] }
+        return Set(stored.flatMap { key -> [MenuBarNumberMetric] in
+            switch key {
+            case "disk": return [.diskRead, .diskWrite]
+            case "network": return [.upload, .download]
+            default: return MenuBarNumberMetric(rawValue: key).map { [$0] } ?? []
+            }
+        })
     }
 
     public func setRefreshSeconds(_ seconds: Int) {

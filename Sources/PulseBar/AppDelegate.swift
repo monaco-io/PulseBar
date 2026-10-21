@@ -348,8 +348,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             switch metric {
             case .cpu: imageKey.append(cpu)
             case .memory: imageKey.append(memory)
-            case .disk: imageKey += [read?.value ?? "—", write?.value ?? "—"]
-            case .network: imageKey += [up?.value ?? "—", down?.value ?? "—"]
+            case .diskRead: imageKey.append(read?.value ?? "—")
+            case .diskWrite: imageKey.append(write?.value ?? "—")
+            case .upload: imageKey.append(up?.value ?? "—")
+            case .download: imageKey.append(down?.value ?? "—")
             }
         }
         if imageKey != lastStatusImageKey {
@@ -389,13 +391,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let pressure = resources.pressure.map { localizer($0.titleKey) } ?? "—"
                 values.append(localizer(.namedValue, localizer(.memoryPressure), pressure))
                 errors += [resources.memoryError, resources.pressureError]
-            case .disk:
-                values += [localizer(.namedValue, localizer(.diskRead), read?.text ?? "—"),
-                           localizer(.namedValue, localizer(.diskWrite), write?.text ?? "—")]
+            case .diskRead:
+                values.append(localizer(.namedValue, localizer(.diskRead), read?.text ?? "—"))
                 errors.append(resources.diskError)
-            case .network:
-                values += [localizer(.namedValue, localizer(.upload), up?.text ?? "—"),
-                           localizer(.namedValue, localizer(.download), down?.text ?? "—")]
+            case .diskWrite:
+                values.append(localizer(.namedValue, localizer(.diskWrite), write?.text ?? "—"))
+                errors.append(resources.diskError)
+            case .upload:
+                values.append(localizer(.namedValue, localizer(.upload), up?.text ?? "—"))
+                errors.append(error)
+            case .download:
+                values.append(localizer(.namedValue, localizer(.download), down?.text ?? "—"))
                 errors.append(error)
             }
         }

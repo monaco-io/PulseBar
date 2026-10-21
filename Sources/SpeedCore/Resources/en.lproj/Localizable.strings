@@ -56,7 +56,7 @@
 "menuOuterRing" = "Outer ring";
 "menuMiddleRing" = "Middle ring";
 "menuInnerRing" = "Inner ring";
-"menuRingHint" = "Outer: storage. Middle: memory. Inner: CPU. Filled arc = used. Memory follows macOS pressure. CPU and storage: green below 60%, yellow at 60–80%, soft red (#FF8080) above 80%. Critical memory pressure uses the same soft red.";
+"menuRingHint" = "Three configurable rings, defaulting to outer storage, middle memory and inner CPU. CPU and storage: green below 80%, yellow from 80% through 90%, soft red (#FF8080) above 90%. Memory follows macOS pressure.";
 "namedValue" = "%@: %@";
 "diskRead" = "Disk read";
 "diskWrite" = "Disk write";
@@ -198,7 +198,7 @@
 "backToOverview" = "Overview";
 "showMenuRings" = "Show rings";
 "showMenuNumbers" = "Show numbers";
-"ringMetricHelp" = "Choose a percentage for each ring. GPU uses the busiest reported device. Unavailable readings have a neutral track and show — in the hint.";
+"ringMetricHelp" = "Default rings: storage, memory, CPU; each can be changed. CPU/storage: green below 80%, yellow at 80–90%, red above 90%. Memory follows macOS pressure. GPU uses the busiest reported device. Unavailable readings show a neutral track and —.";
 "menuDisplayRequired" = "Keep rings or numbers visible so PulseBar remains accessible.";
 "menuPercentages" = "CPU and memory";
 "closeWindow" = "Close window";

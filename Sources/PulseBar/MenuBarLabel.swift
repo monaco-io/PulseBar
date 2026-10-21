@@ -56,16 +56,20 @@ enum MenuBarLabel {
         if selection.showsRings {
             groups.append(Group(target: .rings, width: ringsWidth, labelWidth: 0, values: [], labels: [], unit: nil))
         }
-        let usage = [(MonitorMetric.cpu, "CPU", cpu), (.memory, "MEM", memory)]
+        let usage = [(MenuBarNumberMetric.cpu, "CPU", cpu), (.memory, "MEM", memory)]
             .filter { selection.showsNumber($0.0) }
         if !usage.isEmpty {
             groups.append(group(.usage, labels: usage.map { $0.1 }, readings: usage.map { $0.2 }, percentages: true))
         }
-        if selection.showsNumber(.disk) {
-            groups.append(group(.disk, labels: ["R", "W"], readings: [diskRead, diskWrite]))
+        let disk = [(MenuBarNumberMetric.diskRead, "R", diskRead), (.diskWrite, "W", diskWrite)]
+            .filter { selection.showsNumber($0.0) }
+        if !disk.isEmpty {
+            groups.append(group(.disk, labels: disk.map { $0.1 }, readings: disk.map { $0.2 }))
         }
-        if selection.showsNumber(.network) {
-            groups.append(group(.network, labels: ["↑", "↓"], readings: [upload, download]))
+        let network = [(MenuBarNumberMetric.upload, "↑", upload), (.download, "↓", download)]
+            .filter { selection.showsNumber($0.0) }
+        if !network.isEmpty {
+            groups.append(group(.network, labels: network.map { $0.1 }, readings: network.map { $0.2 }))
         }
 
         var regions: [StatusItemHintTarget: NSRect] = [:]

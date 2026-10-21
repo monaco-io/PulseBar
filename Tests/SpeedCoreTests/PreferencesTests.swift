@@ -5,8 +5,8 @@ import Testing
 
 struct PreferencesTests {
     @Test func everyVisibilityCombinationKeepsAtLeastOneMetric() {
-        let metrics = MonitorMetric.allCases
-        for mask in 1..<16 {
+        let metrics = MenuBarNumberMetric.allCases
+        for mask in 1..<(1 << metrics.count) {
             let enabled = Set(metrics.enumerated().compactMap { mask & (1 << $0.offset) != 0 ? $0.element : nil })
             for metric in metrics {
                 var selection = MenuBarSelection(metrics: enabled)
@@ -25,8 +25,8 @@ struct PreferencesTests {
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
         let first = AppPreferences(defaults: defaults)
-        #expect(first.selection.metrics == [.disk, .network])
-        #expect(first.selection.ringMetrics == [.cpu, .memory])
+        #expect(first.selection.metrics == [.diskRead, .diskWrite, .upload, .download])
+        #expect(first.selection.ringMetrics == [.storage, .memory, .cpu])
         #expect(first.language == .system)
         #expect(first.refreshSeconds == 2)
         #expect(first.historySeconds == 3600)
@@ -34,13 +34,14 @@ struct PreferencesTests {
         #expect(first.notificationCooldownMinutes == 10)
         first.notificationsEnabled = true
         first.notificationCooldownMinutes = 30
-        for metric in [MonitorMetric.cpu, .memory, .disk, .network] { first.setVisible(metric, false) }
+        for metric in MenuBarNumberMetric.allCases { first.setVisible(metric, false) }
         first.language = .english
         first.setRefreshSeconds(17)
         first.setHistorySeconds(300)
         let restored = AppPreferences(defaults: defaults)
-        #expect(restored.selection.metrics == [.network])
-        #expect(defaults.stringArray(forKey: "menuBarNumberMetrics") == ["network"])
+        #expect(restored.selection.metrics == [.download])
+        #expect(defaults.stringArray(forKey: "menuBarNumberMetrics") == ["download"])
+        #expect(defaults.integer(forKey: "menuBarDisplayVersion") == 3)
         #expect(restored.language == .english)
         #expect(restored.refreshSeconds == 17)
         #expect(restored.historySeconds == 300)
@@ -61,27 +62,107 @@ struct PreferencesTests {
         defer { defaults.removePersistentDomain(forName: suite) }
         let first = AppPreferences(defaults: defaults)
         first.setRingMetric(.storage, at: .outer)
+        first.setRingMetric(.battery, at: .middle)
         first.setRingMetric(.gpu, at: .inner)
         first.setVisible(.cpu, true)
         first.setNumbersVisible(false)
         let restored = AppPreferences(defaults: defaults)
-        #expect(restored.selection.ringMetrics == [.storage, .gpu])
+        #expect(restored.selection.ringMetrics == [.storage, .battery, .gpu])
         #expect(restored.selection.visibleNumberMetrics.isEmpty)
-        #expect(restored.selection.metrics == [.cpu, .disk, .network])
+        #expect(restored.selection.metrics == [.cpu, .diskRead, .diskWrite, .upload, .download])
         restored.setRingsVisible(false)
         #expect(restored.selection.showsRings) // Never remove the final way to open the app.
         restored.setNumbersVisible(true)
         restored.setRingsVisible(false)
         let numbersOnly = AppPreferences(defaults: defaults)
         #expect(numbersOnly.selection.ringMetrics.isEmpty)
-        #expect(numbersOnly.selection.visibleNumberMetrics == [.cpu, .disk, .network])
+        #expect(numbersOnly.selection.visibleNumberMetrics == [.cpu, .diskRead, .diskWrite, .upload, .download])
         numbersOnly.setNumbersVisible(false)
         #expect(numbersOnly.selection.showsNumbers)
         numbersOnly.setRingsVisible(true)
-        #expect(numbersOnly.selection.ringMetrics == [.storage, .gpu])
+        #expect(numbersOnly.selection.ringMetrics == [.storage, .battery, .gpu])
         numbersOnly.setRingMetric(.battery, at: .outer)
         numbersOnly.setRingMetric(.battery, at: .inner)
-        #expect(AppPreferences(defaults: defaults).selection.ringMetrics == [.battery, .battery])
+        #expect(AppPreferences(defaults: defaults).selection.ringMetrics == [.battery, .battery, .battery])
+    }
+
+    @Test func eachTransferDirectionPersistsIndependently() throws {
+        let directions: [MenuBarNumberMetric] = [.diskRead, .diskWrite, .upload, .download]
+        for direction in directions {
+            let suite = "PulseBar.Directions.Tests.\(UUID().uuidString)"
+            let defaults = try #require(UserDefaults(suiteName: suite))
+            defer { defaults.removePersistentDomain(forName: suite) }
+            let first = AppPreferences(defaults: defaults)
+            for metric in directions where metric != direction { first.setVisible(metric, false) }
+            first.setNumbersVisible(false)
+            let restored = AppPreferences(defaults: defaults)
+            #expect(restored.selection.metrics == [direction])
+            #expect(restored.selection.visibleNumberMetrics.isEmpty)
+            restored.setNumbersVisible(true)
+            #expect(restored.selection.visibleNumberMetrics == [direction])
+            #expect(restored.selection.ringMetrics == [.storage, .memory, .cpu])
+            restored.setRingsVisible(false)
+            restored.setVisible(direction, false)
+            #expect(restored.selection.visibleNumberMetrics == [direction])
+        }
+    }
+
+    @Test func twoRingSettingsExpandPairedNumbersAndRestoreClassicDefaultRings() throws {
+        let oldMetrics = MonitorMetric.allCases
+        for mask in 0..<(1 << oldMetrics.count) {
+            let suite = "PulseBar.TwoRingMigration.Tests.\(UUID().uuidString)"
+            let defaults = try #require(UserDefaults(suiteName: suite))
+            defer { defaults.removePersistentDomain(forName: suite) }
+            let old = oldMetrics.enumerated().compactMap { mask & (1 << $0.offset) != 0 ? $0.element : nil }
+            defaults.set(2, forKey: "menuBarDisplayVersion")
+            defaults.set(old.map(\.rawValue), forKey: "menuBarNumberMetrics")
+            defaults.set("cpu", forKey: "menuBarOuterRingMetric")
+            defaults.set("memory", forKey: "menuBarInnerRingMetric")
+            var expected: Set<MenuBarNumberMetric> = []
+            if old.contains(.cpu) { expected.insert(.cpu) }
+            if old.contains(.memory) { expected.insert(.memory) }
+            if old.contains(.disk) { expected.formUnion([.diskRead, .diskWrite]) }
+            if old.contains(.network) { expected.formUnion([.upload, .download]) }
+            if expected.isEmpty { expected = [.upload, .download] }
+            let restored = AppPreferences(defaults: defaults)
+            #expect(restored.selection.metrics == expected)
+            #expect(restored.selection.ringMetrics == [.storage, .memory, .cpu])
+            #expect(defaults.integer(forKey: "menuBarDisplayVersion") == 3)
+            #expect(restored.selection == AppPreferences(defaults: defaults).selection)
+        }
+    }
+
+    @Test func migratingCustomizedTwoRingsPreservesTheirMetricsAndVisibility() throws {
+        let suite = "PulseBar.CustomRingMigration.Tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(2, forKey: "menuBarDisplayVersion")
+        defaults.set(["network"], forKey: "menuBarNumberMetrics")
+        defaults.set("memory", forKey: "menuBarOuterRingMetric")
+        defaults.set("battery", forKey: "menuBarInnerRingMetric")
+        defaults.set(false, forKey: "menuBarShowsRings")
+        let restored = AppPreferences(defaults: defaults)
+        #expect(!restored.selection.showsRings)
+        #expect(restored.selection.visibleNumberMetrics == [.upload, .download])
+        restored.setRingsVisible(true)
+        #expect(restored.selection.outerRing == .memory)
+        #expect(restored.selection.innerRing == .battery)
+        #expect(restored.selection.middleRing == .storage)
+        #expect(AppPreferences(defaults: defaults).selection == restored.selection)
+    }
+
+    @Test func existingStorageAndMemoryPairAddsCPUAtTheInnerRing() throws {
+        let suite = "PulseBar.StorageMemoryMigration.Tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(2, forKey: "menuBarDisplayVersion")
+        defaults.set(["cpu", "memory", "network"], forKey: "menuBarNumberMetrics")
+        defaults.set("storage", forKey: "menuBarOuterRingMetric")
+        defaults.set("memory", forKey: "menuBarInnerRingMetric")
+        let restored = AppPreferences(defaults: defaults)
+        #expect(restored.selection.ringMetrics == [.storage, .memory, .cpu])
+        #expect(restored.selection.visibleNumberMetrics == [.cpu, .memory, .upload, .download])
+        #expect(restored.selection == AppPreferences(defaults: defaults).selection)
     }
 
     @Test func legacyCombinedVisibilityMigratesWithoutInventingNumericCPUOrMemory() throws {
@@ -95,9 +176,13 @@ struct PreferencesTests {
             if old.isEmpty { old = [.network] }
             let restored = AppPreferences(defaults: defaults)
             #expect(restored.selection.showsRings == !old.subtracting([.network]).isEmpty)
-            #expect(Set(restored.selection.visibleNumberMetrics) == old.intersection([.disk, .network]))
-            #expect(restored.selection.outerRing == .cpu)
-            #expect(restored.selection.innerRing == .memory)
+            var expectedNumbers: Set<MenuBarNumberMetric> = []
+            if old.contains(.disk) { expectedNumbers.formUnion([.diskRead, .diskWrite]) }
+            if old.contains(.network) { expectedNumbers.formUnion([.upload, .download]) }
+            #expect(Set(restored.selection.visibleNumberMetrics) == expectedNumbers)
+            #expect(restored.selection.outerRing == .storage)
+            #expect(restored.selection.middleRing == .memory)
+            #expect(restored.selection.innerRing == .cpu)
             #expect(restored.selection == AppPreferences(defaults: defaults).selection)
         }
     }
@@ -115,9 +200,9 @@ struct PreferencesTests {
         let restored = AppPreferences(defaults: defaults)
         #expect(restored.selection.showsRings)
         #expect(!restored.selection.showsNumbers)
-        #expect(restored.selection.ringMetrics == [.cpu, .memory])
+        #expect(restored.selection.ringMetrics == [.storage, .memory, .cpu])
         restored.setNumbersVisible(true)
-        #expect(restored.selection.visibleNumberMetrics == [.network])
+        #expect(restored.selection.visibleNumberMetrics == [.upload, .download])
     }
 
     @Test func invalidStoredPreferencesCannotHideTheAppOrStopSampling() throws {
@@ -129,12 +214,12 @@ struct PreferencesTests {
         defaults.set(-10, forKey: "refreshSeconds")
         defaults.set(-1, forKey: "historySeconds")
         let restored = AppPreferences(defaults: defaults)
-        #expect(restored.selection.metrics == [.network])
+        #expect(restored.selection.metrics == [.upload, .download])
         #expect(restored.language == .system)
         #expect(restored.refreshSeconds == 1)
         #expect(restored.historySeconds == 1)
         defaults.set(["removed-metric"], forKey: "menuBarMetrics")
-        #expect(AppPreferences(defaults: defaults).selection.metrics == [.network])
+        #expect(AppPreferences(defaults: defaults).selection.metrics == [.upload, .download])
     }
 
     @Test func localizedResourcesAreCompleteAndSelectable() {

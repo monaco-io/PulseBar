@@ -38,9 +38,13 @@ struct MenuBarRingReadings: Equatable {
     func tint(for metric: MenuBarRingMetric) -> Color {
         guard let value = value(for: metric) else { return Color(nsColor: .disabledControlTextColor) }
         if metric == .memory { return InsightStyle.pressureColor(pressure) }
+        if metric == .gpu {
+            return value > 80 ? InsightStyle.dangerColor : value >= 60
+                ? Color(nsColor: .systemYellow) : InsightStyle.normalColor
+        }
         if metric == .battery {
             return value <= 10 ? InsightStyle.dangerColor : value <= 20
-                ? Color(nsColor: .systemYellow) : Color(nsColor: .systemGreen)
+                ? Color(nsColor: .systemYellow) : InsightStyle.normalColor
         }
         return InsightStyle.utilizationColor(value)
     }
@@ -96,13 +100,13 @@ struct MenuBarRings: View {
     let selection: MenuBarSelection
     var body: some View {
         ZStack {
-            // 22 / 13 pt, equal 3.5 pt strokes: a 1 pt clear gap and 6 pt
-            // hollow center remain legible at the actual menu-bar size.
+            // Equal 3 pt strokes at 22 / 15 / 8 pt leave 0.5 pt clear gaps
+            // and a 2 pt hollow center at the actual menu-bar size.
             if selection.showsRings {
                 ForEach(MenuBarRingPosition.allCases, id: \.self) { position in
                     let metric = selection.ringMetric(at: position)
-                    MenuBarRing(value: readings.value(for: metric), diameter: position == .outer ? 22 : 13,
-                                thickness: 3.5, tint: readings.tint(for: metric))
+                    MenuBarRing(value: readings.value(for: metric), diameter: diameter(at: position),
+                                thickness: 3, tint: readings.tint(for: metric))
                 }
             }
         }
@@ -111,6 +115,13 @@ struct MenuBarRings: View {
         .accessibilityHidden(true)
     }
 
+    private func diameter(at position: MenuBarRingPosition) -> CGFloat {
+        switch position {
+        case .outer: return 22
+        case .middle: return 15
+        case .inner: return 8
+        }
+    }
 }
 
 private struct MenuBarRing: View {

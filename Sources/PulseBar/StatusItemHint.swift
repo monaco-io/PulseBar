@@ -56,8 +56,8 @@ final class StatusItemHint {
         switch target {
         case .rings: guard count > 0 else { return }
         case .usage: guard preferences.selection.showsNumber(.cpu) || preferences.selection.showsNumber(.memory) else { return }
-        case .disk: guard preferences.selection.showsNumber(.disk) else { return }
-        case .network: guard preferences.selection.showsNumber(.network) else { return }
+        case .disk: guard preferences.selection.visibleNumberMetrics.contains(where: { $0.monitorMetric == .disk }) else { return }
+        case .network: guard preferences.selection.visibleNumberMetrics.contains(where: { $0.monitorMetric == .network }) else { return }
         }
         if panel == nil {
             let window = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel],
@@ -84,17 +84,28 @@ final class StatusItemHint {
         let rows = count + (preferences.selection.ringMetrics.contains(.memory) ? 1 : 0)
             + (preferences.selection.ringMetrics.contains(.storage) ? 1 : 0)
         let numberRows = preferences.selection.visibleNumberMetrics.filter { $0 == .cpu || $0 == .memory }.count
+        let rateRows = preferences.selection.visibleNumberMetrics.filter {
+            $0.monitorMetric == (target == .disk ? .disk : .network)
+        }.count
         let size: NSSize
         switch target {
         case .rings: size = NSSize(width: 240, height: CGFloat(24 + 24 * rows))
         case .usage: size = NSSize(width: 240, height: CGFloat(24 + 24 * numberRows))
-        case .disk, .network: size = NSSize(width: 280, height: 156)
+        case .disk, .network: size = NSSize(width: 280, height: CGFloat(64 + 46 * rateRows))
         }
         let frame = PanelPlacement.frame(size: size, anchor: anchorFrame, visibleFrame: screen.visibleFrame)
         panel?.setFrame(frame, display: false)
         panel?.contentView?.layoutSubtreeIfNeeded()
         panel?.orderFrontRegardless()
     }
+}
+
+private struct StatusItemRateValue: Identifiable {
+    let metric: MenuBarNumberMetric
+    let rate: Double?
+    let totalName: TextKey
+    let total: UInt64
+    var id: MenuBarNumberMetric { metric }
 }
 
 private struct StatusItemHintView: View {
@@ -163,22 +174,34 @@ private struct StatusItemHintView: View {
                   systemImage: target == .disk ? "internaldrive" : "arrow.up.arrow.down")
                 .font(.system(size: 12, weight: .semibold))
                 .frame(height: 24)
-            if target == .disk {
-                rateRow(.read, value: monitor.resources.diskRate?.read)
-                rateRow(.write, value: monitor.resources.diskRate?.write)
-            } else {
-                rateRow(.upload, value: monitor.networkError == nil ? monitor.rate.upload : nil)
-                rateRow(.download, value: monitor.networkError == nil ? monitor.rate.download : nil)
+            ForEach(rateValues) { value in
+                rateRow(value.metric.titleKey, value: value.rate)
             }
             Divider().padding(.vertical, 6)
-            if target == .disk {
-                totalRow(.sessionRead, value: monitor.resources.totalDiskRead)
-                totalRow(.sessionWrite, value: monitor.resources.totalDiskWritten)
-            } else {
-                totalRow(.sessionUpload, value: monitor.totalSent)
-                totalRow(.sessionDownload, value: monitor.totalReceived)
+            ForEach(rateValues) { value in
+                totalRow(value.totalName, value: value.total)
             }
         }
+    }
+
+    private var rateValues: [StatusItemRateValue] {
+        let values: [StatusItemRateValue]
+        if target == .disk {
+            values = [
+                .init(metric: .diskRead, rate: monitor.resources.diskRate?.read,
+                      totalName: .sessionRead, total: monitor.resources.totalDiskRead),
+                .init(metric: .diskWrite, rate: monitor.resources.diskRate?.write,
+                      totalName: .sessionWrite, total: monitor.resources.totalDiskWritten)
+            ]
+        } else {
+            values = [
+                .init(metric: .upload, rate: monitor.networkError == nil ? monitor.rate.upload : nil,
+                      totalName: .sessionUpload, total: monitor.totalSent),
+                .init(metric: .download, rate: monitor.networkError == nil ? monitor.rate.download : nil,
+                      totalName: .sessionDownload, total: monitor.totalReceived)
+            ]
+        }
+        return values.filter { preferences.selection.showsNumber($0.metric) }
     }
 
     private func rateRow(_ name: TextKey, value: Double?) -> some View {

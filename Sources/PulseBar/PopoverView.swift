@@ -90,7 +90,7 @@ struct PopoverView: View {
             }
             Spacer(minLength: 5)
             HStack(spacing: 4) {
-                Circle().fill(monitor.networkError != nil || monitor.resources.hasError ? Color.orange : Color(nsColor: .systemGreen))
+                Circle().fill(monitor.networkError != nil || monitor.resources.hasError ? Color.orange : InsightStyle.normalColor)
                     .frame(width: 4, height: 4)
                 Text(monitor.networkError != nil || monitor.resources.hasError
                      ? l10n(.partialError) : l10n(.updatingEvery, preferences.refreshSeconds))
@@ -274,8 +274,12 @@ struct PopoverView: View {
                             settingsMetric(.memory)
                         }
                         HStack {
-                            settingsMetric(.disk)
-                            settingsMetric(.network)
+                            settingsMetric(.diskRead)
+                            settingsMetric(.diskWrite)
+                        }
+                        HStack {
+                            settingsMetric(.upload)
+                            settingsMetric(.download)
                         }
                     }
                     .disabled(!preferences.selection.showsNumbers)
@@ -395,7 +399,7 @@ struct PopoverView: View {
         #endif
     }
 
-    private func settingsMetric(_ metric: MonitorMetric) -> some View {
+    private func settingsMetric(_ metric: MenuBarNumberMetric) -> some View {
         visibilityToggle(metric).frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -420,7 +424,7 @@ struct PopoverView: View {
         historyDraft = HistoryWindow.hoursText(seconds: preferences.historySeconds)
     }
 
-    private func visibilityToggle(_ metric: MonitorMetric) -> some View {
+    private func visibilityToggle(_ metric: MenuBarNumberMetric) -> some View {
         Toggle(l10n(metric.titleKey), isOn: Binding(
             get: { preferences.selection.contains(metric) },
             set: { preferences.setVisible(metric, $0) }

@@ -57,7 +57,7 @@ import pathlib, plistlib, sys
 app, helper = map(pathlib.Path, sys.argv[1:])
 base = plistlib.loads(pathlib.Path('Resources/Info.plist').read_bytes())
 base = {k:v for k,v in base.items() if not k.startswith('SU') and k != 'PulseBarReleasesURL'}
-base.update(CFBundleIdentifier='io.github.monaco-io.PulseBar', CFBundleVersion='26',
+base.update(CFBundleIdentifier='io.github.monaco-io.PulseBar',
             CFBundleSupportedPlatforms=['MacOSX'], ITSAppUsesNonExemptEncryption=False,
             NSHumanReadableCopyright='Copyright © 2026 Xuze Lu')
 (app/'Contents/Info.plist').write_bytes(plistlib.dumps(base))

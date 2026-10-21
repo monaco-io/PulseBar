@@ -28,8 +28,8 @@ Mac App Store 构建通过单独安装的可选 [PulseBar 助手](docs/HELPER.md
 
 重复启动会打开已有实例的面板。同一 macOS 用户只运行一个界面进程，从不同目录启动本次更新后的 app 副本也共用该限制。只读 `--sample` 诊断可以独立运行。
 
-- 菜单栏使用两个同心圆环，默认外圈 CPU、内圈 MEM。外径为 22／13 pt，线宽均为 3.5 pt，透明间隙 1 pt，空心区域直径 6 pt。每个圆环可独立选择 CPU、内存、启动卷存储、GPU（已报告设备中的最高使用率）或内置电池电量。CPU／GPU／存储沿用使用率颜色，内存沿用 macOS 内存压力颜色，电量在 20%／10% 提示低电量；读数不可用时显示灰色底环，悬停为 —。
-- “设置 → 菜单栏显示”分别控制“显示圆环”和“显示数值”，二者至少保留一项。数值部分可单独勾选 CPU、内存、磁盘读写和网速，磁盘上读下写，网络上上传下下载，每组共用一个 MB/s。显隐和指标选择立即生效并保存；隐藏整个区域不会清除指标选择，也不会停止采样。旧版本的显隐设置自动迁移，不会额外打开 CPU／内存数值。悬停提示延迟 0.12 秒出现。
+- 菜单栏恢复三个同心原生 `Gauge` 圆环，默认外圈磁盘容量、中圈内存、内圈 CPU；每圈可独立选择 CPU、内存、磁盘容量、最繁忙 GPU 或内置电池电量。直径 22／15／8 pt，线宽统一 3 pt，圈间保留 0.5 pt 透明间隔和中空中心。CPU 和磁盘容量低于 80% 为绿，80–90% 为黄，超过 90% 为柔红色；内存继续按 macOS 压力着色，GPU 和电池保留各自阈值。正常状态统一使用绿色，警告用黄色、危险用红色，不再使用白色状态色，无数据时显示灰环和 —。
+- “设置 → 菜单栏显示”分别控制圆环和数值，二者至少保留一项。CPU、内存、磁盘读取、磁盘写入、上传、下载六项数值均可独立勾选；磁盘上读下写，网络上上传下下载，成对显示时共享 MB/s 单位，只选一个方向时垂直居中，悬停及辅助功能也只包含选中的方向。设置即时生效、重启保留，隐藏时仍记住选择；旧磁盘／网络开关迁移为对应的两个方向，自定义双环指标在加入第三环时保留。
 - 点击读数打开面板；点击外部或按 Escape 关闭。
 - 总览与独立窗口宽 452 pt，高度随内容撑开，最高为当前屏幕可用高度的 80%；事件展开时增长，收起后缩短，超过上限才滚动。CPU、内存、网络、存储按单列排列，下方显示可用的 GPU / 内置电池。独立详情在屏幕边缘自动换侧。macOS 26 及以上使用 AppKit 原生 Liquid Glass，旧系统使用原生弹出面板材质；透明度、对比度和控件交互由系统处理。
 - 面板按实际可读取的传感器显示 CPU、GPU、内存、存储或电池温度（°C），每项取当前有效且明确归属该部件的传感器最高值。温度归入对应硬件标题；某部件无有效读数时隐藏该温度，不显示虚假的零值。电池温度仅在存在内置电池时展示。可用性因 Mac 型号和 macOS 版本而异，详见[温度兼容性说明](docs/TEMPERATURES.md)。面板温度在后台采样，最快每 5 秒读取一次；刷新间隔超过 5 秒时跟随该间隔。
@@ -111,6 +111,6 @@ CPU 使用 Mach `host_statistics(HOST_CPU_LOAD_INFO)` 的用户、系统、空�
 
 ## 多语言资源
 
-翻译位于 `Sources/SpeedCore/Resources/{en,zh-Hans}.lproj/Localizable.strings`，应用名称的系统语言翻译位于 `Resources/*.lproj/InfoPlist.strings`，采用 [Swift Package 本地化资源](https://developer.apple.com/documentation/xcode/localizing-package-resources)。构建脚本将资源包复制到 App 内，分发后的应用不依赖开发目录。设置通过 UserDefaults 保存，菜单栏设置使用 `menuBarDisplayVersion`、`menuBarNumberMetrics`、`menuBarShowsRings`、`menuBarShowsNumbers`、`menuBarOuterRingMetric` 和 `menuBarInnerRingMetric`，并迁移旧 `menuBarMetrics`；语言、刷新与历史范围继续使用 `appLanguage`、`refreshSeconds` 和 `historySeconds`。从原 NetSpeed 更新时沿用应用标识，保留既有设置和菜单栏位置。
+翻译位于 `Sources/SpeedCore/Resources/{en,zh-Hans}.lproj/Localizable.strings`，应用名称的系统语言翻译位于 `Resources/*.lproj/InfoPlist.strings`，采用 [Swift Package 本地化资源](https://developer.apple.com/documentation/xcode/localizing-package-resources)。构建脚本将资源包复制到 App 内，分发后的应用不依赖开发目录。设置通过 UserDefaults 保存，菜单栏设置使用 `menuBarDisplayVersion`、`menuBarNumberMetrics`、`menuBarShowsRings`、`menuBarShowsNumbers`、`menuBarOuterRingMetric`、`menuBarMiddleRingMetric` 和 `menuBarInnerRingMetric`，并迁移旧 `menuBarMetrics`；语言、刷新与历史范围继续使用 `appLanguage`、`refreshSeconds` 和 `historySeconds`。从原 NetSpeed 更新时沿用应用标识，保留既有设置和菜单栏位置。
 
 实现由 AppKit 的 [NSStatusItem](https://developer.apple.com/documentation/appkit/nsstatusitem) / [NSPopover](https://developer.apple.com/documentation/appkit/nspopover) 承载 SwiftUI 面板。内核数据结构以本机 SDK 的 `net/if.h` 和 `net/if_var.h` 为准。

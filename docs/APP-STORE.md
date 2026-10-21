@@ -45,7 +45,7 @@ Set the signing identity names/hashes in `APP_STORE_APPLICATION_IDENTITY`, `APP_
 ./scripts/build-store-distribution.sh
 ```
 
-The version comes from `Resources/Info.plist`; the store build number is set in the distribution script. Increment it for each replacement upload. The helper starts at version 1.0.0/build 1. Both executables target macOS 13 and include arm64/x86_64. SwiftPM's resource-only bundle receives its own identifier before the store app is signed; the verifier checks nested resource bundle identifiers as well.
+The version and build number both come from `Resources/Info.plist`. Increment the build number for each replacement upload. The helper starts at version 1.0.0/build 1. Both executables target macOS 13 and include arm64/x86_64. SwiftPM's resource-only bundle receives its own identifier before the store app is signed; the verifier checks nested resource bundle identifiers as well.
 
 If the checkout is in a cloud-synced folder, set `PULSEBAR_STORE_SCRATCH_PATH` to an ordinary local cache directory, such as `$HOME/Library/Caches/PulseBar/store-release`, to keep intermediate build files outside cloud synchronization.
 

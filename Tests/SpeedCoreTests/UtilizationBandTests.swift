@@ -3,13 +3,13 @@ import Testing
 
 struct UtilizationBandTests {
     @Test func cpuAndStorageUseTheSameInclusiveWarningBoundaries() {
-        for percent in [-1.0, 0, 23.4, 59.999] {
+        for percent in [-1.0, 0, 23.4, 60, 79.999] {
             #expect(UtilizationBand(percent: percent) == .normal)
         }
-        for percent in [60.0, 72, 80] {
+        for percent in [80.0, 85, 89.999, 90] {
             #expect(UtilizationBand(percent: percent) == .warning)
         }
-        for percent in [80.001, 91.2, 100, 101] {
+        for percent in [90.001, 91.2, 100, 101] {
             #expect(UtilizationBand(percent: percent) == .critical)
         }
     }
@@ -20,16 +20,16 @@ struct UtilizationBandTests {
         }
     }
 
-    @Test func numericalChoicesNeverChangeTheTwoConfiguredRings() {
-        #expect(MenuBarSelection(metrics: [.disk]).ringMetrics == [.cpu, .memory])
-        #expect(MenuBarSelection(metrics: [.network]).ringMetrics == [.cpu, .memory])
-        var selection = MenuBarSelection(metrics: [.disk, .network])
-        selection.set(.disk, visible: false)
-        #expect(selection.ringMetrics == [.cpu, .memory])
+    @Test func numericalChoicesNeverChangeTheThreeConfiguredRings() {
+        #expect(MenuBarSelection(metrics: [.diskRead]).ringMetrics == [.storage, .memory, .cpu])
+        #expect(MenuBarSelection(metrics: [.upload]).ringMetrics == [.storage, .memory, .cpu])
+        var selection = MenuBarSelection(metrics: [.diskRead, .upload])
+        selection.set(.diskRead, visible: false)
+        #expect(selection.ringMetrics == [.storage, .memory, .cpu])
         selection.set(.memory, visible: true)
-        #expect(selection.ringMetrics == [.cpu, .memory])
-        selection.setRingMetric(.storage, at: .inner)
-        #expect(selection.ringMetrics == [.cpu, .storage])
-        #expect(selection.visibleNumberMetrics == [.memory, .network])
+        #expect(selection.ringMetrics == [.storage, .memory, .cpu])
+        selection.setRingMetric(.gpu, at: .middle)
+        #expect(selection.ringMetrics == [.storage, .gpu, .cpu])
+        #expect(selection.visibleNumberMetrics == [.memory, .upload])
     }
 }

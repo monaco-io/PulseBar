@@ -56,7 +56,7 @@
 "menuOuterRing" = "外圈";
 "menuMiddleRing" = "中圈";
 "menuInnerRing" = "内圈";
-"menuRingHint" = "外圈为磁盘容量，中圈为内存，内圈为 CPU；亮弧表示已用。内存颜色跟随 macOS 压力。CPU 和磁盘低于 60% 为绿，60–80% 为黄，超过 80% 为柔红色（#FF8080）；内存压力紧张时也使用该危险色。";
+"menuRingHint" = "三个圆环均可自定义，默认外圈为磁盘容量、中圈为内存、内圈为 CPU。CPU 和磁盘低于 80% 为绿，80–90% 为黄，超过 90% 为柔红色（#FF8080）；内存按 macOS 压力着色。";
 "namedValue" = "%@：%@";
 "diskRead" = "磁盘读取";
 "diskWrite" = "磁盘写入";
@@ -198,7 +198,7 @@
 "backToOverview" = "返回总览";
 "showMenuRings" = "显示圆环";
 "showMenuNumbers" = "显示数值";
-"ringMetricHelp" = "每个圆环可选择一个百分比指标。GPU 显示已报告设备中的最高使用率；无可用数据时显示灰色底环，悬停提示为 —。";
+"ringMetricHelp" = "默认外圈为磁盘容量、中圈为内存、内圈为 CPU，均可更改。CPU／磁盘低于 80% 为绿，80–90% 为黄，超过 90% 为红；内存按系统压力着色。GPU 显示最繁忙设备；无数据时显示灰环和 —。";
 "menuDisplayRequired" = "圆环和数值至少保留一项，便于打开 PulseBar。";
 "menuPercentages" = "CPU 与内存";
 "closeWindow" = "关闭窗口";

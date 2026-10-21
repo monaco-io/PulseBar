@@ -6,7 +6,7 @@ enum HardwarePalette {
     static let cpu = Color(nsColor: .systemBlue)
     static let memory = Color(nsColor: .systemPurple)
     static let download = Color(nsColor: .systemBlue)
-    static let upload = Color(nsColor: .systemGreen)
+    static let upload = InsightStyle.normalColor
 }
 
 struct MetricNumber: View {

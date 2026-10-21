@@ -5,8 +5,8 @@ public enum UtilizationBand: Equatable {
 
     public init?(percent: Double?) {
         guard let percent, percent.isFinite else { return nil }
-        if percent > 80 { self = .critical }
-        else if percent >= 60 { self = .warning }
+        if percent > 90 { self = .critical }
+        else if percent >= 80 { self = .warning }
         else { self = .normal }
     }
 }
