@@ -4,26 +4,28 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>PulseBar</title>
         <item>
-            <title>1.15.1</title>
-            <pubDate>Thu, 22 Oct 2026 07:57:23 +0000</pubDate>
+            <title>1.15.0</title>
+            <pubDate>Wed, 21 Oct 2026 08:53:08 +0000</pubDate>
             <link>https://github.com/monaco-io/PulseBar</link>
-            <sparkle:version>28</sparkle:version>
-            <sparkle:shortVersionString>1.15.1</sparkle:shortVersionString>
+            <sparkle:version>27</sparkle:version>
+            <sparkle:shortVersionString>1.15.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# PulseBar 1.15.1
+            <description sparkle:format="markdown"><![CDATA[# PulseBar 1.15.0
 
-- Make single-row menu bar readings easier to read: labels, numbers, and units now share the system menu bar font size.
-- Tighten spacing for individual upload, download, disk read, and disk write readings. Ordinary rates reserve a compact, stable value column; larger values expand the column while keeping full-size text.
-- Keep the compact two-row layout when both readings in a group are enabled.
+- Configure three menu bar rings independently. The default order is storage, memory, and CPU; each ring can also show supported GPU or battery readings. Thicker 3 pt strokes keep the three layers readable.
+- Show or hide rings and numeric readings separately. Choose CPU, memory, disk read, disk write, upload, and download numbers independently. Existing display choices are migrated automatically.
+- CPU and storage are green below 80%, yellow from 80% through 90%, and soft red above 90%. Memory continues to follow macOS memory pressure. Normal status colors use green throughout the interface.
+- Remove click-to-pin behavior and improve immediate click feedback. Controls use native glass effects where supported, with compatible materials on older macOS versions and reduced-motion support.
+- Keep hover details and VoiceOver descriptions aligned with the selected rings and rate directions.
 
-Requires macOS 13 or later, on Apple Silicon or Intel. Preferences and local event history are preserved. The GitHub download uses ad-hoc signing and signed Sparkle updates; it is not Apple notarized. The App Store version is distributed separately.
+Requires macOS 13 or later, on Apple Silicon or Intel. Preferences and local event history are preserved. The GitHub download uses the existing ad-hoc signing and signed Sparkle update flow; it is not Apple notarized. The App Store build is distributed separately and requires Apple's approval.
 
-[简体中文](https://github.com/monaco-io/PulseBar/blob/v1.15.1/docs/releases/v1.15.1.zh-CN.md)
+[简体中文](https://github.com/monaco-io/PulseBar/blob/v1.15.0/docs/releases/v1.15.0.zh-CN.md)
 ]]></description>
-            <enclosure url="https://github.com/monaco-io/PulseBar/releases/download/v1.15.1/PulseBar.dmg" length="3179470" type="application/octet-stream" sparkle:edSignature="G8gwfrBhopxOVbv/RMpgkbJWKDXipCI0FCJg0B4enEIuNY6WE3/51o5K8mBNU9WzxvefkSIcCzcNsIG9kJ+TBw=="></enclosure>
+            <enclosure url="https://github.com/monaco-io/PulseBar/releases/download/v1.15.0/PulseBar.dmg" length="3176391" type="application/octet-stream" sparkle:edSignature="mmQHIBWp19ENRodScvO8yFE3Fgxdc/WlT1vD8hPg9qyrA1YQHpfSp4vbQW8OvxaYttbnpSNF/QqZRzm69mqiBA=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: xvpKKBmUKIusT8aoHIMCjaBLYHRIqgTWfg0ttCrGr2spK/wclVpmPE3sZgBdoIA4eFlLYGg02asaLj1a3uEbAw==
-length: 1951
+edSignature: DeXXoZrW9MgJ5Ui073sfkXFPMP8+/ebbRAxj6yOMmBXn49BtfW6VHqhZMVX2cYliiJbO7vLydtFmKu2b7lj6DQ==
+length: 2494
 -->
