@@ -49,6 +49,7 @@ final class PopoverPresentation: ObservableObject {
 
     #if DEBUG
     func setPreviewHeight(_ value: CGFloat) { height = value }
+    func setPreviewAvailableHeight(_ value: CGFloat) { availableHeight = value }
     func setPreviewWidth(_ value: CGFloat) { availableWidth = value }
     #endif
 

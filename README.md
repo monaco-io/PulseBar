@@ -8,6 +8,21 @@ See [hardware modules and measurement scope](docs/HARDWARE-MODULES.md).
 
 The Mac App Store build uses a separate, optional [PulseBar Helper](docs/HELPER.md) for app rankings and hardware temperatures. See the [store distribution guide](docs/APP-STORE.md) and [privacy policy](docs/PRIVACY.md). The download below is the direct GitHub edition.
 
+## See PulseBar in action
+
+Three configurable rings and independent numeric readings keep the menu bar focused on what matters to you. Click the readings for the live overview, then open Settings to choose each ring and rate direction.
+
+<table>
+<tr>
+<td width="50%"><img src="Resources/AppStore/Screenshots/en-US-overview.jpg" alt="Live overview" /><br />Live overview</td>
+<td width="50%"><img src="Resources/AppStore/Screenshots/en-US-menubar.jpg" alt="Menu bar at a glance" /><br />Menu bar at a glance</td>
+</tr>
+<tr>
+<td width="50%"><img src="Resources/AppStore/Screenshots/en-US-customize.jpg" alt="Choose each ring" /><br />Choose each ring</td>
+<td width="50%"><img src="Resources/AppStore/Screenshots/en-US-numbers.jpg" alt="Choose one rate direction or both" /><br />Choose one rate direction or both</td>
+</tr>
+</table>
+
 ## Download and install
 
 **[Download PulseBar.dmg](https://github.com/monaco-io/PulseBar/releases/latest/download/PulseBar.dmg)** · [Release notes](https://github.com/monaco-io/PulseBar/releases/latest)

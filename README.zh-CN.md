@@ -8,6 +8,21 @@ Mac App Store 构建通过单独安装的可选 [PulseBar 助手](docs/HELPER.md
 
 原生 macOS 菜单栏组件，实时显示 CPU、内存、磁盘 I/O 和下载 / 上传速度。支持应用资源排行、内存压力和 Swap、历史曲线查看、带应用快照的异常事件时间线，以及可读取的硬件温度。
 
+## 看看实际界面
+
+三个圆环与数值分别控制显隐，每一圈都能自选指标。上传、下载、磁盘读取和写入也可独立选择；点击菜单栏打开实时总览，在设置中即时调整。
+
+<table>
+<tr>
+<td width="50%"><img src="Resources/AppStore/Screenshots/zh-Hans-overview.jpg" alt="实时总览" /><br />实时总览</td>
+<td width="50%"><img src="Resources/AppStore/Screenshots/zh-Hans-menubar.jpg" alt="菜单栏性能读数" /><br />菜单栏性能读数</td>
+</tr>
+<tr>
+<td width="50%"><img src="Resources/AppStore/Screenshots/zh-Hans-customize.jpg" alt="自定义每个圆环" /><br />自定义每个圆环</td>
+<td width="50%"><img src="Resources/AppStore/Screenshots/zh-Hans-numbers.jpg" alt="独立选择速率方向" /><br />独立选择速率方向</td>
+</tr>
+</table>
+
 ## 下载安装
 
 **[下载最新版 DMG](https://github.com/monaco-io/PulseBar/releases/latest/download/PulseBar.dmg)** · [版本说明](https://github.com/monaco-io/PulseBar/releases/latest)
