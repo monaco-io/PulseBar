@@ -33,7 +33,7 @@ assert not entitlements.get('com.apple.security.get-task-allow')
 privacy = plistlib.loads((app / 'Contents/Resources/PrivacyInfo.xcprivacy').read_bytes())
 assert privacy['NSPrivacyTracking'] is False
 assert privacy['NSPrivacyCollectedDataTypes'] == []
-agent = plistlib.loads((helper / 'Contents/Library/LaunchAgents/io.github.monaco-io.PulseBar.HelperService.plist').read_bytes())
+agent = plistlib.loads((helper / 'Contents/Library/LaunchAgents/io.github.monaco-io.PulseBar.HelperService.v2.plist').read_bytes())
 assert agent['BundleProgram'] == 'Contents/MacOS/PulseBarHelperService'
 assert 'UserName' not in agent and 'RunAtLoad' not in agent and 'KeepAlive' not in agent
 assert (helper / agent['BundleProgram']).is_file()

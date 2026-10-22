@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import tempfile
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 BUILD = ROOT / 'dist/app-store-debug'
@@ -62,6 +63,8 @@ def main():
     service_name = '45Y6A23PTN.io.github.monaco-io.PulseBar.HelperService.Test' + uuid.uuid4().hex
     domain = f'gui/{os.getuid()}'
     report = {}
+    agent_plist = BUILD / 'PulseBar Helper.app/Contents/Library/LaunchAgents/io.github.monaco-io.PulseBar.HelperService.v2.plist'
+    production_agent = plistlib.loads(agent_plist.read_bytes())
     with tempfile.TemporaryDirectory(prefix='pulsebar-helper-integration-') as tmp:
         tmp = pathlib.Path(tmp)
         app = tmp / 'PulseBar.app'
@@ -100,6 +103,7 @@ def main():
             'Label': service_name,
             'ProgramArguments': [str(service)],
             'MachServices': {service_name: True},
+            'ProcessType': production_agent['ProcessType'],
             'EnvironmentVariables': service_env,
         }))
         bootstrapped = False
@@ -114,7 +118,18 @@ def main():
                 'signing': 'Developer ID production requirements' if options.identity else 'Exact debug code hashes',
                 'samples': len(rows), 'processes': rows[-1]['apps']['sampledProcesses'],
                 'temperature_components': [r['component'] for r in rows[-1]['temperatures']],
+                'process_type': production_agent['ProcessType'],
             }
+
+            # Short-lived clients reproduce reconnects after a timeout. All
+            # must receive fresh readings without spawning competing scans.
+            with ThreadPoolExecutor(max_workers=3) as clients:
+                futures = [clients.submit(sample, app, service_name, service_hash, 2) for _ in range(3)]
+                for future in futures:
+                    reconnect = future.result()
+                    assert all(row['helperConnected'] and not row.get('errors') for row in reconnect)
+                    assert reconnect[-1]['apps']['topCPU'] and reconnect[-1]['apps']['topMemory']
+            report['concurrent_reconnections'] = 3
 
             untrusted = tmp / 'Untrusted.app'
             shutil.copytree(app, untrusted)

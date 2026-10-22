@@ -214,7 +214,12 @@
 "helperConsent" = "Enable the companion to provide app usage rankings and hardware temperatures to PulseBar. It runs only for your macOS user, samples only when PulseBar requests data, and does not send monitoring data over the network. It stays available after login until you disable it. Disable it here before removing this app.";
 "enableHelper" = "Enable Helper";
 "disableHelper" = "Disable Helper";
-"helperEnabled" = "Helper enabled. Open PulseBar to view the additional metrics.";
+"helperEnabled" = "Helper is enabled. Use Open PulseBar to view app rankings and temperatures.";
+"helperEnabling" = "Enabling helper…";
+"helperDisabling" = "Disabling helper…";
+"helperApprovalRequired" = "Allow PulseBar Helper in System Settings → General → Login Items & Extensions to finish enabling it.";
+"openPulseBar" = "Open PulseBar";
+"pulseBarNotInstalled" = "PulseBar is not installed. Install it first, then choose Open PulseBar.";
 "helperDisabled" = "Helper is disabled.";
 "helperUnavailable" = "PulseBar Helper is not connected. Basic monitoring remains available.";
 "helperTimeout" = "PulseBar Helper did not respond. Reconnecting…";

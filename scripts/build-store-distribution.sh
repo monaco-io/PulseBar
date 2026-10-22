@@ -24,7 +24,7 @@ binary_dirs=()
 architectures=(arm64 x86_64)
 if [[ "$configuration" == debug ]]; then architectures=("$(uname -m)"); fi
 for cpu_arch in "${architectures[@]}"; do
-    build_flags=(--scratch-path "$scratch" -c "$configuration" --triple "$cpu_arch-apple-macosx13.0" --jobs 4)
+    build_flags=(--build-system native --scratch-path "$scratch" -c "$configuration" --triple "$cpu_arch-apple-macosx13.0" --jobs 4)
     ./scripts/swift-local.sh build "${build_flags[@]}"
     binary_dirs+=("$(./scripts/swift-local.sh build "${build_flags[@]}" --show-bin-path)")
 done
@@ -70,7 +70,7 @@ resource.update(CFBundleIdentifier=base['CFBundleIdentifier'] + '.SpeedCoreResou
 resource_info.write_bytes(plistlib.dumps(resource))
 base.update(CFBundleIdentifier='io.github.monaco-io.PulseBar.Helper', CFBundleName='PulseBar Helper',
             CFBundleDisplayName='PulseBar Helper', CFBundleExecutable='PulseBarHelper',
-            CFBundleShortVersionString='1.0.0', CFBundleVersion='1', LSUIElement=False)
+            CFBundleShortVersionString='1.0.1', CFBundleVersion='2', LSUIElement=False)
 (helper/'Contents/Info.plist').write_bytes(plistlib.dumps(base))
 PY
 icon_command=(swift)

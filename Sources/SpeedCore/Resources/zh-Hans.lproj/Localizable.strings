@@ -214,7 +214,12 @@
 "helperConsent" = "启用助手后，可向 PulseBar 提供应用占用排行和硬件温度。助手仅在当前 macOS 用户下运行，收到 PulseBar 请求时才采样，监控数据不会通过网络发送。启用后会在登录时保持可用，直到你在此停用。移除本应用前请先停用助手。";
 "enableHelper" = "启用助手";
 "disableHelper" = "停用助手";
-"helperEnabled" = "助手已启用。打开 PulseBar 即可查看额外指标。";
+"helperEnabled" = "助手已启用。点击“打开 PulseBar”查看应用占用排行和温度。";
+"helperEnabling" = "正在启用助手…";
+"helperDisabling" = "正在停用助手…";
+"helperApprovalRequired" = "请在“系统设置 → 通用 → 登录项与扩展”中允许 PulseBar 助手，完成启用。";
+"openPulseBar" = "打开 PulseBar";
+"pulseBarNotInstalled" = "尚未安装 PulseBar。请先安装，再点击“打开 PulseBar”。";
 "helperDisabled" = "助手已停用。";
 "helperUnavailable" = "PulseBar 助手未连接，基础监控仍然可用。";
 "helperTimeout" = "PulseBar 助手暂未响应，正在重新连接…";

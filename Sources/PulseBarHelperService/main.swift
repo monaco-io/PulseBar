@@ -50,11 +50,15 @@ private final class SamplingSession: NSObject, PulseBarHelperProtocol {
 }
 
 private final class ListenerDelegate: NSObject, NSXPCListenerDelegate {
+    // Reconnecting clients share one sampler and cache. A timed-out request
+    // must not leave a separate process scan running for every new connection.
+    private let session = SamplingSession()
+
     func listener(_ listener: NSXPCListener, shouldAcceptNewConnection connection: NSXPCConnection) -> Bool {
         guard connection.effectiveUserIdentifier == getuid() else { return false }
         connection.setCodeSigningRequirement(HelperIdentity.clientRequirement)
         connection.exportedInterface = NSXPCInterface(with: PulseBarHelperProtocol.self)
-        connection.exportedObject = SamplingSession()
+        connection.exportedObject = session
         connection.resume()
         return true
     }

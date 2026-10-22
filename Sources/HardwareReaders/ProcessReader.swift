@@ -46,7 +46,9 @@ public struct ProcessReader {
             let responsibleBundle = ProcessResponsibility.responsiblePID(for: pid).flatMap {
                 ProcessAccumulator.bundlePath(for: executablePath(for: $0))
             }
-            let name = executable.isEmpty ? "PID \(pid)" : URL(fileURLWithPath: executable).lastPathComponent
+            // proc_pidpath already identifies a file. Avoid a filesystem probe
+            // for every process just to extract its name.
+            let name = executable.isEmpty ? "PID \(pid)" : URL(fileURLWithPath: executable, isDirectory: false).lastPathComponent
             samples.append(ProcessSample(pid: pid, parentPID: Int32(info.pbi_ppid), startedAt: usage.ri_proc_start_abstime,
                 name: name, executablePath: executable,
                 cpuNanoseconds: ProcessClock.nanoseconds(usage.ri_user_time + usage.ri_system_time,

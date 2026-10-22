@@ -4,11 +4,13 @@ The Mac App Store edition of PulseBar uses a separately installed helper for app
 
 ## Install and enable
 
-1. Download **PulseBar-Helper.dmg** from the [PulseBar Helper release](https://github.com/monaco-io/PulseBar/releases/tag/helper-v1.0.0).
+1. Download **PulseBar-Helper.dmg** from the [PulseBar Helper release](https://github.com/monaco-io/PulseBar/releases/tag/helper-v1.0.1).
 2. Open the disk image and drag **PulseBar Helper.app** to **Applications**. You can use your user's Applications folder if you do not have administrator access.
 3. Launch **PulseBar Helper**, read the explanation, and choose **Enable Helper**.
 4. If macOS asks for background-item approval, allow PulseBar Helper in **System Settings → General → Login Items & Extensions**. The helper window links to the relevant system settings.
 5. Open PulseBar. Its helper settings show when the connection is established. App rankings populate after a sampling interval; temperatures appear where supported sensors are available.
+
+When the helper is already enabled, **Enable Helper** is disabled. Choose **Open PulseBar** to see the readings; enabling the helper does not open the monitor automatically. If approval is pending, the enable button opens the required system settings.
 
 The helper supports macOS 13 or later on Apple Silicon and Intel. Temperature availability varies by hardware and macOS version. It does not provide fan control or elevate privileges.
 
@@ -17,6 +19,8 @@ The helper supports macOS 13 or later on Apple Silicon and Intel. Temperature av
 Open **PulseBar Helper** and choose **Disable Helper**. Once disabled, quit the helper and move it to Trash. PulseBar continues with its basic monitoring features. Enable the helper again if you want to restore rankings and temperatures.
 
 To update the helper, disable it, quit its window, replace the app using the newer official disk image, then launch it and enable it again. The App Store updates the main PulseBar app separately.
+
+The updated helper uses a new launch-agent registration and keeps the same local connection endpoint, so existing App Store versions remain compatible. This avoids reusing a stale registration from the first helper version.
 
 ## Privacy and troubleshooting
 

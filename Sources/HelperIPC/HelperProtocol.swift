@@ -12,8 +12,10 @@ public enum HelperIdentity {
     public static let appID = "io.github.monaco-io.PulseBar"
     public static let helperID = appID + ".Helper"
     public static let serviceID = appID + ".HelperService"
-    public static let agentPlist = serviceID + ".plist"
-    public static let downloadURL = URL(string: "https://github.com/monaco-io/PulseBar/releases/tag/helper-v1.0.0")!
+    // Keep the Mach endpoint stable for existing Store clients while a fresh
+    // launch-agent identity replaces stale registrations from the first helper.
+    public static let agentPlist = serviceID + ".v2.plist"
+    public static let downloadURL = URL(string: "https://github.com/monaco-io/PulseBar/releases/tag/helper-v1.0.1")!
 
     public static var serviceName: String {
         #if DEBUG

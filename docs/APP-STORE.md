@@ -45,7 +45,7 @@ Set the signing identity names/hashes in `APP_STORE_APPLICATION_IDENTITY`, `APP_
 ./scripts/build-store-distribution.sh
 ```
 
-The version and build number both come from `Resources/Info.plist`. Increment the build number for each replacement upload. The helper starts at version 1.0.0/build 1. Both executables target macOS 13 and include arm64/x86_64. SwiftPM's resource-only bundle receives its own identifier before the store app is signed; the verifier checks nested resource bundle identifiers as well.
+The main app version and build number both come from `Resources/Info.plist`. Increment the build number for each replacement upload. The helper has its own version, currently 1.0.1/build 2, in the bundle assembly script. Both executables target macOS 13 and include arm64/x86_64. SwiftPM's resource-only bundle receives its own identifier before the store app is signed; the verifier checks nested resource bundle identifiers as well.
 
 If the checkout is in a cloud-synced folder, set `PULSEBAR_STORE_SCRATCH_PATH` to an ordinary local cache directory, such as `$HOME/Library/Caches/PulseBar/store-release`, to keep intermediate build files outside cloud synchronization.
 
@@ -59,7 +59,7 @@ This notarizes and staples the helper app, creates and signs its disk image, and
 
 ## Publication and review
 
-Publish the helper on its own `helper-v1.0.0` tag/release with `PulseBar-Helper.dmg` as its only attached file. Mark it **not Latest** so the direct PulseBar release and Sparkle feed keep their existing channel. Never replace a published binary; issue a higher helper version for a fix and update the main app's download link when needed.
+Publish the helper on its own `helper-v1.0.1` tag/release with `PulseBar-Helper.dmg` as its only attached file. Mark it **not Latest** so the direct PulseBar release and Sparkle feed keep their existing channel. Never replace a published binary; issue a higher helper version for a fix and update the main app's download link when needed.
 
 Publish this support documentation and `PRIVACY.md` before entering their public URLs in App Store Connect. Upload the signed store `.pkg` using Apple's Transporter. Set accurate privacy disclosures and content ratings, add screenshots from the store build, explain the optional helper and the exact Mach exception in App Review notes, and include the helper's public download link. Do not submit while that link is unavailable or its package is not notarized.
 
