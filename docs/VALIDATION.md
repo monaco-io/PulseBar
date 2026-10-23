@@ -1,12 +1,14 @@
 # 本机验证记录
 
-## 2026-10-23：1.16.0（30）商店正式包与助手 1.0.2 公证
+## 2026-10-23：1.16.0（30）已提交商店审核，助手 1.0.2 已发布
 
 - 用户确认最终 UI 后，正式构建并签署主程序 1.16.0/build 30 和助手 1.0.2/build 3。主程序 arm64/x86_64、沙盒、私有代码隔离、资源与严格签名检查通过；最终 UI 沿用本日 117 项核心测试及隔离连接验收。
 - 苹果首次上传验证返回 90255，定位到从本地安全缓存复制的 `embedded.provisionprofile` 保留 0600 权限。打包脚本现在在签名前规范应用包可读权限，验证器同时拒绝普通用户不可读的文件/目录；解包确认描述文件为 0644。修复包 SHA-256 为 `9fbaa2f563fb5800865160652cf2ea9402479f49ed75d7a090f4e84d676c4a86`，Transporter 于 17:38 成功交付，苹果已完成构建处理。
 - 用户授权补齐 Developer ID Installer 证书，已保存在本机钥匙串。助手应用公证 `5ccc9bfa-8e1c-48eb-9124-72bec3d5bb23` 和安装包公证 `83277480-365b-4948-b12b-54eb18ac367e` 均为 Accepted；stapler、Gatekeeper、双架构、仅助手载荷、无脚本、用户目录安装域和中英文资源验证通过。没有代替用户启用后台服务。新用户账户完整安装仍未实机验收。
 - 中英文总览与菜单栏截图均从最终 App Store 配置调试预览的真实窗口采集，分辨率为 2560×1600，核对等大方块、CPU/GPU 单一外框和一致的系统圆形按钮。截图不使用模拟读数。
-- App Store Connect 新建 1.16.0，保存中英文介绍、更新说明和准确的 PKG 安装审核说明，设为审核通过后自动发布。助手公开下载与主程序提交审核状态将在后续验证记录中补齐；上述上传完成不等于审核通过或商店上线。
+- App Store Connect 保存中英文介绍、更新说明和准确的 PKG 安装审核说明。媒体管理器分别确认英文和中文各两张新版截图，绑定构建 `e2eff305-6770-46c4-88e4-d7300e909332`。于 17:53 提交成功，[审核条目](https://appstoreconnect.apple.com/apps/6822572419/distribution/reviewsubmissions/details/624110d5-375f-4966-8993-0d3a02a75693) 为 **Waiting for Review**，设为审核通过后自动发布。提交凭据及截图在本地 `artifacts/ui-review/app-store-submission-receipt.json` 和 `app-store-submitted-1.16.0.png`；当前不代表商店已上线。
+- [助手 1.0.2](https://github.com/monaco-io/PulseBar/releases/tag/helper-v1.0.2) 已公开发布，仅含 `PulseBar-Helper.pkg`（1,085,647 字节）。匿名直链下载、本地包与 GitHub 资产 SHA-256 一致：`d5dc3e0c31c9e7e204535132588a898994afad643f0acb2f1ca49bf6d8ab1ccf`；公开包再次通过公证票据、Gatekeeper 与载荷检查。未发布新主程序 GitHub 二进制，也未将插件设为 Latest；历史 Latest 仍为 `v1.15.2`。
+- 发布源码为 `dd3188c32c6cd78c75fd3ce88eef9ed35c93267c`，[CI 39934510141](https://github.com/monaco-io/PulseBar/actions/runs/39934510141) 成功。签名私钥保留本机钥匙串，申请时产生的临时明文私钥已清理；测试截图预览进程已停止。
 
 ## 2026-10-23：等大总览、官方按钮与插件安装包候选版（未发布）
 
