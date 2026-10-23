@@ -1,66 +1,48 @@
-# GitHub 发布与更新
+# 分发与发布
 
 [English](RELEASING.md) | 简体中文
 
-## 发布布局
+## 发布范围
 
-**Release 只上传 `PulseBar.dmg`。** 安装和自动更新共用同一个签名 DMG。DMG 只显示 `PulseBar.app` 和 `Applications` 文件夹入口，左右排列为大图标。安装说明放在 README，版本说明放在发布正文；不再上传 ZIP、独立说明或校验文本。GitHub 页面会显示资产的 SHA-256，并自动附带两个源码下载链接，它们不是手动上传的附件。
+**PulseBar 主程序及更新只通过 Mac App Store 分发；GitHub 后续只发布可选的 PulseBar 助手插件。** 原 `v*` 主程序自动发布工作流已移除，`scripts/package-release.sh` 会拒绝继续制作 GitHub 主程序版本。CI 验证商店构建和助手，不再上传主程序预览包。
 
-隐藏的 Finder 布局来自 `Resources/DMG/FinderLayout.dsstore`。修改 256 点图标或 800 × 440 窗口时，编辑 `scripts/create-dmg-layout.py`，在安装了 `ds-store==1.3.3` 的临时 Python 环境中运行，并同时提交脚本和生成的模板。正式打包直接复制模板，无需安装此依赖。
+历史主程序发布与 `codex/updates` 的 Sparkle 清单保留兼容，不覆盖、不删除、不随插件更新。助手始终标记为非 Latest，避免旧版主程序的 latest 链接指向插件。
 
-签名更新清单单独保存在 `codex/updates` 分支：
-<https://raw.githubusercontent.com/monaco-io/PulseBar/codex/updates/appcast.xml>
+## 主程序
 
-App 内的 `SUFeedURL` 固定指向此地址；feed 内的 DMG 链接指向具体版本 tag。`1.7.0` 的旧更新地址在 Release 附件中，精简后不再提供；这版及更早的用户需手动安装 1.7.1 一次。
+先完成修改、检查与候选构建，把真实最新 UI 给用户确认；确认后再按[App Store 分发说明](APP-STORE.md)准备签名、版本号和上传。Apple 审核与公开上架是后续独立步骤。GitHub 不再发布主程序安装包或新版 Sparkle 清单。
 
-## 默认语言
+## 助手插件
 
-仓库介绍、默认 README、安装说明和版本更新正文使用英文；中文放到单独的 `*.zh-CN.*` 文件，通过链接按需查看。应用内更新清单默认嵌入英文说明。
+每个版本使用独立的 `helper-v版本号` tag，Release 只附带一个 **PulseBar-Helper.pkg**。助手应用和服务使用 Developer ID Application 签名；PKG 使用 Developer ID Installer 签名，并完成 Apple 公证与票据装订。
 
-## 日常发布
+安装包只将助手放入个人 `~/Applications`，无安装脚本、不要求管理员权限，也不会自动启用后台服务。安装器提供中英文说明。主程序设置直接打开固定版本的 PKG 下载地址，不经过 GitHub 发布页；安装后按钮变成“打开助手”，用户再明确启用。
 
-1. 同时提高 `Resources/Info.plist` 中的 `CFBundleShortVersionString` 和 `CFBundleVersion`。
-2. 添加英文 `docs/releases/v版本号.md`，中文可放到 `v版本号.zh-CN.md` 并提供链接；提交代码并确认 CI 成功。
-3. 创建并推送对应 tag，例如：
-
-   ```sh
-   git tag -a v1.7.2 -m 'PulseBar 1.7.2'
-   git push origin v1.7.2
-   ```
-
-**Publish release** 核对递增版本，运行测试，编译双架构 App 并诊断采样。打包脚本生成 `dist/release/PulseBar.dmg` 和 `dist/updates/appcast.xml`；验证 DMG 挂载、资源、系统要求、版本及数字签名。先上传 DMG 为草稿并公开为 Latest，再将签名清单原样提交到更新分支。新清单公开之前，旧清单仍指向可用的旧版 DMG，避免更新读取尚未发布的文件。GitHub Raw 的缓存可能使新清单延迟数分钟出现。
-
-发布任务串行运行。更新分支不触发常规 CI，不需要 GitHub Pages 或额外访问凭据。保持仓库公开；App 不内置 GitHub token。
-
-## 签名与验证
-
-使用 [Sparkle 2.10.0](https://sparkle-project.org/documentation/) 官方二进制及工具，SwiftPM 固定版本和官方 SHA-256。第三方许可随 App 分发。
-
-- 公钥：`Resources/Info.plist` 的 `SUPublicEDKey`。
-- 私钥：开发机钥匙串账户 `monaco-io.PulseBar`，以及仓库 Actions Secret `SPARKLE_PRIVATE_KEY`。PR 和常规 CI 不读取私钥。
-- `generate_appcast` 对 DMG 和 feed 签名，`sign_update --verify` 做密码学校验，`verify-release.py` 检查安装包和清单一致。
-- `SURequireSignedFeed` 和 `SUVerifyUpdateBeforeExtraction` 保持开启。不要手改签名后的 XML，不要覆盖已发布的 DMG。
-
-安全保留原签名密钥。迁移开发机可使用 Sparkle `generate_keys` 导出 / 导入；私钥不进入代码、附件、日志或聊天。
-
-## 本地打包
-
-钥匙串已有上述账户时：
+Swift 的 `HelperIdentity.version`、构建脚本内助手版本、PKG 与 tag 必须一致。主程序的 App Store 提交 PKG 不得上传 GitHub。
 
 ```sh
-./scripts/package-release.sh v1.7.1
+./scripts/build-store-distribution.sh
+./scripts/package-helper-release.sh
 ```
 
-脚本只生成本地文件，正式发布由 tag 工作流完成。内部构建仍可生成 ZIP 作为 CI 预览，它不会出现在 Release 中。
+正式打包需[商店分发说明](APP-STORE.md)列出的签名与描述文件，另外设置 `DEVELOPER_ID_INSTALLER_IDENTITY` 和 `NOTARY_KEYCHAIN_PROFILE`。私钥和公证凭据仅保留在本地钥匙串或授权的密钥存储中。
 
-## 失败恢复
+用户确认最新 UI、检查通过后才能发布：
 
-测试或打包失败时不发布新版；修复后重跑任务。存在同名 Release 时脚本停止，避免覆盖。
+```sh
+git tag -a helper-v1.0.2 -m 'PulseBar Helper 1.0.2'
+git push origin helper-v1.0.2
+./scripts/publish-helper-release.sh helper-v1.0.2
+```
 
-如果 DMG 已公开但 feed 推送失败，旧 feed 保持可用。确认 `dist/updates/appcast.xml` 的签名、版本及已公开的 DMG 地址后，将该文件原样提交并推送到 `codex/updates` 分支即可恢复；不要重新打包覆盖 DMG。已发布版本有问题时发布更高版本修复。
+脚本先核对安装包内容、签名团队、公证、tag 版本和已跟踪源码状态，再建立只有一个安装包的草稿，公开为非 Latest。已有同名发布会停止，不能覆盖旧文件。发布后检查匿名直链下载、资产摘要和公证，再提交包含对应助手链接的主程序。
 
-## Apple 公证
+## 本地检查
 
-目前为 ad-hoc 签名，尚无 Apple Developer ID 公证。首次安装可能需要按 [Apple 安全设置说明](https://support.apple.com/102445)允许打开。
+```sh
+./scripts/build-store-distribution.sh --local
+./scripts/package-helper-release.sh --local
+python3 scripts/verify-helper-installer.py dist/helper-release/PulseBar-Helper.pkg
+```
 
-本地构建支持 `CODE_SIGN_IDENTITY` 按从内到外的顺序签名 helpers、framework 和 App 并启用 Hardened Runtime；打包支持 `NOTARY_KEYCHAIN_PROFILE` 提交公证并装订票据后生成 DMG。GitHub 托管构建尚未配置 Apple 证书和公证凭据。
+本地包带有 `LOCAL-ONLY.txt`，发布脚本会拒绝上传。检查包结构不会实际安装插件或注册后台项目，也不代表公开下载或 Apple 审核已通过。

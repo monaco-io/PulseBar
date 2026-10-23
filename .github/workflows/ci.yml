@@ -9,32 +9,14 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    runs-on: macos-15
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - name: Test
-        run: ./scripts/swift-local.sh test --disable-xctest
-      - name: Build universal app
-        run: ./scripts/build-app.sh
-      - name: Sample packaged app
-        run: dist/PulseBar.app/Contents/MacOS/PulseBar --sample 3
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: PulseBar-universal-preview
-          path: dist/PulseBar.zip
-          if-no-files-found: error
-          retention-days: 14
-
   app-store:
     runs-on: macos-15
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Test store configuration
-        run: PULSEBAR_DISTRIBUTION=app-store ./scripts/swift-local.sh test --disable-xctest --jobs 4 --scratch-path .build/store-debug
+        run: PULSEBAR_DISTRIBUTION=app-store ./scripts/swift-local.sh test --build-system native --disable-xctest --jobs 4 --scratch-path .build/store-debug
       - name: Verify universal store and helper bundles
         run: ./scripts/build-store-distribution.sh --local
-      - name: Verify helper disk image
+      - name: Verify helper installer
         run: ./scripts/package-helper-release.sh --local

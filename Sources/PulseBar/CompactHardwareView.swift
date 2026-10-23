@@ -50,35 +50,45 @@ struct CompactHardwareView: View {
     let onOpen: (PanelRoute) -> Void
     var onHoverModule: ((PanelRoute, Bool) -> Void)?
     private var l10n: Localizer { preferences.localizer }
+    private var tileWidth: CGFloat { max(0, (panelWidth - 40) / 2) }
+    private var tileHeight: CGFloat { max(188, tileWidth) }
+    private var compact: Bool { tileWidth < 190 }
+    private var showsGPU: Bool { !monitor.gpuUsage.isEmpty || temperature(.gpu) != nil }
 
     var body: some View {
         ScrollViewReader { proxy in
           FittingScrollView {
-            VStack(spacing: 0) {
-                VStack(spacing: 0) {
-                    module(.cpu, route: .cpuDetails) { cpu }
-                    separator
-                    module(.memory, route: .memoryDetails) { memory }
-                    separator
-                    module(.network, route: .networkDetails) { network }
-                    separator
-                    module(.storage, route: .storageDetails) { storage }
-                    if !monitor.gpuUsage.isEmpty || temperature(.gpu) != nil {
-                        separator
-                        module(.gpu, route: .gpuDetails, verticalPadding: 12) { gpu }
+            VStack(spacing: 12) {
+                HStack(alignment: .top, spacing: 12) {
+                    tile {
+                        VStack(spacing: 0) {
+                            module(.cpu, route: .cpuDetails) { cpu }
+                            if showsGPU {
+                                Divider().padding(.horizontal, 14)
+                                module(.gpu, route: .gpuDetails, verticalPadding: 10) { gpu }
+                                    .frame(height: 45)
+                            }
+                        }
                     }
-                    if let battery = monitor.battery, battery.isDisplayable || temperature(.battery) != nil {
-                        separator
-                        module(.battery, route: .batteryDetails, verticalPadding: 12) { batteryRow(battery) }
-                    }
+                    tile { module(.memory, route: .memoryDetails) { memory } }
+                }
+                HStack(alignment: .top, spacing: 12) {
+                    tile { module(.network, route: .networkDetails) { network } }
+                    tile { module(.storage, route: .storageDetails) { storage } }
+                }
+                if let battery = monitor.battery, battery.isDisplayable || temperature(.battery) != nil {
+                    module(.battery, route: .batteryDetails, verticalPadding: 12) { batteryRow(battery) }
+                        .frame(height: 48)
+                        .background(cardBackground)
                 }
                 HStack {
-                    Text(l10n(.sessionDownload) + " " + TrafficFormatter.total(monitor.totalReceived))
-                    Spacer(minLength: 8)
                     Text(l10n(.sessionUpload) + " " + TrafficFormatter.total(monitor.totalSent))
+                    Spacer(minLength: 8)
+                    Text(l10n(.sessionDownload) + " " + TrafficFormatter.total(monitor.totalReceived))
                 }
-                .font(.system(size: 11)).foregroundStyle(.secondary).monospacedDigit()
-                .padding(.horizontal, 5).padding(.top, 12)
+                .font(.system(size: compact ? 10 : 11)).foregroundStyle(.secondary).monospacedDigit()
+                .lineLimit(1).minimumScaleFactor(0.85)
+                .padding(.horizontal, 5)
             }
             .padding(.horizontal, 14).padding(.bottom, 8)
             .id("hardware-content")
@@ -89,21 +99,34 @@ struct CompactHardwareView: View {
         }
     }
 
-    private var separator: some View { Divider().padding(.horizontal, 14) }
+    private var cardBackground: some View {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(.quinary.opacity(0.45))
+            .overlay {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(.primary.opacity(0.08), lineWidth: 0.5)
+            }
+    }
 
-    private func module<Content: View>(_ title: TextKey, route: PanelRoute, verticalPadding: CGFloat = 10,
+    private func tile<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .frame(width: tileWidth, height: tileHeight)
+            .background(cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func module<Content: View>(_ title: TextKey, route: PanelRoute, verticalPadding: CGFloat = 14,
                                       @ViewBuilder content: () -> Content) -> some View {
         ZStack {
-            // AppKit owns hover, highlight and Liquid Glass press animations.
-            // The transparent SwiftUI label never intercepts the native button.
+            // One borderless native hit area per action; only the tile draws
+            // a surface, so CPU/GPU never acquire a doubled bezel at their join.
             NativeGlassButton(title: l10n(.hardwareDetails, l10n(title)), symbol: "", iconOnly: true,
-                              fillsBounds: true, hoverOnly: true) { onOpen(route) }
+                              fillsBounds: true) { onOpen(route) }
                 .accessibilityHidden(true)
-            content().frame(maxWidth: .infinity, alignment: .leading)
+            content().frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .padding(.horizontal, 14).padding(.vertical, verticalPadding)
                 .allowsHitTesting(false)
         }
-        .fixedSize(horizontal: false, vertical: true)
         .foregroundStyle(.primary)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(l10n(.hardwareDetails, l10n(title)))
@@ -121,8 +144,8 @@ struct CompactHardwareView: View {
                 ?? l10n(.waiting)
         case .networkDetails:
             guard monitor.networkError == nil else { return l10n(.retrying) }
-            return l10n(.download) + " " + TrafficFormatter.speed(monitor.rate.download).text + ", "
-                + l10n(.upload) + " " + TrafficFormatter.speed(monitor.rate.upload).text
+            return l10n(.upload) + " " + TrafficFormatter.speed(monitor.rate.upload).text + ", "
+                + l10n(.download) + " " + TrafficFormatter.speed(monitor.rate.download).text
         case .storageDetails: return monitor.storageCapacity.map { l10n(.availableSpace, TrafficFormatter.total($0.availableBytes)) } ?? l10n(.waiting)
         case .gpuDetails: return monitor.gpuUsage.map { $0.name + " " + SystemFormatter.percent($0.utilizationPercent) }.joined(separator: ", ")
         case .batteryDetails: return SystemFormatter.percent(monitor.battery?.chargePercent)
@@ -134,102 +157,99 @@ struct CompactHardwareView: View {
         HStack(spacing: 7) {
             Text(l10n(key)).font(.system(size: 13, weight: .semibold))
             Spacer(minLength: 4)
-            trailing().font(.system(size: 11)).foregroundStyle(.secondary)
+            trailing().font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1)
             Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).foregroundStyle(.tertiary)
         }
     }
 
     private var cpu: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             title(.cpu) { temperatureLabel(.cpu) }
             HStack(spacing: 10) {
-                if panelWidth >= 420 { MetricRing(value: monitor.resources.cpu?.usedPercent, symbol: "cpu", color: HardwarePalette.cpu) }
-                VStack(alignment: .leading, spacing: 4) {
-                    percent(monitor.resources.cpu?.usedPercent)
-                    Text(l10n(.userSystem, SystemFormatter.percent(monitor.resources.cpu?.userPercent),
-                              SystemFormatter.percent(monitor.resources.cpu?.systemPercent)))
-                        .font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(2)
-                }
-                Spacer(minLength: 0)
-                spark(monitor.resources.cpuHistory, maximum: 100, color: HardwarePalette.cpu)
+                if !compact { MetricRing(value: monitor.resources.cpu?.usedPercent, symbol: "cpu", color: HardwarePalette.cpu) }
+                percent(monitor.resources.cpu?.usedPercent)
             }
+            if tileWidth >= 160 {
+                Text(l10n(.userSystem, SystemFormatter.percent(monitor.resources.cpu?.userPercent),
+                          SystemFormatter.percent(monitor.resources.cpu?.systemPercent)))
+                    .font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.85)
+            }
+            Spacer(minLength: 0)
+            spark(monitor.resources.cpuHistory, maximum: 100, color: HardwarePalette.cpu, height: showsGPU ? 24 : 40)
             HardwareErrorLabel(error: monitor.resources.cpuError, localizer: l10n)
         }
     }
 
     private var memory: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            title(.memory) {
-                if let pressure = monitor.resources.pressure {
-                    Label(l10n(.pressureState, l10n(pressure.titleKey)), systemImage: "circle.fill")
-                        .labelStyle(.titleAndIcon)
-                        .foregroundStyle(InsightStyle.pressureColor(pressure))
-                }
-            }
+        VStack(alignment: .leading, spacing: 8) {
+            title(.memory) { temperatureLabel(.memory) }
             HStack(spacing: 10) {
-                if panelWidth >= 420 { MetricRing(value: monitor.resources.memory?.usedPercent, symbol: "memorychip", color: HardwarePalette.memory) }
-                VStack(alignment: .leading, spacing: 4) {
-                    if let memory = monitor.resources.memory {
-                        let amount = TrafficFormatter.amount(memory.usedBytes, unitFor: memory.totalBytes)
-                        let total = TrafficFormatter.amount(memory.totalBytes)
-                        MetricNumber(value: amount.value, unit: "/ " + total.text)
-                    } else { MetricNumber(value: "—") }
-                    Text(memoryCaption).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(2)
-                }
-                Spacer(minLength: 0)
-                spark(monitor.resources.memoryHistory, maximum: 100, color: HardwarePalette.memory)
+                if !compact { MetricRing(value: monitor.resources.memory?.usedPercent, symbol: "memorychip", color: HardwarePalette.memory) }
+                if let memory = monitor.resources.memory {
+                    let amount = TrafficFormatter.amount(memory.usedBytes, unitFor: memory.totalBytes)
+                    MetricNumber(value: amount.value, unit: amount.unit, size: compact ? 24 : 27)
+                } else { MetricNumber(value: "—") }
             }
+            if let memory = monitor.resources.memory {
+                Text(l10n(.usedPercent, SystemFormatter.percent(memory.usedPercent)) + " · " + TrafficFormatter.total(memory.totalBytes))
+                    .font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.85)
+            }
+            if let pressure = monitor.resources.pressure {
+                HStack(spacing: 5) {
+                    Circle().fill(InsightStyle.pressureColor(pressure)).frame(width: 5, height: 5)
+                    Text(l10n(.pressureState, l10n(pressure.titleKey)))
+                        .foregroundStyle(InsightStyle.pressureColor(pressure))
+                }.font(.system(size: 10)).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            if let swap = monitor.resources.swap {
+                Text("Swap " + TrafficFormatter.total(swap.usedBytes))
+                    .font(.system(size: 10)).foregroundStyle(.secondary)
+            }
+            spark(monitor.resources.memoryHistory, maximum: 100, color: HardwarePalette.memory, height: 30)
             HardwareErrorLabel(error: monitor.resources.memoryError ?? monitor.resources.pressureError ?? monitor.resources.swapError,
                                localizer: l10n)
         }
     }
 
-    private var memoryCaption: String {
-        let used = l10n(.usedPercent, SystemFormatter.percent(monitor.resources.memory?.usedPercent))
-        guard let swap = monitor.resources.swap else { return used }
-        return used + " · Swap " + TrafficFormatter.total(swap.usedBytes)
-    }
-
     private var network: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            title(.network) {
-                Text(monitor.interfaces.isEmpty ? l10n(.noInterfaces) : monitor.interfaceDescription(using: l10n))
-                    .lineLimit(1).truncationMode(.middle)
-            }
-            HStack(alignment: .bottom, spacing: 12) {
-                rate(.download, value: monitor.networkError == nil ? monitor.rate.download : nil, color: HardwarePalette.download)
-                rate(.upload, value: monitor.networkError == nil ? monitor.rate.upload : nil, color: HardwarePalette.upload)
-                spark(monitor.history, maximum: rateMaximum(monitor.history), color: HardwarePalette.download,
-                      secondary: HardwarePalette.upload)
-            }
+        VStack(alignment: .leading, spacing: 8) {
+            title(.network) { EmptyView() }
+            Text(monitor.interfaces.isEmpty ? l10n(.noInterfaces) : monitor.interfaceDescription(using: l10n))
+                .font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+            trafficRow(.upload, value: monitor.networkError == nil ? monitor.rate.upload : nil, color: HardwarePalette.upload)
+            trafficRow(.download, value: monitor.networkError == nil ? monitor.rate.download : nil, color: HardwarePalette.download)
+            Spacer(minLength: 0)
+            spark(monitor.history, maximum: rateMaximum(monitor.history), color: HardwarePalette.download,
+                  secondary: HardwarePalette.upload, height: 40)
             HardwareErrorLabel(error: monitor.networkError, localizer: l10n)
         }
     }
 
     private var storage: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            title(.storage) { Text(monitor.storageCapacity?.name ?? l10n(.startupVolumeSpace)).lineLimit(1) }
+        VStack(alignment: .leading, spacing: 8) {
+            title(.storage) { temperatureLabel(.storage) }
+            if tileWidth >= 160 {
+                Text(monitor.storageCapacity?.name ?? l10n(.startupVolumeSpace))
+                    .font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1)
+            }
             if let capacity = monitor.storageCapacity {
                 let amount = TrafficFormatter.amount(capacity.availableBytes)
-                HStack(alignment: .firstTextBaseline) {
-                    MetricNumber(value: amount.value, unit: amount.unit + " " + l10n(.availableShort))
-                    Spacer(minLength: 4)
-                    Text(l10n(.usedPercent, SystemFormatter.percent(capacity.usedPercent)))
-                        .font(.system(size: 11)).foregroundStyle(.secondary)
-                }
+                MetricNumber(value: amount.value, unit: amount.unit + " " + l10n(.availableShort), size: compact ? 24 : 27)
+                Text(l10n(.usedPercent, SystemFormatter.percent(capacity.usedPercent)))
+                    .font(.system(size: 10)).foregroundStyle(.secondary)
                 ProgressView(value: capacity.usedPercent, total: 100)
                     .progressViewStyle(.linear).tint(HardwarePalette.download)
                     .accessibilityLabel(l10n(.startupVolumeUsed))
                     .accessibilityValue(SystemFormatter.percent(capacity.usedPercent))
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(capacityText(capacity)).lineLimit(1)
-                    Spacer(minLength: 0)
-                    Text(l10n(.diskRateSummary,
-                              monitor.resources.diskRate.map { TrafficFormatter.speed($0.read).text } ?? "—",
-                              monitor.resources.diskRate.map { TrafficFormatter.speed($0.write).text } ?? "—"))
-                        .lineLimit(1).minimumScaleFactor(0.9)
-                }
-                .font(.system(size: 10)).foregroundStyle(.secondary).monospacedDigit()
+                Text(capacityText(capacity)).font(.system(size: 10)).foregroundStyle(.secondary).monospacedDigit()
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                Text(l10n(.diskRateSummary,
+                          monitor.resources.diskRate.map { TrafficFormatter.speed($0.read).text } ?? "—",
+                          monitor.resources.diskRate.map { TrafficFormatter.speed($0.write).text } ?? "—"))
+                    .font(.system(size: 10)).foregroundStyle(.secondary).monospacedDigit()
+                    .lineLimit(tileWidth < 160 ? 2 : 1).minimumScaleFactor(0.85)
             } else {
                 HStack(spacing: 16) {
                     rate(.read, value: monitor.resources.diskRate?.read, color: HardwarePalette.download)
@@ -241,17 +261,16 @@ struct CompactHardwareView: View {
     }
 
     private var gpu: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "square.3.layers.3d").foregroundStyle(.secondary)
+        HStack(spacing: 5) {
             Text(l10n(.gpu)).fontWeight(.semibold)
-            Text(monitor.gpuUsage.first?.name ?? "").font(.system(size: 11)).foregroundStyle(.secondary)
-                .lineLimit(1).truncationMode(.middle)
             Spacer(minLength: 3)
-            if let gpu = monitor.gpuUsage.first { Text(SystemFormatter.percent(gpu.utilizationPercent)).monospacedDigit() }
-            temperatureLabel(.gpu).font(.system(size: 11)).foregroundStyle(.secondary)
+            if let usage = monitor.gpuUsage.map(\.utilizationPercent).max() {
+                Text(SystemFormatter.percent(usage)).monospacedDigit()
+            }
+            if !compact { temperatureLabel(.gpu).font(.system(size: 10)).foregroundStyle(.secondary) }
             Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).foregroundStyle(.tertiary)
         }
-        .font(.system(size: 12))
+        .font(.system(size: 11))
     }
 
     private func batteryRow(_ battery: BatterySnapshot) -> some View {
@@ -278,15 +297,31 @@ struct CompactHardwareView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func percent(_ value: Double?) -> some View {
-        MetricNumber(value: value.map { String(format: "%.1f", $0) } ?? "—", unit: value == nil ? "" : "%")
+    private func trafficRow(_ title: TextKey, value: Double?, color: Color) -> some View {
+        let amount = value.map(TrafficFormatter.speed)
+        return HStack(alignment: .firstTextBaseline, spacing: 4) {
+            Circle().fill(color).frame(width: 4, height: 4).alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] }
+            if tileWidth < 160 {
+                Image(systemName: title == .upload ? "arrow.up" : "arrow.down")
+                    .font(.system(size: 10)).foregroundStyle(.secondary).accessibilityLabel(l10n(title))
+            } else {
+                Text(l10n(title)).font(.system(size: 10)).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+            MetricNumber(value: amount?.value ?? "—", unit: amount?.unit ?? "", size: compact ? 17 : 21)
+        }
     }
 
-    private func spark(_ points: [HistoryPoint], maximum: Double, color: Color, secondary: Color? = nil) -> some View {
+    private func percent(_ value: Double?) -> some View {
+        MetricNumber(value: value.map { String(format: "%.1f", $0) } ?? "—", unit: value == nil ? "" : "%", size: compact ? 24 : 27)
+    }
+
+    private func spark(_ points: [HistoryPoint], maximum: Double, color: Color, secondary: Color? = nil,
+                       height: CGFloat = 40) -> some View {
         HistoryChart(points: HistoryInspection.window(points, seconds: preferences.historySeconds, endingAt: monitor.timelineEnd),
                      maximum: maximum, primaryColor: color, secondaryColor: secondary,
                      durationSeconds: preferences.historySeconds, endingAt: monitor.timelineEnd, showsGrid: false)
-            .frame(width: panelWidth >= 420 ? 112 : 88, height: 42)
+            .frame(maxWidth: .infinity).frame(height: height)
             .accessibilityHidden(true)
     }
 

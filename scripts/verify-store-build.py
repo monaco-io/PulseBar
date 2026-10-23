@@ -39,5 +39,10 @@ assert 'UserName' not in agent and 'RunAtLoad' not in agent and 'KeepAlive' not 
 assert (helper / agent['BundleProgram']).is_file()
 for bundle in [app, helper]:
     assert (bundle / 'Contents/Resources/PulseBar_SpeedCore.bundle').is_dir()
+    for path in [bundle, *bundle.rglob('*')]:
+        if path.is_symlink():
+            continue
+        required_mode = 0o055 if path.is_dir() else 0o044
+        assert path.stat().st_mode & required_mode == required_mode, f'Bundle item is not readable by non-owner users: {path}'
     subprocess.run(['codesign', '--verify', '--deep', '--strict', str(bundle)], check=True)
 print('Verified store sandbox, read-only service scope, private-code separation, privacy manifest, resources, and signatures.')

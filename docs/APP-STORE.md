@@ -7,12 +7,12 @@ The App Store target and the direct GitHub target share the UI and pure metric m
 | Item | Identifier | Distribution |
 | --- | --- | --- |
 | Store app | `io.github.monaco-io.PulseBar` | Mac App Store distribution signature; `PulseBar-AppStore.pkg` |
-| Helper app | `io.github.monaco-io.PulseBar.Helper` | Developer ID Application; notarized `PulseBar-Helper.dmg` |
+| Helper app | `io.github.monaco-io.PulseBar.Helper` | Developer ID Application; notarized `PulseBar-Helper.pkg` |
 | Helper service | `io.github.monaco-io.PulseBar.HelperService` | Nested Developer ID executable in the separate helper app |
 
 Team: `45Y6A23PTN`. Service: `45Y6A23PTN.io.github.monaco-io.PulseBar.HelperService`.
 
-The store app enables App Sandbox and one exact `mach-lookup.global-name` temporary exception. The helper uses `SMAppService.agent` with an in-bundle LaunchAgent. Registration requires an explicit Enable action in the helper. No root daemon, installer script, launch-on-install action, broad filesystem entitlement, or network entitlement is used.
+The store app enables App Sandbox and one exact `mach-lookup.global-name` temporary exception. The helper uses `SMAppService.agent` with an in-bundle LaunchAgent. Registration requires an explicit Enable action in the helper. The script-free PKG installs only the helper into the current user’s Applications folder, without root privileges or launch-on-install actions. The Store app opens the direct PKG URL in the browser; it has no downloader, installer execution, broad filesystem entitlement or network entitlement.
 
 XPC enforces the expected Apple signature, team, and identifier on both sides using the public macOS 13 code-signing requirement APIs. The companion must use our Developer ID Application certificate. The client may use our Developer ID signature for local testing, or Apple's Mac App Store signature with the exact full application-identifier entitlement after store re-signing. A leaf-certificate OU check alone would reject an App Store download; see [Apple TN3127](https://developer.apple.com/documentation/technotes/tn3127-inside-code-signing-requirements). It additionally checks that the connection uses the same Unix user. The interface has one read-only sampling operation; callers cannot execute commands, supply paths, modify files, or control processes. The client rejects oversized, stale, incompatible, or invalid samples and clears unavailable readings. Test-only exact-code-hash pins are compiled out of release builds.
 
@@ -45,21 +45,21 @@ Set the signing identity names/hashes in `APP_STORE_APPLICATION_IDENTITY`, `APP_
 ./scripts/build-store-distribution.sh
 ```
 
-The main app version and build number both come from `Resources/Info.plist`. Increment the build number for each replacement upload. The helper has its own version, currently 1.0.1/build 2, in the bundle assembly script. Both executables target macOS 13 and include arm64/x86_64. SwiftPM's resource-only bundle receives its own identifier before the store app is signed; the verifier checks nested resource bundle identifiers as well.
+The main app version and build number both come from `Resources/Info.plist`. Increment the build number for each replacement upload. The helper has its own version, currently 1.0.2/build 3, in the bundle assembly script. Both executables target macOS 13 and include arm64/x86_64. SwiftPM's resource-only bundle receives its own identifier before the store app is signed; the verifier checks nested resource bundle identifiers as well.
 
 If the checkout is in a cloud-synced folder, set `PULSEBAR_STORE_SCRATCH_PATH` to an ordinary local cache directory, such as `$HOME/Library/Caches/PulseBar/store-release`, to keep intermediate build files outside cloud synchronization.
 
-Configure an authorized notarytool Keychain profile without placing credentials in source or logs, set its name in `NOTARY_KEYCHAIN_PROFILE`, then run:
+Configure an authorized notarytool Keychain profile without placing credentials in source or logs, set its name in `NOTARY_KEYCHAIN_PROFILE`, set `DEVELOPER_ID_INSTALLER_IDENTITY` to a Developer ID Installer identity, then run:
 
 ```sh
 ./scripts/package-helper-release.sh
 ```
 
-This notarizes and staples the helper app, creates and signs its disk image, and notarizes/staples that image. A non-Accepted result stops packaging. Confirm production helper registration, ranking/temperature readings, disable, and reconnect on a clean user account before publishing.
+This notarizes and staples the helper app, creates its per-user PKG, signs it with Developer ID Installer, and notarizes/staples the PKG. It verifies both architectures, package destination, absence of scripts and nested signatures. A non-Accepted result stops packaging. Confirm production helper registration, ranking/temperature readings, disable, and reconnect on a clean user account before publishing.
 
 ## Publication and review
 
-Publish the helper on its own `helper-v1.0.1` tag/release with `PulseBar-Helper.dmg` as its only attached file. Mark it **not Latest** so the direct PulseBar release and Sparkle feed keep their existing channel. Never replace a published binary; issue a higher helper version for a fix and update the main app's download link when needed.
+After the user accepts the latest UI, publish the helper on its own `helper-v1.0.2` tag/release with `PulseBar-Helper.pkg` as its only attached file, using `scripts/publish-helper-release.sh`. Mark it **not Latest** to preserve historical direct-edition links. New main-app releases are distributed only through the Mac App Store; the GitHub app-release workflow is retired. Never replace a published binary; issue a higher helper version for a fix and update the main app's download link when needed.
 
 Publish this support documentation and `PRIVACY.md` before entering their public URLs in App Store Connect. Upload the signed store `.pkg` using Apple's Transporter. Set accurate privacy disclosures and content ratings, add screenshots from the store build, explain the optional helper and the exact Mach exception in App Review notes, and include the helper's public download link. Do not submit while that link is unavailable or its package is not notarized.
 

@@ -1,71 +1,52 @@
-# GitHub releases and updates
+# Distribution and releases
 
 English | [简体中文](RELEASING.zh-CN.md)
 
-## Release layout
+## Distribution policy
 
-**Upload only `PulseBar.dmg` to each Release.** Installation and in-app updates use the same signed DMG. The disk image shows only `PulseBar.app` and the `Applications` folder shortcut, side by side with large icons. Installation instructions belong in the README; release notes belong in the release body. Do not upload ZIPs, separate notes, or checksum files. GitHub displays the asset digest and automatically adds two source archive links.
+PulseBar and its updates are distributed only through the **Mac App Store**. GitHub releases contain only the optional **PulseBar Helper**. The former `v*` main-app release workflow has been removed, and `scripts/package-release.sh` refuses to create another main-app release. CI verifies the Store build and helper without uploading a main-app archive.
 
-The hidden Finder layout is copied from `Resources/DMG/FinderLayout.dsstore`. To change its 256-point icons or 800 × 440 window, edit `scripts/create-dmg-layout.py`, run it in a temporary Python environment with `ds-store==1.3.3`, and commit both the script and regenerated template. Release builds use the template without installing that dependency.
+Historical app releases and the `codex/updates` Sparkle feed remain unchanged for existing installations. Do not replace or delete published files or rewrite that feed as part of a helper release. Helper releases must use `--latest=false` so legacy `releases/latest` clients are not redirected to a plugin.
 
-The signed update feed is stored on the `codex/updates` branch:
+## Main app
 
-<https://raw.githubusercontent.com/monaco-io/PulseBar/codex/updates/appcast.xml>
+1. Complete source checks, build the candidate, and show the latest real UI for acceptance.
+2. After UI acceptance, increment the main app version/build in `Resources/Info.plist` as needed and follow [App Store distribution](APP-STORE.md).
+3. Upload and submit through Apple's tools. The App Store distributes app updates; no GitHub app archive or Sparkle feed is published.
 
-The app's `SUFeedURL` points to that fixed address. Each feed entry downloads the DMG from a specific version tag. Version 1.7.0 used a release attachment as its feed URL; versions 1.7.0 and earlier need one manual installation of 1.7.1 or later to migrate.
+## Helper installer
 
-## Default language
+Use a new `helper-vVERSION` tag for each release. The only release attachment is **PulseBar-Helper.pkg**, signed with Developer ID Installer and notarized/stapled by Apple. The nested helper app and service use Developer ID Application. The PKG is script-free and installs only the helper into `~/Applications`, without administrator access or automatically enabling a service. Its installer has English and Simplified Chinese instructions.
 
-Use English for the repository description, default README, installation guide, release titles, release bodies, and embedded update notes. Provide Chinese content in separate `*.zh-CN.*` files linked from the English pages. Do not append the full Chinese translation to default release notes or the update feed. App localization remains available through its language setting.
-
-## Publishing a version
-
-1. Increase both `CFBundleShortVersionString` and `CFBundleVersion` in `Resources/Info.plist`.
-2. Add English notes in `docs/releases/vVERSION.md`, with an optional link to `vVERSION.zh-CN.md`. Commit the changes and confirm CI passes.
-3. Create and push the matching tag, for example:
-
-   ```sh
-   git tag -a v1.7.2 -m 'PulseBar 1.7.2'
-   git push origin v1.7.2
-   ```
-
-**Publish release** validates increasing versions, runs tests, builds both architectures, and samples the packaged app. Packaging creates `dist/release/PulseBar.dmg` and `dist/updates/appcast.xml`, checking the mounted app, resources, system requirements, versions, and signatures.
-
-The workflow uploads the DMG as a draft, publishes it as Latest, then commits the signed feed to the update branch. Until that feed is published, the previous feed still points to the previous downloadable DMG. GitHub Raw caching may delay the new feed by several minutes. Before removing older releases, verify that the public feed points to the retained release.
-
-Release jobs run serially. The update branch does not trigger normal CI. No GitHub Pages deployment or extra app credentials are required. Keep the repository public; the app contains no GitHub token.
-
-## Signing and verification
-
-Use the official [Sparkle 2.10.0](https://sparkle-project.org/documentation/) distribution. SwiftPM pins its version and official SHA-256; third-party licenses are bundled with the app.
-
-- Public key: `SUPublicEDKey` in `Resources/Info.plist`.
-- Private key: the developer's Keychain account `monaco-io.PulseBar` and the repository Actions secret `SPARKLE_PRIVATE_KEY`. Pull requests and regular CI do not access it.
-- `generate_appcast` signs the DMG and feed. `sign_update --verify` verifies signatures; `verify-release.py` checks package and feed consistency.
-- Keep `SURequireSignedFeed` and `SUVerifyUpdateBeforeExtraction` enabled. Editing signed XML requires signing it again. Never replace an already-published DMG.
-
-Preserve the signing key securely. Sparkle's `generate_keys` can export/import it when moving developer machines. Private keys must never enter source files, release attachments, logs, or chat.
-
-## Local packaging
-
-With the signing account available in Keychain:
+The main app opens the version-pinned **direct PKG download**, rather than a GitHub page. An installed helper opens from Settings. Keep the Swift `HelperIdentity.version`, helper bundle version in `build-store-distribution.sh`, installer and release tag aligned. Never upload the main App Store submission PKG to GitHub.
 
 ```sh
-./scripts/package-release.sh v1.7.1
+./scripts/build-store-distribution.sh
+./scripts/package-helper-release.sh
 ```
 
-This creates local files; the tag workflow performs publication. Internal builds may produce a development ZIP, which is never uploaded to a Release.
+Production packaging requires the App Store signing/profile inputs documented in [APP-STORE.md], plus `DEVELOPER_ID_INSTALLER_IDENTITY` and `NOTARY_KEYCHAIN_PROFILE`. Store credentials only in the local Keychain or authorized secret storage. Missing signatures, notarization failures, and payload verification failures stop packaging.
 
-## Recovery and release-note edits
+After the user has accepted the UI and release checks pass:
 
-Failed tests or packaging stop publication. Fix the problem before retrying. An existing Release with the same tag stops the workflow to avoid replacing its artifacts.
+```sh
+git tag -a helper-v1.0.2 -m 'PulseBar Helper 1.0.2'
+git push origin helper-v1.0.2
+./scripts/publish-helper-release.sh helper-v1.0.2
+```
 
-If the DMG is public but publishing the feed fails, the old feed stays available. Verify the new feed's signature, version, and public DMG URL, then commit that exact feed to `codex/updates`. Do not rebuild or replace the DMG. Fix problems in an app release with a higher version.
+The publication script verifies the actual PKG payload, notarization, Developer ID Installer team, matching tag/version and clean tracked source. It uploads a draft with exactly one installer and then publishes it as not Latest. An existing release stops creation instead of replacing a published installer. No GitHub-hosted Apple signing credentials are needed.
 
-To change notes for an existing version, update the source Markdown and GitHub release body. Replace only the feed description, preserving the version and enclosure URL, length, and signature; sign the modified feed again and verify it before publishing. The existing DMG remains byte-for-byte unchanged.
+After publication, verify the anonymous direct download URL, asset digest and notarization. Only then submit the main app with the matching helper link. Do not publish or submit while the user's requested UI acceptance is pending.
 
-## Apple notarization
+## Local validation
 
-Releases currently use ad-hoc signing and are not Apple notarized. First launch may require approval through [Apple's security settings](https://support.apple.com/102445).
+```sh
+./scripts/build-store-distribution.sh --local
+./scripts/package-helper-release.sh --local
+python3 scripts/verify-helper-installer.py dist/helper-release/PulseBar-Helper.pkg
+```
 
-Local builds support `CODE_SIGN_IDENTITY` to sign helpers, the framework, and the app from the inside out with Hardened Runtime. Packaging supports `NOTARY_KEYCHAIN_PROFILE` to submit for notarization and staple the ticket before creating the DMG. Apple signing and notarization credentials are not configured on GitHub-hosted runners.
+Local packages are marked `LOCAL-ONLY.txt` and cannot pass the publication script. Inspecting a package does not install it, register a background item, establish App Review approval or prove a public download.
+
+Default repository and release text is English, with Chinese versions linked separately. Monitoring data and event history stay local.

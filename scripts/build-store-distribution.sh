@@ -70,7 +70,7 @@ resource.update(CFBundleIdentifier=base['CFBundleIdentifier'] + '.SpeedCoreResou
 resource_info.write_bytes(plistlib.dumps(resource))
 base.update(CFBundleIdentifier='io.github.monaco-io.PulseBar.Helper', CFBundleName='PulseBar Helper',
             CFBundleDisplayName='PulseBar Helper', CFBundleExecutable='PulseBarHelper',
-            CFBundleShortVersionString='1.0.1', CFBundleVersion='2', LSUIElement=False)
+            CFBundleShortVersionString='1.0.2', CFBundleVersion='3', LSUIElement=False)
 (helper/'Contents/Info.plist').write_bytes(plistlib.dumps(base))
 PY
 icon_command=(swift)
@@ -102,6 +102,9 @@ if source.get('beta-reports-active'):
 p.write_bytes(plistlib.dumps(ent))
 PY
 fi
+# Provisioning profiles may be kept owner-only in the local signing cache.
+# The distributed bundle must remain readable after Installer changes its owner.
+chmod -R a+rX "$app_dir" "$helper_dir"
 xattr -cr "$app_dir" "$helper_dir"
 if "$local_build"; then
     codesign --force --sign - --identifier io.github.monaco-io.PulseBar.HelperService "$helper_dir/Contents/MacOS/PulseBarHelperService"

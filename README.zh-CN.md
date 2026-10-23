@@ -4,7 +4,7 @@
 
 硬件分区与统计范围详见[硬件模块设计](docs/HARDWARE-MODULES.md)。
 
-Mac App Store 构建通过单独安装的可选 [PulseBar 助手](docs/HELPER.md)提供应用排行和硬件温度。参见[商店分发指南](docs/APP-STORE.md)和[隐私说明](docs/PRIVACY.md)。下方下载链接为 GitHub 直装版。
+Mac App Store 构建通过单独安装的可选 [PulseBar 助手](docs/HELPER.md)提供应用排行和硬件温度。参见[商店分发指南](docs/APP-STORE.md)和[隐私说明](docs/PRIVACY.md)。主程序及更新仅通过 Mac App Store 分发，GitHub 后续只发布可选助手插件。历史主程序下载仍为已有用户保留。
 
 原生 macOS 菜单栏组件，实时显示 CPU、内存、磁盘 I/O 和下载 / 上传速度。支持应用资源排行、内存压力和 Swap、历史曲线查看、带应用快照的异常事件时间线，以及可读取的硬件温度。
 
@@ -25,15 +25,19 @@ Mac App Store 构建通过单独安装的可选 [PulseBar 助手](docs/HELPER.md
 
 ## 下载安装
 
-**[下载最新版 DMG](https://github.com/monaco-io/PulseBar/releases/latest/download/PulseBar.dmg)** · [版本说明](https://github.com/monaco-io/PulseBar/releases/latest)
+**PulseBar 主程序通过 Mac App Store 安装和更新，后续不再发布 GitHub 主程序版本。**
 
-支持 **macOS 13+，Apple Silicon 和 Intel**。打开 DMG，把 PulseBar 拖入 Applications，再从应用程序目录启动。当前版本采用 ad-hoc 签名，尚无 Apple Developer ID 公证；若系统阻止打开，确认来源后在“系统设置 → 隐私与安全性”中选择“仍要打开”。详见[安装说明](docs/INSTALL.zh-CN.txt)。
+支持 **macOS 13+，Apple Silicon 和 Intel**。可选助手提供应用排行和硬件温度，不安装也可以使用基础监控。
+
+**[直接下载助手安装包](https://github.com/monaco-io/PulseBar/releases/download/helper-v1.0.2/PulseBar-Helper.pkg)** · [助手安装说明](docs/HELPER.md)
+
+点击后直接下载 PKG，打开并按 macOS 提示安装，无需跳转 GitHub 发布页或手动拖拽文件。助手安装到个人“应用程序”文件夹，无需管理员权限。完成后回到 PulseBar 设置，点击“打开助手”，再选择“启用助手”。
 
 ### 软件更新
 
-点击菜单栏读数 → **设置 → 软件更新**，可查看当前版本、手动检查更新、开关每日自动检查或打开下载页。自动检查发现新版后，“设置”旁显示下载提示；由你选择下载、安装并重启，设置与本地事件历史保留。1.7.0 及更早版本需要先手动安装 1.7.1 一次，迁移到新的更新地址。
+主程序由 **Mac App Store 更新**；助手通过单独签名、公证的安装包更新。历史 GitHub 主程序发布和 Sparkle 更新清单保留兼容，但不再增加新版主程序。
 
-更新使用 [Sparkle](https://sparkle-project.org/)，从独立地址读取更新清单，下载 GitHub Release 中的同一个 DMG；清单与 DMG 均使用 Ed25519 签名验证，关闭系统信息上报。更新检查会访问 GitHub；监控数据与事件历史保留在本机。
+总览采用 2×2 等大方块，标准宽度下每块 206×206 pt：CPU/GPU、内存、网络、存储。CPU 与 GPU 分别显示占用率和温度，各自保留详情入口；有内置电池时在下方显示电池状态。
 
 ## 使用
 

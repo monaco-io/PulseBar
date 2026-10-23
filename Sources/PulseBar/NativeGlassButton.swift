@@ -1,57 +1,40 @@
 import AppKit
 import SwiftUI
 
-/// NSButton draws and animates its own bezel, highlight, focus, and toggle state.
-/// No glass wrapper, custom tracking, tint overlay, or Core Animation is involved.
-struct NativeGlassButton: NSViewRepresentable {
+/// Standard actions use Apple's SwiftUI Button and GlassButtonStyle. The
+/// system owns the shape, padding, material, focus and interaction feedback.
+struct NativeGlassButton: View {
     let title: String
     let symbol: String
     var iconOnly = false
     var fillsBounds = false
-    var hoverOnly = false
     var action: () -> Void
-    @Environment(\.isEnabled) private var isEnabled
 
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    func makeNSView(context: Context) -> NSButton {
-        let button = NSButton(frame: .zero)
-        button.target = context.coordinator
-        button.action = #selector(Coordinator.activate)
-        button.bezelStyle = NativeControlStyle.glass
-        button.controlSize = .regular
-        button.setButtonType(.momentaryPushIn)
-        return button
-    }
-
-    func updateNSView(_ button: NSButton, context: Context) {
-        context.coordinator.action = action
-        button.title = iconOnly ? "" : title
-        button.image = symbol.isEmpty ? nil : NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
-        button.imagePosition = iconOnly ? .imageOnly : .imageLeading
-        button.showsBorderOnlyWhileMouseInside = hoverOnly
-        button.isEnabled = isEnabled
-        button.toolTip = title
-        button.setAccessibilityLabel(title)
-    }
-
-    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSButton, context: Context) -> CGSize? {
-        // Older SDKs report only the symbol bounds for the newer glass bezel.
-        // Reserve its hit area; AppKit still draws and animates the entire control.
-        let size = nsView.intrinsicContentSize
+    var body: some View {
         if fillsBounds {
-            return CGSize(width: proposal.width ?? max(32, size.width), height: proposal.height ?? max(32, size.height))
+            NativeHardwareButton(title: title, action: action)
+        } else {
+            Button(action: action) {
+                if iconOnly {
+                    // A shared SF Symbol canvas prevents ellipsis from shrinking the control.
+                    Label(title, systemImage: symbol).labelStyle(.iconOnly)
+                        .frame(width: 16, height: 16)
+                } else if symbol.isEmpty {
+                    Text(title)
+                } else {
+                    Label(title, systemImage: symbol)
+                }
+            }
+            .modifier(SystemGlassButtonStyle(iconOnly: iconOnly))
+            .accessibilityLabel(title)
+            .help(title)
         }
-        return CGSize(width: max(32, size.width), height: max(32, size.height))
-    }
-
-    final class Coordinator: NSObject {
-        var action: (() -> Void)?
-        @objc func activate() { action?() }
     }
 }
 
-struct NativeGlassMenu: NSViewRepresentable {
+/// Both header actions use the same official Button style. The More button
+/// presents AppKit's NSMenu, avoiding Menu's distinct compact popup bezel.
+struct NativeGlassMenu: View {
     struct Item {
         let title: String
         var symbol: String?
@@ -62,70 +45,110 @@ struct NativeGlassMenu: NSViewRepresentable {
 
     let title: String
     let items: [Item?]
+    @StateObject private var presenter = NativeMenuPresenter()
 
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    func makeNSView(context: Context) -> NSPopUpButton {
-        let button = NSPopUpButton(frame: .zero, pullsDown: true)
-        button.bezelStyle = NativeControlStyle.glass
-        button.controlSize = .regular
-        button.imagePosition = .imageOnly
-        (button.cell as? NSPopUpButtonCell)?.arrowPosition = .noArrow
-        return button
-    }
-
-    func updateNSView(_ button: NSPopUpButton, context: Context) {
-        button.setAccessibilityLabel(title)
-        button.toolTip = title
-        let coordinator = context.coordinator
-        coordinator.actions = Dictionary(uniqueKeysWithValues: items.enumerated().compactMap { index, item in
-            item.map { (index, $0.action) }
-        })
-        let signature = items.map { $0.map { "\($0.title)|\($0.symbol ?? "")|\($0.enabled)|\($0.keyEquivalent)" } ?? "-" }
-        guard signature != coordinator.signature else { return }
-        coordinator.signature = signature
-        let menu = NSMenu()
-        menu.autoenablesItems = false
-        let trigger = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-        trigger.image = NSImage(systemSymbolName: "ellipsis", accessibilityDescription: title)
-        menu.addItem(trigger)
-        for (index, entry) in items.enumerated() {
-            guard let entry else { menu.addItem(.separator()); continue }
-            let item = NSMenuItem(title: entry.title, action: #selector(Coordinator.activate(_:)),
-                                  keyEquivalent: entry.keyEquivalent)
-            item.target = coordinator
-            item.tag = index
-            item.isEnabled = entry.enabled
-            item.image = entry.symbol.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: nil) }
-            menu.addItem(item)
+    var body: some View {
+        NativeGlassButton(title: title, symbol: "ellipsis", iconOnly: true) {
+            presenter.show(items)
         }
-        button.menu = menu
-    }
-
-    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSPopUpButton, context: Context) -> CGSize? {
-        let size = nsView.intrinsicContentSize
-        return CGSize(width: max(32, size.width), height: max(32, size.height))
-    }
-
-    final class Coordinator: NSObject {
-        var actions: [Int: () -> Void] = [:]
-        var signature: [String] = []
-        @objc func activate(_ sender: NSMenuItem) { actions[sender.tag]?() }
+        .background(NativeMenuAnchor(presenter: presenter).allowsHitTesting(false))
+        .accessibilityAction(.showMenu) { presenter.show(items) }
     }
 }
 
-private enum NativeControlStyle {
-    static var glass: NSButton.BezelStyle {
-        guard #available(macOS 26.0, *) else { return .rounded }
+private final class NativeMenuPresenter: NSObject, ObservableObject {
+    weak var anchor: NSView?
+    private var actions: [Int: () -> Void] = [:]
+
+    func show(_ items: [NativeGlassMenu.Item?]) {
+        guard let anchor, anchor.window != nil else { return }
+        actions.removeAll()
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        for (index, entry) in items.enumerated() {
+            guard let entry else { menu.addItem(.separator()); continue }
+            let item = NSMenuItem(title: entry.title, action: #selector(activate(_:)), keyEquivalent: entry.keyEquivalent)
+            item.target = self
+            item.tag = index
+            item.isEnabled = entry.enabled
+            item.image = entry.symbol.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: nil) }
+            actions[index] = entry.action
+            menu.addItem(item)
+        }
+        menu.popUp(positioning: nil, at: NSPoint(x: anchor.bounds.minX,
+            y: anchor.isFlipped ? anchor.bounds.maxY : anchor.bounds.minY), in: anchor)
+    }
+
+    @objc private func activate(_ sender: NSMenuItem) { actions[sender.tag]?() }
+}
+
+private struct NativeMenuAnchor: NSViewRepresentable {
+    let presenter: NativeMenuPresenter
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        presenter.anchor = view
+        return view
+    }
+    func updateNSView(_ view: NSView, context: Context) { presenter.anchor = view }
+}
+
+private struct SystemGlassButtonStyle: ViewModifier {
+    var iconOnly = false
+    @ViewBuilder func body(content: Content) -> some View {
         #if compiler(>=6.2)
-        return .glass
+        if #available(macOS 26.0, *) {
+            // https://developer.apple.com/documentation/swiftui/glassbuttonstyle
+            if iconOnly {
+                content.buttonStyle(.glass).buttonBorderShape(.circle).controlSize(.regular)
+            } else {
+                content.buttonStyle(.glass)
+            }
+        } else {
+            content.buttonStyle(.bordered)
+        }
         #else
-        // Public NSBezelStyleGlass ABI for the project's macOS 15 SDK.
-        // Apple documents this style as available in macOS 26:
-        // https://developer.apple.com/documentation/appkit/nsbutton/bezelstyle-swift.enum/glass
-        // ABI value corroborated by the maintained AppKit platform binding:
-        // https://github.com/dotnet/macios/blob/main/src/AppKit/Enums.cs
-        return NSButton.BezelStyle(rawValue: 16)!
+        content.buttonStyle(.bordered)
         #endif
+    }
+}
+
+/// A borderless native hit area sits on the single shared tile surface. CPU
+/// and GPU must never draw independent button bezels inside that surface.
+private struct NativeHardwareButton: NSViewRepresentable {
+    let title: String
+    let action: () -> Void
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeNSView(context: Context) -> NSButton {
+        let button = NSButton(frame: .zero)
+        button.target = context.coordinator
+        button.action = #selector(Coordinator.activate)
+        button.bezelStyle = .rounded
+        button.isBordered = false
+        button.controlSize = .regular
+        button.setButtonType(.momentaryPushIn)
+        button.imagePosition = .imageOnly
+        return button
+    }
+
+    func updateNSView(_ button: NSButton, context: Context) {
+        context.coordinator.action = action
+        button.title = ""
+        button.showsBorderOnlyWhileMouseInside = false
+        button.isEnabled = isEnabled
+        button.toolTip = title
+        button.setAccessibilityLabel(title)
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSButton, context: Context) -> CGSize? {
+        let size = nsView.intrinsicContentSize
+        return CGSize(width: proposal.width ?? max(0, size.width), height: proposal.height ?? max(0, size.height))
+    }
+
+    final class Coordinator: NSObject {
+        var action: (() -> Void)?
+        @objc func activate() { action?() }
     }
 }

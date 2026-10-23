@@ -225,7 +225,8 @@
 "helperTimeout" = "PulseBar Helper did not respond. Reconnecting…";
 "helperIncompatible" = "The helper needs an update or returned an invalid sample.";
 "helperConnected" = "Helper connected";
-"helperHelp" = "App rankings and hardware temperatures require the separate PulseBar Helper. Download it, move it to Applications, open it, and choose Enable Helper.";
-"getHelper" = "Get PulseBar Helper…";
+"helperHelp" = "App rankings and hardware temperatures use the optional PulseBar Helper. Download the installer directly, open it, and follow the macOS installation steps. Then open the helper here and choose Enable Helper. No GitHub page or dragging files is needed.";
+"getHelper" = "Download Helper Installer…";
 "openHelper" = "Open Helper…";
+"helperOpenFailed" = "Could not open the installer link or helper. Try again, or check your default browser.";
 "appStoreUpdates" = "Updates are delivered through the Mac App Store.";

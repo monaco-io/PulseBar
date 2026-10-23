@@ -6,7 +6,7 @@ A native macOS menu bar monitor organized around CPU, memory, GPU, storage, netw
 
 See [hardware modules and measurement scope](docs/HARDWARE-MODULES.md).
 
-The Mac App Store build uses a separate, optional [PulseBar Helper](docs/HELPER.md) for app rankings and hardware temperatures. See the [store distribution guide](docs/APP-STORE.md) and [privacy policy](docs/PRIVACY.md). The download below is the direct GitHub edition.
+The Mac App Store build uses a separate, optional [PulseBar Helper](docs/HELPER.md) for app rankings and hardware temperatures. See the [store distribution guide](docs/APP-STORE.md) and [privacy policy](docs/PRIVACY.md). The main app is distributed and updated through the Mac App Store. GitHub releases now contain only the optional Helper; historical main-app releases remain available for existing users.
 
 ## See PulseBar in action
 
@@ -25,27 +25,25 @@ Three configurable rings and independent numeric readings keep the menu bar focu
 
 ## Download and install
 
-**[Download PulseBar.dmg](https://github.com/monaco-io/PulseBar/releases/latest/download/PulseBar.dmg)** · [Release notes](https://github.com/monaco-io/PulseBar/releases/latest)
+Install **PulseBar from the Mac App Store**. The main app and its updates are no longer published on GitHub.
 
-Requires **macOS 13 or later**, on **Apple Silicon or Intel**. Open the DMG, drag PulseBar to Applications, and launch it from there. Use `~/Applications` if you do not have administrator access.
+Requires **macOS 13 or later**, on **Apple Silicon or Intel**. The optional Helper provides app rankings and hardware temperatures; basic monitoring works without it.
 
-The app is ad-hoc signed and is not Apple notarized. If macOS blocks it, verify that the download came from this repository, then choose **System Settings → Privacy & Security → Open Anyway** for PulseBar. See the [installation guide](docs/INSTALL.txt).
+**[Download the Helper installer](https://github.com/monaco-io/PulseBar/releases/download/helper-v1.0.2/PulseBar-Helper.pkg)** · [Helper setup](docs/HELPER.md)
+
+The Helper download goes directly to a native macOS installation package. Open it and follow the system steps; no GitHub release page or dragging files is needed. It installs into your personal Applications folder without administrator access. Return to PulseBar Settings, choose **Open Helper**, then **Enable Helper**.
 
 ### Software updates
 
-Click the menu bar readings, then **Settings → Software update** to check for updates or manage daily checks. When a new version is found automatically, a download hint appears beside Settings. You choose when to download, install, and relaunch. Preferences and local event history are preserved.
-
-**Versions 1.7.0 and earlier need one manual installation of 1.7.1 or later** to migrate to the current update feed.
-
-Updates use [Sparkle](https://sparkle-project.org/) and download the same DMG offered on GitHub Releases. The update feed is hosted separately; both the feed and the DMG are verified with Ed25519 signatures. Checks contact GitHub, with Sparkle system profiling disabled. Monitoring data and event history stay on your Mac.
+The **Mac App Store updates PulseBar**. The Helper is distributed separately as a Developer ID signed and notarized installer. Existing GitHub main-app releases and their signed Sparkle feed are retained for compatibility, but receive no new app releases.
 
 ## Features
 
-- **Hardware modules:** CPU usage and logical cores; memory usage, app/wired/compressed memory, pressure, and swap; GPU utilization per device; startup-volume capacity and physical disk reads/writes; network downloads/uploads and session totals; and internal-battery charge, power state, maximum capacity, cycle count, and system time estimates when available. GPU and battery sections appear only when usable data exists. External batteries and UPS devices are not shown as the Mac's battery.
+- **Hardware modules:** CPU usage and logical cores; memory usage, app/wired/compressed memory, pressure, and swap; GPU utilization per device; startup-volume capacity and physical disk reads/writes; network downloads/uploads and session totals; and internal-battery charge, power state, maximum capacity, cycle count, and system time estimates when available. The GPU summary appears inside the CPU tile when usable data exists; an internal-battery row appears only on supported portable Macs. External batteries and UPS devices are not shown as the Mac's battery.
 - **Hardware temperatures:** CPU, GPU, memory, storage, and battery headings show °C only when a known sensor returns a valid reading. Each value is the highest reading among the available sensors mapped to that component. Missing readings leave no temperature placeholder, and the battery heading requires a present internal host battery. Availability varies by Mac and macOS version. See [temperature compatibility](docs/TEMPERATURES.md).
 - **Refresh interval:** 2 seconds by default, adjustable from 1 to 60 seconds. Existing custom intervals are preserved.
 - **Menu bar controls:** three concentric SwiftUI `Gauge` rings default to startup-volume storage (outer), memory (middle), and CPU (inner). Each ring independently supports CPU, memory, storage, the busiest reported GPU, or internal-battery charge. The 22 / 15 / 8 pt diameters and equal 3 pt strokes leave 0.5 pt transparent gaps and a hollow center. CPU and storage are green below 80%, yellow from 80% through 90%, and soft red above 90%; memory keeps its macOS pressure logic. GPU retains its existing 60% / 80% thresholds; battery charge warns at 20% and 10%. Normal accents are green; warning and critical status colors are yellow and red. Unavailable readings keep a neutral track and show —. Rings and numbers have independent visibility switches. CPU, memory, disk read, disk write, upload, and download are individually selectable numbers. A selected pair shares one MB/s unit; a single direction is vertically centered, and hover hints/accessibility include only selected directions. Upload stays above download. At least one display section remains visible. Choices apply immediately, survive restarts, and remain saved while hidden. Existing combined disk/network choices migrate to both directions; customized two-ring choices are retained when the third ring is added. Hidden metrics continue sampling. Hover hints appear after 0.12 seconds.
-- **Compact overview:** CPU, memory, and network trends sit beside their readings, followed by storage capacity and available GPU/battery rows. No bottom navigation; scrolling is used only when content does not fit.
+- **Compact overview:** CPU/GPU, memory, network, and storage use a 2×2 grid of equal 206 pt square tiles at the standard panel width. CPU and GPU retain separate readings and detail actions. Trends span their tiles; an available internal battery appears below. No bottom navigation; scrolling is used only when content does not fit.
 - **Top apps:** hover over CPU or memory to see the top five apps in an independent detail window; clicking opens it immediately without pinning it. Helper processes are grouped with their app where possible; Activity Monitor is one click away.
 - **History inspection:** hover over a detail chart to inspect actual samples at that timestamp. Live headline readings continue updating. Averages cover sampled time only.
 - **Performance events:** record CPU usage of at least 85% for 30 seconds, or elevated/critical memory pressure for 10 seconds, with metrics and top-app snapshots. Snapshots show simultaneous activity without establishing a cause.
@@ -59,7 +57,7 @@ Repeated launches reopen the existing panel. Only one GUI instance runs per macO
 
 The overview and independent windows are 452 pt wide and fit their content, up to 80% of the current screen's usable height. Expanding an event grows its window; collapsing it shrinks the window again. Content scrolls only above that limit. Hover over a hardware module to open an independent detail window beside the overview, or click for immediate access. Hardware details dismiss after leaving the row and detail window; there is no pin control. Moving between the overview and detail does not dismiss the preview. CPU and memory details include application rankings. The gear opens Settings; More opens Events. Scrollbars stay hidden whenever the content fits; long details or short screens can scroll without resetting expanded events or editing state.
 
-The panel uses AppKit Liquid Glass (`NSGlassEffectView`) on macOS 26 and later, native popover material on older systems, with transparency and contrast managed by the system material. Gauges, capacity bars, segmented controls, menus, and settings use native controls. Action buttons use AppKit glass bezels; settings uses grouped native fields, and events use DisclosureGroup. Hardware actions use native glass hover/press feedback; macOS 27 also enables the public interactive glass container behavior. Window resizing uses asynchronous AppKit animation and respects Reduce Motion. The history picker offers 1 minute, 5 minutes, and 1 hour, retaining an existing custom range. Swift Charts uses actual collected samples and a subtle area fill; no samples are invented for unobserved time.
+The panel uses AppKit Liquid Glass (`NSGlassEffectView`) on macOS 26 and later, native popover material on older systems, with transparency and contrast managed by the system material. Gauges, capacity bars, segmented controls, menus, and settings use native controls. Action buttons use Apple’s SwiftUI glass button style on macOS 26+, with matching system icon buttons, native menus and standard bordered controls on older systems; settings uses grouped native fields, and events use DisclosureGroup. Hardware actions use borderless native hit areas within their shared card surfaces; macOS 27 also enables the public interactive glass container behavior. Window resizing uses asynchronous AppKit animation and respects Reduce Motion. The history picker offers 1 minute, 5 minutes, and 1 hour, retaining an existing custom range. Swift Charts uses actual collected samples and a subtle area fill; no samples are invented for unobserved time.
 
 Use **More** in the header for events, update checks, Reset, and Quit, or right-click the menu bar readings for a shortcut menu. Escape closes the focused detail window or the overview. Command-2 opens CPU details, Command-3 opens Events, and Command-4 opens Settings from the overview. Native menus handle their own Escape key.
 

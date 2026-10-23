@@ -1,24 +1,19 @@
 PulseBar — Installation and updates
 
-Requires macOS 13 or later. One universal app supports Apple Silicon and Intel.
+Requires macOS 13 or later; supports Apple Silicon and Intel.
 
-1. Open PulseBar.dmg and drag PulseBar to Applications.
-   You can use ~/Applications if you do not have administrator access.
-2. Launch PulseBar from Applications. Readings appear in the menu bar;
-   the app does not show a Dock icon.
-3. This release is ad-hoc signed and is not Apple notarized. If macOS blocks it,
-   verify that it came from the monaco-io/PulseBar GitHub Release, then use
-   System Settings > Privacy & Security > Open Anyway for PulseBar.
-   Do not disable Gatekeeper or change global security settings.
-4. Click the menu bar readings > Settings > Software update to check for updates.
-   Automatic checks run daily; you choose when to download and install.
-   Both the DMG and the update feed are cryptographically signed.
-5. Versions 1.7.0 and earlier need one manual installation of 1.7.1 or later
-   to migrate to the current update feed. Quit the old version before replacing it.
-   Preferences and local event history are preserved.
+1. Install and update the main PulseBar app through the Mac App Store.
+   New main-app versions are no longer published on GitHub.
+2. For optional app rankings and hardware temperatures, open PulseBar Settings
+   and choose Download Helper Installer. The link downloads the PKG directly.
+3. Open PulseBar-Helper.pkg and follow macOS Installer. It places the helper
+   in ~/Applications, without dragging files or administrator access.
+4. Return to PulseBar Settings, choose Open Helper, then Enable Helper.
+   Approve the background item in System Settings if macOS requests it.
+5. To remove the helper, disable it first, then move its app to Trash.
 
-Downloads and release notes:
-https://github.com/monaco-io/PulseBar/releases/latest
+Basic monitoring works without the helper. Historical GitHub main-app files
+and their update feed remain available, but receive no new app versions.
 
-Chinese installation guide / 中文安装说明:
-https://github.com/monaco-io/PulseBar/blob/main/docs/INSTALL.zh-CN.txt
+Helper setup: https://github.com/monaco-io/PulseBar/blob/main/docs/HELPER.md
+中文说明: https://github.com/monaco-io/PulseBar/blob/main/docs/INSTALL.zh-CN.txt

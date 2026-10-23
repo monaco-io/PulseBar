@@ -225,7 +225,8 @@
 "helperTimeout" = "PulseBar 助手暂未响应，正在重新连接…";
 "helperIncompatible" = "助手需要更新，或返回了无效的采样数据。";
 "helperConnected" = "助手已连接";
-"helperHelp" = "应用排行和硬件温度需要另行安装 PulseBar 助手。请下载后移入“应用程序”，打开助手并选择“启用助手”。";
-"getHelper" = "获取 PulseBar 助手…";
+"helperHelp" = "应用排行和硬件温度由可选的 PulseBar 助手提供。点击下方直接下载安装包，打开后按 macOS 提示安装，再从这里打开助手并选择“启用助手”。无需前往 GitHub 或手动拖拽文件。";
+"getHelper" = "下载安装助手…";
 "openHelper" = "打开助手…";
+"helperOpenFailed" = "无法打开安装包链接或助手，请重试并检查默认浏览器。";
 "appStoreUpdates" = "此版本通过 Mac App Store 更新。";
