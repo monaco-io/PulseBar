@@ -1,5 +1,13 @@
 # 本机验证记录
 
+## 2026-10-24：1.16.0（30）已通过审核并在 App Store 上架
+
+- 04:30–04:33（Asia/Shanghai）实际核验 App Store Connect：原[审核条目](https://appstoreconnect.apple.com/apps/6822572419/distribution/reviewsubmissions/details/624110d5-375f-4966-8993-0d3a02a75693) 为 **Review Completed / Approved**，版本页为 **Ready for Distribution**；两处均对应 1.16.0（30），构建 ID 为 `e2eff305-6770-46c4-88e4-d7300e909332`。审核通过后自动发布设置已生效。
+- 04:27 实际打开[中国区 Mac App Store 产品页](https://apps.apple.com/cn/app/pulsebar-system-monitor/id6822572419?mt=12)，已显示 **版本 1.16.0**、免费及“在 Mac App Store 中查看”下载入口；新版截图、更新说明和可选助手 PKG 安装说明可见。以后台最终分发状态和真实产品页共同确认发布完成，未将上传或提交视为上架。
+- 后台 Pricing and Availability 显示 **175 Available**，展开列表确认包含 China mainland 与 United States，分发方式为 Public。美国区产品页本轮仍重定向中国区 iPhone Today，因此美国区实际产品页及下载状态未独立核验。04:27 的 Apple 公开 Lookup API 在中国区和美国区均返回旧版 1.15.2；此目录结果与已显示 1.16.0 的中国区真实产品页分别记录，不用旧目录值否定已核验的上架状态。
+- 最终凭据保存在本地忽略目录 `artifacts/ui-review/app-store-publication-receipt-1.16.0.json`；后台、原审核条目、公开产品页与地区列表的文本及截图分别为 `app-store-ready-1.16.0.*`、`app-store-approved-1.16.0.*`、`public-cn-target-1.16.0.*`、`app-store-availability-1.16.0.*`。时间均为实际观察时间，不推断苹果精确批准或上线时刻。
+- 发布源码仍为 `dd3188c32c6cd78c75fd3ce88eef9ed35c93267c`，沿用下方正式构建及签名验证。主程序通过 App Store 分发；已公开的助手 1.0.2 资产保持原样。
+
 ## 2026-10-23：1.16.0（30）已提交商店审核，助手 1.0.2 已发布
 
 - 用户确认最终 UI 后，正式构建并签署主程序 1.16.0/build 30 和助手 1.0.2/build 3。主程序 arm64/x86_64、沙盒、私有代码隔离、资源与严格签名检查通过；最终 UI 沿用本日 117 项核心测试及隔离连接验收。
