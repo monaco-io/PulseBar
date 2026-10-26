@@ -228,5 +228,6 @@
 "helperHelp" = "App rankings and hardware temperatures use the optional PulseBar Helper. Download the installer directly, open it, and follow the macOS installation steps. Then open the helper here and choose Enable Helper. No GitHub page or dragging files is needed.";
 "getHelper" = "Download Helper Installer…";
 "openHelper" = "Open Helper…";
-"helperOpenFailed" = "Could not open the installer link or helper. Try again, or check your default browser.";
+"helperOpenFailed" = "Could not start the helper. Open it from your home folder’s Applications folder.";
 "appStoreUpdates" = "Updates are delivered through the Mac App Store.";
+"helperDownloadFailed" = "Could not open the download link. Check your default browser.";

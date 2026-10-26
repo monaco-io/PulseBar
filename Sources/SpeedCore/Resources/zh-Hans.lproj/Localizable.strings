@@ -228,5 +228,6 @@
 "helperHelp" = "应用排行和硬件温度由可选的 PulseBar 助手提供。点击下方直接下载安装包，打开后按 macOS 提示安装，再从这里打开助手并选择“启用助手”。无需前往 GitHub 或手动拖拽文件。";
 "getHelper" = "下载安装助手…";
 "openHelper" = "打开助手…";
-"helperOpenFailed" = "无法打开安装包链接或助手，请重试并检查默认浏览器。";
+"helperOpenFailed" = "无法启动助手，请从个人“应用程序”文件夹打开。";
 "appStoreUpdates" = "此版本通过 Mac App Store 更新。";
+"helperDownloadFailed" = "下载链接无法打开，请检查默认浏览器。";

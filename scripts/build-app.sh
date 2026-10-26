@@ -38,6 +38,7 @@ if [[ -f "$project_dir/.build/toolchain-compat/overlay.json" ]]; then
 fi
 "${icon_command[@]}" scripts/make-icon.swift "$stage_dir/AppIcon.iconset"
 iconutil -c icns "$stage_dir/AppIcon.iconset" -o "$app_dir/Contents/Resources/AppIcon.icns"
+cp Resources/Assets.car "$app_dir/Contents/Resources/Assets.car"
 xattr -cr "$app_dir"
 # Sparkle includes signed nested helpers. Re-sign inside out only for Developer ID builds.
 if [[ -n "${CODE_SIGN_IDENTITY:-}" ]]; then

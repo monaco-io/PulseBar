@@ -81,6 +81,8 @@ fi
 iconutil -c icns "$stage_dir/AppIcon.iconset" -o "$stage_dir/AppIcon.icns"
 cp "$stage_dir/AppIcon.icns" "$app_dir/Contents/Resources/AppIcon.icns"
 cp "$stage_dir/AppIcon.icns" "$helper_dir/Contents/Resources/AppIcon.icns"
+cp Resources/Assets.car "$app_dir/Contents/Resources/Assets.car"
+cp Resources/Assets.car "$helper_dir/Contents/Resources/Assets.car"
 entitlements="$stage_dir/PulseBar.entitlements"
 cp Resources/AppStore/PulseBar.entitlements "$entitlements"
 if ! "$local_build"; then
