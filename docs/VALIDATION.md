@@ -1,5 +1,14 @@
 # 本机验证记录
 
+## 2026-10-26：1.17.0（31）已提交 App Store 审核并安装本机
+
+- 源码提交 `3c5e051d37ac982939fadb5e8acff97df8fc3858` 与截图提交 `bf802da7de7fdc99030f475287a351aea65ce3ef` 已推送至 GitHub `main` 和 `codex/fix-helper-launch`；[CI](https://github.com/monaco-io/PulseBar/actions/runs/40267475973) 成功。121 项 Store 配置测试、双架构构建及正式签名验证沿用下方发布候选结果。
+- 正式 Store PKG 为 6,042,228 字节，SHA-256 `a1465cfe660affe7515ecba1b691ceb01a9dfd23b069c3f1774a4b72f2502ea2`。Transporter 已交付，Apple 已处理完成；构建 ID 为 `3676b691-6998-4c92-8ba4-24f21726f1d7`。
+- 英文与简体中文各更新两张 2560×1600 原生截图，展示网络与磁盘各行独立单位；已上传并保存到新版本。中英文描述、更新说明和审核说明同步更新。保留审核通过后自动发布、立即向所有用户发布及既有评分设置。
+- 12:15（Asia/Shanghai）正式提交，实际[审核回执](https://appstoreconnect.apple.com/apps/6822572419/distribution/reviewsubmissions/details/f9dee1c1-1dec-4ff3-82e8-704c53e4e997) 显示 **Waiting for Review**，对应 1.17.0（31），提交 ID `f9dee1c1-1dec-4ff3-82e8-704c53e4e997`。本记录确认提交成功，尚未确认 Apple 批准或上架。
+- `/Applications/PulseBar.app` 已替换并启动为 Developer ID 签名的 1.17.0（31），团队 `45Y6A23PTN`。替换时原有偏好、沙盒 92 条事件及旧目录 200 条事件完整保留；备份位于 `~/Library/Application Support/PulseBar/Backups/2026-10-26-121327-release-1.17.0/`。安装副本连续三次实际助手采样均连接成功、无错误，分别读取 638 / 627 / 629 个进程，CPU 与内存排行各五项。正式助手及 XPC 签名验证规则保持原样。
+- 本机安装、采样、包验证、四张原生截图及审核回执文本/截图保存在 `.build/release-1.17.0/`。四个截图预览进程已结束。最终安装后的原生界面复验遇到锁屏；排行界面已在上一份同代码 Developer ID 安装中确认，当前安装通过实际助手采样验证。
+
 ## 2026-10-26：1.17.0（31）发布候选与本机助手连接修复
 
 - 用户要求推送全部项目修改并提交 App Store。版本递增至 1.17.0（31），中英文商店文案及更新说明已同步，沿用助手 1.0.2、既有隐私声明和审核通过后自动发布设置。
