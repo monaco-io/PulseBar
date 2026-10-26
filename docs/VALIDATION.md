@@ -7,7 +7,7 @@
 - 英文与简体中文各更新两张 2560×1600 原生截图，展示网络与磁盘各行独立单位；已上传并保存到新版本。中英文描述、更新说明和审核说明同步更新。保留审核通过后自动发布、立即向所有用户发布及既有评分设置。
 - 12:15（Asia/Shanghai）正式提交，实际[审核回执](https://appstoreconnect.apple.com/apps/6822572419/distribution/reviewsubmissions/details/f9dee1c1-1dec-4ff3-82e8-704c53e4e997) 显示 **Waiting for Review**，对应 1.17.0（31），提交 ID `f9dee1c1-1dec-4ff3-82e8-704c53e4e997`。本记录确认提交成功，尚未确认 Apple 批准或上架。
 - `/Applications/PulseBar.app` 已替换并启动为 Developer ID 签名的 1.17.0（31），团队 `45Y6A23PTN`。替换时原有偏好、沙盒 92 条事件及旧目录 200 条事件完整保留；备份位于 `~/Library/Application Support/PulseBar/Backups/2026-10-26-121327-release-1.17.0/`。安装副本连续三次实际助手采样均连接成功、无错误，分别读取 638 / 627 / 629 个进程，CPU 与内存排行各五项。正式助手及 XPC 签名验证规则保持原样。
-- 本机安装、采样、包验证、四张原生截图及审核回执文本/截图保存在 `.build/release-1.17.0/`。四个截图预览进程已结束。最终安装后的原生界面复验遇到锁屏；排行界面已在上一份同代码 Developer ID 安装中确认，当前安装通过实际助手采样验证。
+- 本机安装、采样、包验证、四张原生截图及审核回执文本/截图保存在 `.build/release-1.17.0/`。四个截图预览进程已结束。13:27（Asia/Shanghai）用户解锁后，补验当前安装的原生 CPU 与内存详情：CPU 排行显示 ChatGPT、Screen Sharing、Terminal 等五项，内存排行显示 Docker、ChatGPT、DingTalk 等五项，更新时间持续刷新；CPU/GPU/存储温度与网络独立单位同时可见。真实界面截图与辅助功能文本保存在 `.build/release-1.17.0/post-unlock/`。
 
 ## 2026-10-26：1.17.0（31）发布候选与本机助手连接修复
 
