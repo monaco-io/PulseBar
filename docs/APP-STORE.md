@@ -31,6 +31,8 @@ python3 scripts/verify-helper-integration.py --identity 'Developer ID Applicatio
 
 The integration test creates a unique temporary launch agent and ad-hoc sandboxed client. It checks a working connection, rejected client and service signatures, and continued basic monitoring after the helper is removed. It unloads its own agent in cleanup and does not register the production helper. The resulting local packages must not be uploaded to Apple or released to users.
 
+The default `--local` build is ad-hoc signed and cannot connect to the publicly distributed helper. For local UI acceptance with the real helper, use `--local --developer-id` with `DEVELOPER_ID_APPLICATION_IDENTITY` set to the existing team certificate. Verify real app rankings and temperatures before installing that candidate. Keep the production signature requirements enabled; an enabled helper can still reject an unsigned client.
+
 The bundle verifier rejects Sparkle, process-reader and temperature-reader symbols in the store app. It checks entitlements, resources, release-only authentication settings, and code signatures. Actual Apple upload validation, production signature checks, Gatekeeper/notarization, and App Review are separate stages.
 
 For listing screenshots, a debug preview bundle can set `PulseBarHardwarePreview` and `PulseBarAppStoreCanvas` to true, with `PulseBarPreviewLanguage` set to `en` or `zh-Hans`. Use a separate preview bundle identifier and capture its 1280-by-800-point window through the UI. The canvas displays the actual sandboxed overview with live readings; it uses isolated preview preferences and event storage. These preview switches are not available in release builds.
@@ -48,6 +50,7 @@ Set the signing identity names/hashes in `APP_STORE_APPLICATION_IDENTITY`, `APP_
 The main app version and build number both come from `Resources/Info.plist`. Increment the build number for each replacement upload. The helper has its own version, currently 1.0.2/build 3, in the bundle assembly script. Both executables target macOS 13 and include arm64/x86_64. SwiftPM's resource-only bundle receives its own identifier before the store app is signed; the verifier checks nested resource bundle identifiers as well.
 
 If the checkout is in a cloud-synced folder, set `PULSEBAR_STORE_SCRATCH_PATH` to an ordinary local cache directory, such as `$HOME/Library/Caches/PulseBar/store-release`, to keep intermediate build files outside cloud synchronization.
+Set `PULSEBAR_STORE_OUTPUT_PATH` to a local cache directory as well to keep signed delivery bundles free of synchronization metadata.
 
 Configure an authorized notarytool Keychain profile without placing credentials in source or logs, set its name in `NOTARY_KEYCHAIN_PROFILE`, set `DEVELOPER_ID_INSTALLER_IDENTITY` to a Developer ID Installer identity, then run:
 

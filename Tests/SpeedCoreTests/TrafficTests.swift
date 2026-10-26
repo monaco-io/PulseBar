@@ -73,15 +73,41 @@ struct TrafficTests {
         #expect(InterfaceReader.isIncluded(name: "en0", flags: active, linkActive: true))
     }
 
-    @Test func formattingUnitsAndRoundingBoundaries() {
-        #expect(TrafficFormatter.speed(0).text == "0.0 MB/s")
-        #expect(TrafficFormatter.speed(1_240_000).text == "1.2 MB/s")
-        #expect(TrafficFormatter.speed(500).text == "<0.1 MB/s")
-        #expect(TrafficFormatter.speed(99_999).text == "<0.1 MB/s")
-        #expect(TrafficFormatter.speed(100_000).text == "0.1 MB/s")
-        #expect(TrafficFormatter.speed(999_990).text == "1.0 MB/s")
-        #expect(TrafficFormatter.speed(1_000_000_000).text == "1000.0 MB/s")
-        #expect(TrafficFormatter.speed(.infinity).text == "0.0 MB/s")
+    @Test func automaticRatesMatchIStatUnitAndPrecisionBoundaries() {
+        let cases: [(Double, String)] = [
+            (0, "0 KB/s"), (500, "0 KB/s"), (512, "1 KB/s"),
+            (1_024, "1 KB/s"), (1_536, "2 KB/s"), (512_000, "500 KB/s"),
+            (999_999, "977 KB/s"), (1_000_000, "1.0 MB/s"),
+            (1_048_576, "1.0 MB/s"), (1_310_720, "1.3 MB/s"), (1_572_864, "1.5 MB/s"),
+            (104_805_171.2, "100.0 MB/s"), (104_857_599, "100.0 MB/s"),
+            (104_857_600, "100 MB/s"), (999_999_999, "954 MB/s"),
+            (1_000_000_000, "0.9 GB/s"), (1_073_741_824, "1.0 GB/s")
+        ]
+        for (bytes, expected) in cases {
+            #expect(TrafficFormatter.speed(bytes).text == expected)
+        }
+    }
+
+    @Test func fixedMegabytesKeepTheUnitAndUseTheSamePrecisionRules() {
+        let cases: [(Double, String)] = [
+            (0, "0.0 MB/s"), (512, "0.0 MB/s"), (52_428.8, "0.1 MB/s"),
+            (512_000, "0.5 MB/s"), (1_310_720, "1.3 MB/s"),
+            (104_857_599, "100.0 MB/s"), (104_857_600, "100 MB/s"),
+            (1_000_000_000, "954 MB/s"), (1_073_741_824, "1,024 MB/s")
+        ]
+        for (bytes, expected) in cases {
+            #expect(TrafficFormatter.speed(bytes, mode: .megabytesPerSecond).text == expected)
+        }
+    }
+
+    @Test func invalidRatesDisplayZeroInTheSelectedMode() {
+        for bytes in [-1.0, Double.nan, .infinity, -.infinity] {
+            #expect(TrafficFormatter.speed(bytes).text == "0 KB/s")
+            #expect(TrafficFormatter.speed(bytes, mode: .megabytesPerSecond).text == "0.0 MB/s")
+        }
+    }
+
+    @Test func systemFormattingKeepsDecimalCapacityAndPercentages() {
         #expect(SystemFormatter.memory(25_769_803_776) == "25.8 GB")
         #expect(SystemFormatter.percent(24.876) == "24.9%")
         #expect(SystemFormatter.percent(100) == "100.0%")

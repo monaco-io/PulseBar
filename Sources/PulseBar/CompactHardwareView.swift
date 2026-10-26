@@ -144,8 +144,8 @@ struct CompactHardwareView: View {
                 ?? l10n(.waiting)
         case .networkDetails:
             guard monitor.networkError == nil else { return l10n(.retrying) }
-            return l10n(.upload) + " " + TrafficFormatter.speed(monitor.rate.upload).text + ", "
-                + l10n(.download) + " " + TrafficFormatter.speed(monitor.rate.download).text
+            return l10n(.upload) + " " + TrafficFormatter.speed(monitor.rate.upload, mode: preferences.networkSpeedMode).text + ", "
+                + l10n(.download) + " " + TrafficFormatter.speed(monitor.rate.download, mode: preferences.networkSpeedMode).text
         case .storageDetails: return monitor.storageCapacity.map { l10n(.availableSpace, TrafficFormatter.total($0.availableBytes)) } ?? l10n(.waiting)
         case .gpuDetails: return monitor.gpuUsage.map { $0.name + " " + SystemFormatter.percent($0.utilizationPercent) }.joined(separator: ", ")
         case .batteryDetails: return SystemFormatter.percent(monitor.battery?.chargePercent)
@@ -246,8 +246,8 @@ struct CompactHardwareView: View {
                     .lineLimit(1)
                 Spacer(minLength: 0)
                 Text(l10n(.diskRateSummary,
-                          monitor.resources.diskRate.map { TrafficFormatter.speed($0.read).text } ?? "—",
-                          monitor.resources.diskRate.map { TrafficFormatter.speed($0.write).text } ?? "—"))
+                          monitor.resources.diskRate.map { TrafficFormatter.speed($0.read, mode: preferences.diskSpeedMode).text } ?? "—",
+                          monitor.resources.diskRate.map { TrafficFormatter.speed($0.write, mode: preferences.diskSpeedMode).text } ?? "—"))
                     .font(.system(size: 10)).foregroundStyle(.secondary).monospacedDigit()
                     .lineLimit(tileWidth < 160 ? 2 : 1).minimumScaleFactor(0.85)
             } else {
@@ -286,7 +286,7 @@ struct CompactHardwareView: View {
     }
 
     private func rate(_ title: TextKey, value: Double?, color: Color) -> some View {
-        let amount = value.map(TrafficFormatter.speed)
+        let amount = value.map { TrafficFormatter.speed($0, mode: preferences.diskSpeedMode) }
         return VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
                 Circle().fill(color).frame(width: 4, height: 4)
@@ -298,7 +298,7 @@ struct CompactHardwareView: View {
     }
 
     private func trafficRow(_ title: TextKey, value: Double?, color: Color) -> some View {
-        let amount = value.map(TrafficFormatter.speed)
+        let amount = value.map { TrafficFormatter.speed($0, mode: preferences.networkSpeedMode) }
         return HStack(alignment: .firstTextBaseline, spacing: 4) {
             Circle().fill(color).frame(width: 4, height: 4).alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] }
             if tileWidth < 160 {

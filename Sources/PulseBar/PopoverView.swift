@@ -285,6 +285,22 @@ struct PopoverView: View {
                     .disabled(!preferences.selection.showsNumbers)
                     Text(l10n(.menuDisplayRequired)).font(.caption).foregroundStyle(.secondary)
                     Divider()
+                    LabeledContent(l10n(.networkSpeedUnits)) {
+                        Picker(l10n(.networkSpeedUnits), selection: $preferences.networkSpeedMode) {
+                            ForEach(SpeedDisplayMode.allCases, id: \.self) { mode in
+                                Text(l10n(mode.titleKey)).tag(mode)
+                            }
+                        }.labelsHidden().fixedSize()
+                    }
+                    LabeledContent(l10n(.diskSpeedUnits)) {
+                        Picker(l10n(.diskSpeedUnits), selection: $preferences.diskSpeedMode) {
+                            ForEach(SpeedDisplayMode.allCases, id: \.self) { mode in
+                                Text(l10n(mode.titleKey)).tag(mode)
+                            }
+                        }.labelsHidden().fixedSize()
+                    }
+                    Text(l10n(.speedUnitsHelp)).font(.caption).foregroundStyle(.secondary)
+                    Divider()
                     LabeledContent(l10n(.language)) {
                         Picker(l10n(.language), selection: $preferences.language) {
                             ForEach(AppLanguage.allCases, id: \.self) { language in

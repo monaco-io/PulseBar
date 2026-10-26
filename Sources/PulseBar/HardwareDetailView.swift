@@ -9,6 +9,9 @@ struct HardwareDetailView: View {
     let inspectedTime: TimeInterval?
     let onInspect: (TimeInterval?) -> Void
     private var l10n: Localizer { preferences.localizer }
+    private var speedMode: SpeedDisplayMode {
+        route == .storageDetails ? preferences.diskSpeedMode : preferences.networkSpeedMode
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -190,7 +193,7 @@ struct HardwareDetailView: View {
             HStack {
                 Text(l10n(.historyHint, l10n.duration(preferences.historySeconds)))
                 Spacer()
-                Text(rates ? l10n(.chartLimit, TrafficFormatter.speed(maximum).text) : "0–100%")
+                Text(rates ? l10n(.chartLimit, TrafficFormatter.speed(maximum, mode: speedMode).text) : "0–100%")
             }
             .font(.system(size: 11)).foregroundStyle(.secondary)
             HistoryChart(points: points, maximum: maximum, primaryColor: color, secondaryColor: secondary,
@@ -233,7 +236,7 @@ struct HardwareDetailView: View {
     }
 
     private func formatted(_ value: Double?, rates: Bool) -> String {
-        rates ? value.map { TrafficFormatter.speed($0).text } ?? "—" : SystemFormatter.percent(value)
+        rates ? value.map { TrafficFormatter.speed($0, mode: speedMode).text } ?? "—" : SystemFormatter.percent(value)
     }
 
     private func visible(_ points: [HistoryPoint]) -> [HistoryPoint] {
@@ -262,7 +265,7 @@ struct HardwareDetailView: View {
     }
 
     private func speed(_ key: TextKey, value: Double?, color: Color) -> some View {
-        let amount = value.map(TrafficFormatter.speed)
+        let amount = value.map { TrafficFormatter.speed($0, mode: speedMode) }
         return VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 5) {
                 Circle().fill(color).frame(width: 5, height: 5)

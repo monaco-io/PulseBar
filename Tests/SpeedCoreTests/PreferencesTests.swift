@@ -56,6 +56,33 @@ struct PreferencesTests {
         #expect(AppPreferences(defaults: defaults).refreshSeconds == 60)
     }
 
+    @Test func networkAndDiskRateModesDefaultToAutomaticAndPersistIndependently() throws {
+        let suite = "PulseBar.RateUnits.Tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let first = AppPreferences(defaults: defaults)
+        #expect(first.networkSpeedMode == .automatic)
+        #expect(first.diskSpeedMode == .automatic)
+
+        first.networkSpeedMode = .megabytesPerSecond
+        let networkFixed = AppPreferences(defaults: defaults)
+        #expect(networkFixed.networkSpeedMode == .megabytesPerSecond)
+        #expect(networkFixed.diskSpeedMode == .automatic)
+
+        networkFixed.networkSpeedMode = .automatic
+        networkFixed.diskSpeedMode = .megabytesPerSecond
+        let diskFixed = AppPreferences(defaults: defaults)
+        #expect(diskFixed.networkSpeedMode == .automatic)
+        #expect(diskFixed.diskSpeedMode == .megabytesPerSecond)
+        #expect(diskFixed.selection == first.selection)
+
+        defaults.set("unknown", forKey: "networkSpeedDisplayMode")
+        defaults.set("unknown", forKey: "diskSpeedDisplayMode")
+        let invalid = AppPreferences(defaults: defaults)
+        #expect(invalid.networkSpeedMode == .automatic)
+        #expect(invalid.diskSpeedMode == .automatic)
+    }
+
     @Test func ringsAndNumbersPersistIndependentlyWithoutLosingChoices() throws {
         let suite = "PulseBar.Display.Tests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))

@@ -49,6 +49,7 @@ public enum TextKey: String, CaseIterable {
     case reset, resetHelp, quit, language, followSystem
     case settings, settingsExpanded, settingsCollapsed, menuBarItems
     case showMenuRings, showMenuNumbers, ringMetricHelp, menuDisplayRequired, menuPercentages
+    case networkSpeedUnits, diskSpeedUnits, automaticSpeedUnits, fixedMegabytesPerSecond, speedUnitsHelp
     case launchAtLogin, launchAtLoginHelp, loginApprovalRequired, openLoginSettings, loginItemFailed
     case visibilityHint, showInMenuBar, atLeastOne, refresh, secondsUnit, hoursUnit, refreshHelp
     case menuAccessibility, menuHint, namedValue, diskRead, diskWrite, listSeparator

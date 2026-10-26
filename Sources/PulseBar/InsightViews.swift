@@ -114,6 +114,13 @@ struct RankingPane: View {
     var showsMemorySummary = true
     @State private var activityMonitorFailed = false
     private var l10n: Localizer { preferences.localizer }
+    private var showsRankings: Bool {
+        #if APP_STORE
+        monitor.helperConnected
+        #else
+        true
+        #endif
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -144,20 +151,22 @@ struct RankingPane: View {
                 Text(l10n(.swapHelp)).font(.system(size: 10)).foregroundStyle(.secondary)
                 Divider()
             }
-            if let error = monitor.processError {
-                Text(l10n.describe(error) ?? l10n(.rankingUnavailable)).foregroundStyle(.orange)
-            } else {
-                let apps = metric == .cpu ? AppRanking.cpu(monitor.apps) : AppRanking.memory(monitor.apps)
-                if apps.isEmpty { Text(l10n(.waiting)).foregroundStyle(.secondary) }
-                else { AppRankingsView(apps: apps, metric: metric, localizer: l10n) }
+            if showsRankings {
+                if let error = monitor.processError {
+                    Text(l10n.describe(error) ?? l10n(.rankingUnavailable)).foregroundStyle(.orange)
+                } else {
+                    let apps = metric == .cpu ? AppRanking.cpu(monitor.apps) : AppRanking.memory(monitor.apps)
+                    if apps.isEmpty { Text(l10n(.waiting)).foregroundStyle(.secondary) }
+                    else { AppRankingsView(apps: apps, metric: metric, localizer: l10n) }
+                }
+                if let date = monitor.rankingDate {
+                    Text(l10n(.rankingTime, InsightStyle.time(date, localizer: l10n)))
+                        .font(.system(size: 10)).foregroundStyle(.secondary).monospacedDigit()
+                    Text(l10n(.rankingCoverage, monitor.processCount, monitor.skippedProcessCount))
+                        .font(.system(size: 10)).foregroundStyle(.secondary)
+                }
+                Text(l10n(.rankingHelp)).font(.system(size: 10)).foregroundStyle(.secondary)
             }
-            if let date = monitor.rankingDate {
-                Text(l10n(.rankingTime, InsightStyle.time(date, localizer: l10n)))
-                    .font(.system(size: 10)).foregroundStyle(.secondary).monospacedDigit()
-                Text(l10n(.rankingCoverage, monitor.processCount, monitor.skippedProcessCount))
-                    .font(.system(size: 10)).foregroundStyle(.secondary)
-            }
-            Text(l10n(.rankingHelp)).font(.system(size: 10)).foregroundStyle(.secondary)
             NativeGlassButton(title: l10n(.activityMonitor), symbol: "arrow.up.forward.app") {
                 guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.ActivityMonitor") else {
                     activityMonitorFailed = true; return

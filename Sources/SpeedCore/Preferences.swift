@@ -152,6 +152,12 @@ public final class AppPreferences: ObservableObject {
     @Published public var language: AppLanguage {
         didSet { defaults.set(language.rawValue, forKey: "appLanguage") }
     }
+    @Published public var networkSpeedMode: SpeedDisplayMode {
+        didSet { defaults.set(networkSpeedMode.rawValue, forKey: "networkSpeedDisplayMode") }
+    }
+    @Published public var diskSpeedMode: SpeedDisplayMode {
+        didSet { defaults.set(diskSpeedMode.rawValue, forKey: "diskSpeedDisplayMode") }
+    }
     @Published public private(set) var refreshSeconds: Int
     @Published public private(set) var historySeconds: Int
     @Published public var notificationsEnabled: Bool {
@@ -195,6 +201,8 @@ public final class AppPreferences: ObservableObject {
                 showsRings: !legacy.subtracting([.network]).isEmpty, showsNumbers: !numbers.isEmpty)
         } else { selection = MenuBarSelection() }
         language = AppLanguage(rawValue: defaults.string(forKey: "appLanguage") ?? "") ?? .system
+        networkSpeedMode = defaults.string(forKey: "networkSpeedDisplayMode").flatMap(SpeedDisplayMode.init(rawValue:)) ?? .automatic
+        diskSpeedMode = defaults.string(forKey: "diskSpeedDisplayMode").flatMap(SpeedDisplayMode.init(rawValue:)) ?? .automatic
         refreshSeconds = defaults.object(forKey: "refreshSeconds") == nil
             ? 2 : RefreshInterval.normalized(defaults.integer(forKey: "refreshSeconds"))
         historySeconds = defaults.object(forKey: "historySeconds") == nil

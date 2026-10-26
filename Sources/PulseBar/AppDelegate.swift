@@ -198,8 +198,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             window.contentViewController = controller
             panel = window
         }
-        resizePanel(force: true)
+        resizePanel(animated: false)
         panel?.contentView?.layoutSubtreeIfNeeded()
+        // Battery data can change the measured height during this first layout.
+        // Match the native window before revealing the SwiftUI content.
+        resizePanel(animated: false)
         panel?.makeKeyAndOrderFront(nil)
         panel?.makeFirstResponder(nil)
         recordLayout("open")
@@ -238,12 +241,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func resizePanel(force: Bool = false) {
-        guard let panel, force || panel.isVisible,
+    private func resizePanel(animated: Bool = true) {
+        guard let panel,
               let anchorFrame, let availableFrame else { return }
         let frame = PanelPlacement.frame(size: presentation.contentSize, anchor: anchorFrame, visibleFrame: availableFrame)
         if panel.frame != frame {
-            NativePanelMotion.resize(panel, to: frame, animated: !force)
+            NativePanelMotion.resize(panel, to: frame, animated: animated)
         }
         recordLayout("navigate", target: frame)
     }
@@ -334,12 +337,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func updateStatus(_ rate: TrafficRate, error: Error?, resources: ResourceState,
                               selection: MenuBarSelection, localizer: Localizer, historySeconds: Int) {
         guard let button = statusItem?.button else { return }
-        let down = error == nil ? TrafficFormatter.speed(rate.download) : nil
-        let up = error == nil ? TrafficFormatter.speed(rate.upload) : nil
+        let down = error == nil ? TrafficFormatter.speed(rate.download, mode: preferences.networkSpeedMode) : nil
+        let up = error == nil ? TrafficFormatter.speed(rate.upload, mode: preferences.networkSpeedMode) : nil
         let cpu = SystemFormatter.percent(resources.cpu?.usedPercent)
         let memory = SystemFormatter.percent(resources.memory?.usedPercent)
-        let read = resources.diskRate.map { TrafficFormatter.speed($0.read) }
-        let write = resources.diskRate.map { TrafficFormatter.speed($0.write) }
+        let read = resources.diskRate.map { TrafficFormatter.speed($0.read, mode: preferences.diskSpeedMode) }
+        let write = resources.diskRate.map { TrafficFormatter.speed($0.write, mode: preferences.diskSpeedMode) }
         let ringReadings = MenuBarRingReadings(monitor: monitor)
         statusRings?.update(readings: ringReadings, selection: selection)
         var imageKey = ["rings:\(selection.showsRings)"]
@@ -348,17 +351,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             switch metric {
             case .cpu: imageKey.append(cpu)
             case .memory: imageKey.append(memory)
-            case .diskRead: imageKey.append(read?.value ?? "—")
-            case .diskWrite: imageKey.append(write?.value ?? "—")
-            case .upload: imageKey.append(up?.value ?? "—")
-            case .download: imageKey.append(down?.value ?? "—")
+            case .diskRead: imageKey.append(read?.text ?? "—")
+            case .diskWrite: imageKey.append(write?.text ?? "—")
+            case .upload: imageKey.append(up?.text ?? "—")
+            case .download: imageKey.append(down?.text ?? "—")
             }
         }
         if imageKey != lastStatusImageKey {
             let layout = MenuBarLabel.layout(cpu: cpu.replacingOccurrences(of: "%", with: ""),
                                             memory: memory.replacingOccurrences(of: "%", with: ""),
-                                            diskRead: read?.value ?? "—", diskWrite: write?.value ?? "—",
-                                            download: down?.value ?? "—", upload: up?.value ?? "—", selection: selection)
+                                            diskRead: read, diskWrite: write,
+                                            download: down, upload: up, selection: selection)
             if statusItem.length != layout.image.size.width + 12 { statusItem.length = layout.image.size.width + 12 }
             button.image = layout.image
             for target in [StatusItemHintTarget.usage, .disk, .network] {

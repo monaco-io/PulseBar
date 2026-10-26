@@ -92,9 +92,55 @@ public struct FormattedAmount: Equatable {
     public var text: String { "\(value) \(unit)" }
 }
 
+public enum SpeedDisplayMode: String, CaseIterable {
+    case automatic
+    case megabytesPerSecond
+
+    public var titleKey: TextKey {
+        switch self {
+        case .automatic: return .automaticSpeedUnits
+        case .megabytesPerSecond: return .fixedMegabytesPerSecond
+        }
+    }
+}
+
 public enum TrafficFormatter {
-    public static func speed(_ bytesPerSecond: Double) -> FormattedAmount {
-        FormattedAmount(value: megabyteValue(bytesPerSecond), unit: "MB/s")
+    public static func speed(_ bytesPerSecond: Double, mode: SpeedDisplayMode = .automatic) -> FormattedAmount {
+        let bytes = bytesPerSecond.isFinite ? max(0, bytesPerSecond) : 0
+        let value: Double
+        let unit: String
+        let decimals: Int
+        if mode == .automatic && bytes >= 1_000_000_000 {
+            value = bytes / 1_073_741_824
+            unit = "GB/s"
+            decimals = 1
+        } else if mode == .megabytesPerSecond || bytes >= 1_000_000 {
+            value = bytes / 1_048_576
+            unit = "MB/s"
+            decimals = value < 100 ? 1 : 0
+        } else {
+            value = bytes / 1_024
+            unit = "KB/s"
+            decimals = 0
+        }
+        // iStat's menu bar promotes units at decimal thresholds, converts using
+        // binary divisors, and rounds half up after choosing the precision.
+        let formatter = decimals == 0 ? integerRateFormatter : decimalRateFormatter
+        return FormattedAmount(value: formatter.string(from: NSNumber(value: value)) ?? "0", unit: unit)
+    }
+
+    private static let integerRateFormatter = rateFormatter(decimals: 0)
+    private static let decimalRateFormatter = rateFormatter(decimals: 1)
+
+    private static func rateFormatter(decimals: Int) -> NumberFormatter {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.numberStyle = .decimal
+        formatter.usesGroupingSeparator = true
+        formatter.minimumFractionDigits = decimals
+        formatter.maximumFractionDigits = decimals
+        formatter.roundingMode = .halfUp
+        return formatter
     }
 
     /// A shared reference keeps related values, such as used / total memory, in the same unit.
@@ -114,11 +160,6 @@ public enum TrafficFormatter {
 
     public static func total(_ bytes: UInt64) -> String {
         amount(bytes).text
-    }
-
-    private static func megabyteValue(_ bytes: Double) -> String {
-        let value = bytes.isFinite ? max(0, bytes) / 1_000_000 : 0
-        return decimalValue(value)
     }
 
     private static func decimalValue(_ value: Double) -> String {

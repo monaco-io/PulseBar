@@ -284,7 +284,7 @@ private final class HardwarePreviewSession: NSObject, NSApplicationDelegate, NSW
             canvas.view.addSubview(field)
         }
         func strip(_ selection: MenuBarSelection, y: CGFloat) {
-            let host = NSHostingView(rootView: MenuBarShowcase(monitor: monitor, selection: selection))
+            let host = NSHostingView(rootView: MenuBarShowcase(monitor: monitor, preferences: preferences, selection: selection))
             host.frame = NSRect(x: 80, y: y, width: 575, height: 76)
             canvas.view.addSubview(host)
         }
@@ -304,7 +304,7 @@ private final class HardwarePreviewSession: NSObject, NSApplicationDelegate, NSW
             label(chinese ? "上传、下载、读取、写入可独立选择。\n单项读数清晰，双行显示紧凑。"
                           : "Choose upload, download, read and write.\nFull-size single rows. Compact pairs.",
                   size: 23, weight: .regular, y: 316, height: 90)
-            label(chinese ? "双向速率，共用单位" : "Both directions, one shared unit", size: 15, weight: .semibold, y: 286, height: 25)
+            label(chinese ? "双向速率，分别显示单位" : "Both directions, independent units", size: 15, weight: .semibold, y: 286, height: 25)
             strip(MenuBarSelection(), y: 204)
             label(chinese ? "只显示读取与上传" : "Show only read and upload", size: 15, weight: .semibold, y: 164, height: 25)
             strip(MenuBarSelection(metrics: [.diskRead, .upload]), y: 82)
@@ -395,6 +395,7 @@ private final class HardwarePreviewWindow: NSWindow {
 /// enlarged components for product screenshots, not invented monitoring data.
 private struct MenuBarShowcase: View {
     @ObservedObject var monitor: SystemMonitor
+    @ObservedObject var preferences: AppPreferences
     let selection: MenuBarSelection
 
     var body: some View {
@@ -402,10 +403,10 @@ private struct MenuBarShowcase: View {
         let memory = SystemFormatter.percent(monitor.resources.memory?.usedPercent).replacingOccurrences(of: "%", with: "")
         let rate = monitor.rate
         let image = MenuBarLabel.layout(cpu: cpu, memory: memory,
-            diskRead: monitor.resources.diskRate.map { TrafficFormatter.speed($0.read).value } ?? "—",
-            diskWrite: monitor.resources.diskRate.map { TrafficFormatter.speed($0.write).value } ?? "—",
-            download: TrafficFormatter.speed(rate.download).value,
-            upload: TrafficFormatter.speed(rate.upload).value, selection: selection).image
+            diskRead: monitor.resources.diskRate.map { TrafficFormatter.speed($0.read, mode: preferences.diskSpeedMode) },
+            diskWrite: monitor.resources.diskRate.map { TrafficFormatter.speed($0.write, mode: preferences.diskSpeedMode) },
+            download: TrafficFormatter.speed(rate.download, mode: preferences.networkSpeedMode),
+            upload: TrafficFormatter.speed(rate.upload, mode: preferences.networkSpeedMode), selection: selection).image
         ZStack(alignment: .leading) {
             Image(nsImage: image).renderingMode(.template).foregroundStyle(.primary)
             MenuBarRings(readings: MenuBarRingReadings(monitor: monitor), selection: selection)

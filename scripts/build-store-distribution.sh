@@ -3,14 +3,20 @@ set -euo pipefail
 project_dir="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$project_dir"
 local_build=false
+developer_id_local=false
 configuration=release
 for argument in "$@"; do
     case "$argument" in
         --local) local_build=true ;;
+        --developer-id) developer_id_local=true ;;
         --debug) configuration=debug ;;
-        *) echo "Usage: $0 [--local] [--debug]" >&2; exit 2 ;;
+        *) echo "Usage: $0 [--local [--developer-id]] [--debug]" >&2; exit 2 ;;
     esac
 done
+if "$developer_id_local"; then
+    "$local_build" || { echo '--developer-id requires --local.' >&2; exit 2; }
+    : "${DEVELOPER_ID_APPLICATION_IDENTITY:?Developer ID Application identity required for local helper connectivity}"
+fi
 if ! "$local_build"; then
     [[ "$configuration" == release ]] || { echo 'Distribution requires release configuration.' >&2; exit 1; }
     : "${APP_STORE_APPLICATION_IDENTITY:?Mac App Store application signing identity required}"
@@ -28,7 +34,7 @@ for cpu_arch in "${architectures[@]}"; do
     ./scripts/swift-local.sh build "${build_flags[@]}"
     binary_dirs+=("$(./scripts/swift-local.sh build "${build_flags[@]}" --show-bin-path)")
 done
-output="$project_dir/dist/app-store-$configuration"
+output="${PULSEBAR_STORE_OUTPUT_PATH:-$project_dir/dist/app-store-$configuration}"
 mkdir -p "$output"
 stage_dir="$(mktemp -d /tmp/pulsebar-store.XXXXXX)"
 trap 'rm -rf "$stage_dir"' EXIT
@@ -109,9 +115,13 @@ fi
 chmod -R a+rX "$app_dir" "$helper_dir"
 xattr -cr "$app_dir" "$helper_dir"
 if "$local_build"; then
-    codesign --force --sign - --identifier io.github.monaco-io.PulseBar.HelperService "$helper_dir/Contents/MacOS/PulseBarHelperService"
-    codesign --force --sign - "$helper_dir"
-    codesign --force --sign - --entitlements "$entitlements" "$app_dir"
+    local_sign_flags=(--force --sign -)
+    if "$developer_id_local"; then
+        local_sign_flags=(--force --options runtime --timestamp=none --sign "$DEVELOPER_ID_APPLICATION_IDENTITY")
+    fi
+    codesign "${local_sign_flags[@]}" --identifier io.github.monaco-io.PulseBar.HelperService "$helper_dir/Contents/MacOS/PulseBarHelperService"
+    codesign "${local_sign_flags[@]}" "$helper_dir"
+    codesign "${local_sign_flags[@]}" --entitlements "$entitlements" "$app_dir"
 else
     codesign --force --options runtime --timestamp --sign "$DEVELOPER_ID_APPLICATION_IDENTITY" --identifier io.github.monaco-io.PulseBar.HelperService "$helper_dir/Contents/MacOS/PulseBarHelperService"
     codesign --force --options runtime --timestamp --sign "$DEVELOPER_ID_APPLICATION_IDENTITY" "$helper_dir"

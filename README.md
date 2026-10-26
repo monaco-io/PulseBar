@@ -2,11 +2,9 @@
 
 English | [简体中文](README.zh-CN.md)
 
-A native macOS menu bar monitor organized around CPU, memory, GPU, storage, network, and the Mac's internal battery. See which apps use the most resources, inspect history charts, review local performance events, and see available hardware temperatures alongside their components.
+A macOS menu bar monitor for CPU, memory, storage and network, with history charts and local performance events. The optional [PulseBar Helper](docs/HELPER.md) adds app rankings and hardware temperatures.
 
-See [hardware modules and measurement scope](docs/HARDWARE-MODULES.md).
-
-The Mac App Store build uses a separate, optional [PulseBar Helper](docs/HELPER.md) for app rankings and hardware temperatures. See the [store distribution guide](docs/APP-STORE.md) and [privacy policy](docs/PRIVACY.md). The main app is distributed and updated through the Mac App Store. GitHub releases now contain only the optional Helper; historical main-app releases remain available for existing users.
+[Hardware compatibility](docs/HARDWARE-MODULES.md) · [Privacy](docs/PRIVACY.md) · [Distribution guide](docs/APP-STORE.md)
 
 ## See PulseBar in action
 
@@ -31,51 +29,38 @@ Requires **macOS 13 or later**, on **Apple Silicon or Intel**. The optional Help
 
 **[Download the Helper installer](https://github.com/monaco-io/PulseBar/releases/download/helper-v1.0.2/PulseBar-Helper.pkg)** · [Helper setup](docs/HELPER.md)
 
-The Helper download goes directly to a native macOS installation package. Open it and follow the system steps; no GitHub release page or dragging files is needed. It installs into your personal Applications folder without administrator access. Return to PulseBar Settings, choose **Open Helper**, then **Enable Helper**.
+Open the PKG and follow macOS Installer. The helper installs in your home folder’s Applications folder. In PulseBar Settings, choose **Open Helper**, then **Enable Helper**.
 
 ### Software updates
 
-The **Mac App Store updates PulseBar**. The Helper is distributed separately as a Developer ID signed and notarized installer. Existing GitHub main-app releases and their signed Sparkle feed are retained for compatibility, but receive no new app releases.
+PulseBar updates through the **Mac App Store**. Update the Helper with its separate installer.
 
 ## Features
 
-- **Hardware modules:** CPU usage and logical cores; memory usage, app/wired/compressed memory, pressure, and swap; GPU utilization per device; startup-volume capacity and physical disk reads/writes; network downloads/uploads and session totals; and internal-battery charge, power state, maximum capacity, cycle count, and system time estimates when available. The GPU summary appears inside the CPU tile when usable data exists; an internal-battery row appears only on supported portable Macs. External batteries and UPS devices are not shown as the Mac's battery.
-- **Hardware temperatures:** CPU, GPU, memory, storage, and battery headings show °C only when a known sensor returns a valid reading. Each value is the highest reading among the available sensors mapped to that component. Missing readings leave no temperature placeholder, and the battery heading requires a present internal host battery. Availability varies by Mac and macOS version. See [temperature compatibility](docs/TEMPERATURES.md).
-- **Refresh interval:** 2 seconds by default, adjustable from 1 to 60 seconds. Existing custom intervals are preserved.
-- **Menu bar controls:** three concentric SwiftUI `Gauge` rings default to startup-volume storage (outer), memory (middle), and CPU (inner). Each ring independently supports CPU, memory, storage, the busiest reported GPU, or internal-battery charge. The 22 / 15 / 8 pt diameters and equal 3 pt strokes leave 0.5 pt transparent gaps and a hollow center. CPU and storage are green below 80%, yellow from 80% through 90%, and soft red above 90%; memory keeps its macOS pressure logic. GPU retains its existing 60% / 80% thresholds; battery charge warns at 20% and 10%. Normal accents are green; warning and critical status colors are yellow and red. Unavailable readings keep a neutral track and show —. Rings and numbers have independent visibility switches. CPU, memory, disk read, disk write, upload, and download are individually selectable numbers. A selected pair shares one MB/s unit; a single direction is vertically centered, and hover hints/accessibility include only selected directions. Upload stays above download. At least one display section remains visible. Choices apply immediately, survive restarts, and remain saved while hidden. Existing combined disk/network choices migrate to both directions; customized two-ring choices are retained when the third ring is added. Hidden metrics continue sampling. Hover hints appear after 0.12 seconds.
-- **Compact overview:** CPU/GPU, memory, network, and storage use a 2×2 grid of equal 206 pt square tiles at the standard panel width. CPU and GPU retain separate readings and detail actions. Trends span their tiles; an available internal battery appears below. No bottom navigation; scrolling is used only when content does not fit.
-- **Top apps:** hover over CPU or memory to see the top five apps in an independent detail window; clicking opens it immediately without pinning it. Helper processes are grouped with their app where possible; Activity Monitor is one click away.
-- **History inspection:** hover over a detail chart to inspect actual samples at that timestamp. Live headline readings continue updating. Averages cover sampled time only.
-- **Performance events:** record CPU usage of at least 85% for 30 seconds, or elevated/critical memory pressure for 10 seconds, with metrics and top-app snapshots. Snapshots show simultaneous activity without establishing a cause.
-- **Local event history:** retain seven days, up to 200 entries, across app restarts. Optional notifications are off by default, with separate cooldowns of 1–60 minutes. Reset preserves event history; clearing events requires confirmation.
+- **Hardware:** CPU, memory, pressure, swap, storage, disk I/O and network rates; GPU and internal battery where supported.
+- **Menu bar:** three customizable rings and individual CPU, memory, read, write, upload and download numbers.
+- **Overview:** four tiles for CPU/GPU, memory, network and storage, with separate detail windows.
+- **App rankings and temperatures:** available with the Helper. [Sensor compatibility](docs/TEMPERATURES.md).
+- **History:** inspect samples, averages and peaks over up to 24 hours from the current session.
+- **Events:** sustained CPU ≥ 85% for 30 seconds or elevated memory pressure for 10 seconds. Stored locally for 7 days, up to 200 events; notifications are optional.
 
 ## Using PulseBar
 
-Launch `PulseBar.app` to see readings in the menu bar, without a Dock icon. Click the readings to open the panel; click outside or press Escape to close it.
+Open PulseBar, then click its menu bar readings for the overview. Hover over or click a hardware tile for details. The gear opens Settings; More opens Events, Reset and Quit. Click outside or press Escape to close.
 
-Repeated launches reopen the existing panel. Only one GUI instance runs per macOS user, including when launching updated copies from different folders. The read-only `--sample` diagnostic can run separately.
-
-The overview and independent windows are 452 pt wide and fit their content, up to 80% of the current screen's usable height. Expanding an event grows its window; collapsing it shrinks the window again. Content scrolls only above that limit. Hover over a hardware module to open an independent detail window beside the overview, or click for immediate access. Hardware details dismiss after leaving the row and detail window; there is no pin control. Moving between the overview and detail does not dismiss the preview. CPU and memory details include application rankings. The gear opens Settings; More opens Events. Scrollbars stay hidden whenever the content fits; long details or short screens can scroll without resetting expanded events or editing state.
-
-The panel uses AppKit Liquid Glass (`NSGlassEffectView`) on macOS 26 and later, native popover material on older systems, with transparency and contrast managed by the system material. Gauges, capacity bars, segmented controls, menus, and settings use native controls. Action buttons use Apple’s SwiftUI glass button style on macOS 26+, with matching system icon buttons, native menus and standard bordered controls on older systems; settings uses grouped native fields, and events use DisclosureGroup. Hardware actions use borderless native hit areas within their shared card surfaces; macOS 27 also enables the public interactive glass container behavior. Window resizing uses asynchronous AppKit animation and respects Reduce Motion. The history picker offers 1 minute, 5 minutes, and 1 hour, retaining an existing custom range. Swift Charts uses actual collected samples and a subtle area fill; no samples are invented for unobserved time.
-
-Use **More** in the header for events, update checks, Reset, and Quit, or right-click the menu bar readings for a shortcut menu. Escape closes the focused detail window or the overview. Command-2 opens CPU details, Command-3 opens Events, and Command-4 opens Settings from the overview. Native menus handle their own Escape key.
-
-Preferences apply immediately and are saved. Closing the overview also closes its detail window. Hover, press, release, and window opening use restrained feedback; Reduce Motion disables scale and window animations.
+Command-2 opens CPU details, Command-3 opens Events, and Command-4 opens Settings. Reopening the app brings up its existing instance.
 
 | Setting | Behavior |
 | --- | --- |
-| Menu bar display | Configure all three rings; toggle CPU, memory, disk read, disk write, upload, and download numbers separately. |
-| Language | Follow System, English, or Simplified Chinese. Changes apply immediately; unsupported system languages fall back to English. |
-| Refresh | Sample every 1–60 seconds. Type a value and press Return, or use the stepper. |
-| History | Choose up to 24 hours, including decimals: `0.5` means 30 minutes. New installations default to one hour. |
-| Launch at login | Use macOS login items to launch PulseBar for your account. Off until enabled; actual system status is shown. |
-| Event notifications | Enable notifications for new performance events and choose a cooldown. Permission is requested only when enabled. |
-| Software update | Check manually or manage daily automatic checks. |
+| Menu bar | Choose ring metrics and visible numbers. |
+| Language | System, English or Simplified Chinese. |
+| Refresh | Every 1–60 seconds; default 2 seconds. |
+| History | Up to 24 hours; `0.5` means 30 minutes. |
+| Launch at login | Off until enabled. |
+| Event notifications | Optional, with a cooldown per event type. |
+| Software update | Managed by the App Store. |
 
-**Reset** clears charts and session disk/network totals. **Quit** exits the app. Charts retain up to 24 hours from the current run and clear on exit; changing the visible range reuses collected samples without changing the refresh interval. Missing periods are not filled with invented data.
-
-Rates use MB/s; capacities and totals automatically select B, KB, MB, GB, or larger units. Percentages, temperatures, rates, and formatted byte quantities use one decimal place and decimal units (`1 GB = 1000 MB`); core counts, battery cycles, and time estimates use integers. Very small nonzero rates show `<0.1 MB/s`. CPU and disk need one sampling interval to establish a baseline. Unavailable core usage and I/O metrics show `—` and retry while other metrics continue updating. Missing GPU, capacity, battery, and temperature readings are hidden. Temperatures and GPU statistics run in the background no more frequently than `max(5, Refresh)` seconds; capacity and battery reads use `max(30, Refresh)` seconds. Reset, stop, sleep, and wake clear optional hardware readings and reject results from earlier sampling sessions.
+Settings are saved automatically. **Reset** clears charts and session disk/network totals, keeping events. Network and disk rates each offer **Automatic** (default) or **Fixed MB/s**. Automatic chooses KB/s, MB/s or GB/s independently for each direction; paired menu-bar rows each show a unit, while a single row keeps its full-size unit. Rates use binary divisors and iStat-style precision; capacity and session totals retain decimal units (`1 GB = 1000 MB`). Unsupported hardware readings are hidden.
 
 ## Build and run
 
@@ -86,7 +71,7 @@ Install Xcode Command Line Tools (`xcode-select --install`). Builds require Swif
 open dist/PulseBar.app
 ```
 
-The build creates a universal arm64/x86_64 app and a local development ZIP in `dist/`, using ad-hoc signing by default. Sparkle and localized resources are bundled with the app. **GitHub Releases upload only the DMG.** See the [release guide](docs/RELEASING.md) for packaging, update signing, and optional Apple notarization.
+The build creates a universal arm64/x86_64 development app and ZIP in `dist/`, with ad-hoc signing. For the Store build and signed Helper installer, see the [release guide](docs/RELEASING.md).
 
 ```sh
 ./scripts/swift-local.sh test --disable-xctest

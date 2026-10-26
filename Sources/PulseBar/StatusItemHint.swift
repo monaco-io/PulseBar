@@ -208,7 +208,9 @@ private struct StatusItemHintView: View {
         HStack {
             Text(preferences.localizer(name)).foregroundStyle(.secondary)
             Spacer(minLength: 12)
-            Text(value.map { TrafficFormatter.speed($0).text } ?? "—").monospacedDigit().fixedSize()
+            Text(value.map {
+                TrafficFormatter.speed($0, mode: target == .disk ? preferences.diskSpeedMode : preferences.networkSpeedMode).text
+            } ?? "—").monospacedDigit().fixedSize()
         }
         .frame(height: 24)
         .accessibilityElement(children: .combine)
